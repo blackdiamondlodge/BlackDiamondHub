@@ -18,144 +18,58 @@ from sunpeaks_webcams.views import check_for_new_webcams
 
 class CheckForNewWebcamsTests(TestCase):
     def test_check_for_new_webcams_data(self):
+        # Sun Peaks adds, renames and removes (seasonal) cameras, so don't pin
+        # names; just verify that every camera that is listed is well-formed
+        # and fresh.
         webcams = check_for_new_webcams()
-        
-        # Verify that we got at least one webcam entry.
-        expected_cams = 5
-        self.assertTrue(len(webcams) >= expected_cams, f"Expected at {expected_cams} webcams, got {len(webcams)}")
-        
-        # Define expected static values keyed by camera_name.
-        # Only the static parts are expected to remain constant.
-        expected = {
-            'Sundance': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/sundance.jpg',
-                'location': 'Top of Sundance Express Chairlift',
-                'elevation': "1,731m (5,677')"
-            },
-            'Valley': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/Valley.jpg',
-                'location': 'Village Square',
-                'elevation': "Village Base, 1,255m (4,116')"
-            },
-            'View of Top of the World': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/westbowl-totw.jpg',
-                'location': 'Top of West Bowl',
-                'elevation': "2,093m (6,867')"
-            },
-            'West Bowl Express': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/westbowl.jpg',
-                'location': 'Top of West Bowl',
-                'elevation': "2,093m (6,867')"
-            },
-            'Mt. Tod, View from Mt. Morrisey': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/view of mt todd.jpg',
-                'location': 'Top of Morrisey Express',
-                'elevation': "1,672m (5,495')"
-            },
-            'Elevation': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/ele_view_of_morrisey.jpg',
-                'location': 'Base of the Elevation Chairlift',
-                'elevation': "1,600m (5,249')"
-            },
-            'Orient Quad Base': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/Orient.jpg',
-                'location': 'Base of the Orient Quad',
-                'elevation': "1,284m (4,213')"
-            },
-            'Village Day Lodge Slopeside': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/Village Day Lodge Slopeside.jpg',
-                'location': 'Village Day Lodge',
-                'elevation': "Village Base, 1,255m (4,116')"
-            },
-            'Base of OSV': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/ele_view_of_OSV.jpg',
-                'location': 'Base of the Elevation Chairlift',
-                'elevation': "1,600m (5,249')"
-            },
-            'Sundance Lift Base': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/Sundance Lift Base.jpg',
-                'location': 'Village Square',
-                'elevation': "Village Base, 1,255m (4,116')"
-            },
-            'Village Clock Tower': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/Village Clock Tower.jpg',
-                'location': 'Village Square',
-                'elevation': "Village Base, 1,255m (4,116')"
-            },
-            'Golf Course': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/Golf Course.jpg',
-                'location': 'Overlooking hole 17 on the left and hole 10 on the right',
-                'elevation': "Village Base, 1,255m (4,116')"
-            },
-            'Crystal Bowl (Summer)': {
-                'static_image_url': 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/Wild flowers 1.jpg',
-                'location': 'Top of Burfield Chairlift',
-                'elevation': "2,080m (6,824')"
-            },
-        }
-        
-        
-        # Get current UTC time and the current Pacific Time via pytz.
-        now_utc = datetime.now(timezone.utc)
+        self.assertGreater(len(webcams), 0, "No webcams found")
+
+        image_prefix = 'https://www.sunpeaksresort.com/sites/default/files/spr_website_data/webcams/'
         pacific = pytz.timezone('America/Los_Angeles')
         now_pacific = datetime.now(pacific)
 
         for webcam in webcams:
-            # Expected fields in each webcam entry.
             for field in ['camera_name', 'image_url', 'timestamp', 'last_updated', 'location', 'elevation']:
                 self.assertIn(field, webcam, f"Expected key '{field}' missing in webcam data.")
 
             camera_name = webcam['camera_name']
-            self.assertIn(camera_name, expected, f"Unexpected camera_name: {camera_name}")
-            exp = expected[camera_name]
-            
-            # Verify the image_url static part (before '?timestamp=') remains constant.
+            self.assertTrue(camera_name, "Empty camera_name")
+            for field in ['location', 'elevation']:
+                self.assertTrue(webcam[field], f"Empty {field} for '{camera_name}'")
+
             image_url = webcam['image_url']
             split_parts = image_url.split('?timestamp=')
             self.assertGreater(len(split_parts), 1, f"image_url does not contain '?timestamp=': {image_url}")
             static_url = split_parts[0]
-            self.assertEqual(static_url, exp['static_image_url'],
-                             f"For camera '{camera_name}', expected static image URL '{exp['static_image_url']}', got '{static_url}'")
-            
-            # Extract and verify the timestamp from URL.
+            self.assertTrue(static_url.startswith(image_prefix),
+                            f"For camera '{camera_name}', unexpected image URL '{static_url}'")
+            self.assertTrue(static_url.lower().endswith('.jpg'),
+                            f"For camera '{camera_name}', image URL is not a .jpg: '{static_url}'")
+
             ts_str = split_parts[1]
             try:
                 ts_int = int(ts_str)
             except ValueError:
                 self.fail(f"Timestamp '{ts_str}' in image_url for '{camera_name}' is not a valid integer")
-            # Verify the timestamp is not more than one hour old.
             current_unix = int(time.time())
             self.assertLessEqual(
                 current_unix - ts_int, 15*60,
-                f"Timestamp {ts_int} for '{camera_name}' is older than one hour."
+                f"Timestamp {ts_int} for '{camera_name}' is older than 15 minutes."
             )
-            
-            # Verify last_updated occurred within the last hour.
-            # Remove possible ordinal suffixes from the day like 'th', 'st', etc.
+
+            # Remove ordinal suffixes from the day like 'th', 'st', etc.
             last_updated_text = webcam['last_updated']
             cleaned_text = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', last_updated_text)
             try:
-                # Use dateutil to parse. Assume the string is for the current day and in Pacific time.
+                # The string may not include a year; assume current year, Pacific time.
                 parsed_last_updated = dt_parser.parse(cleaned_text, fuzzy=True)
-                # Because the returned string may not include a year, set the year to current.
                 parsed_last_updated = parsed_last_updated.replace(year=now_pacific.year)
             except Exception as e:
                 self.fail(f"Could not parse last_updated '{last_updated_text}' for '{camera_name}': {e}")
-            
-            # Compute the difference in minutes.
+
             delta = now_pacific - pacific.localize(parsed_last_updated)
             self.assertLessEqual(delta, timedelta(minutes=15),
-                f"Last updated for '{camera_name}' is more than an hour old: {parsed_last_updated} (delta: {delta})")
-            
-            # Verify expected values for location and elevation.
-            self.assertEqual(
-                webcam['location'], exp['location'],
-                f"For camera '{camera_name}', expected location: '{exp['location']}', but got '{webcam['location']}'"
-            )
-            self.assertEqual(
-                webcam['elevation'], exp['elevation'],
-                f"For camera '{camera_name}', expected elevation: '{exp['elevation']}', but got: '{webcam['elevation']}'"
-            )
+                f"Last updated for '{camera_name}' is more than 15 minutes old: {parsed_last_updated} (delta: {delta})")
 
 @tag('selenium')
 class SunPeaksWebcamsTest(StaticLiveServerTestCase):
