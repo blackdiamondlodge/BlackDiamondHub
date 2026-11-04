@@ -1539,3 +1539,179 @@ class StartExecutionSeasonTests(TestCase):
         self.assertEqual(_runs[run_id]["season"], "heating")
         aliases = [s["alias"] for s in _runs[run_id]["steps"]]
         self.assertIn("Heat Pump Setup — Heating", aliases)
+
+
+# --------------------------------------------------------------------------
+# bdl_modes (AppDaemon) client
+
+from django.contrib.auth.models import User  # noqa: E402
+from django.test import override_settings  # noqa: E402
+
+from . import bdl_client  # noqa: E402
+
+BM_URL = "http://appdaemon.test:5050/api/appdaemon/bdl_modes"
+BM_STATUS = {"active": None, "history": [], "dry_run": True,
+             "occupancy": "away", "season": "heating", "season_avg": 3.0,
+             "leads_h": {"house": 24, "amenities": 6}}
+BM_PREVIEW = {"season": "heating", "groups": [
+    {"name": "house", "label": "Heat the house",
+     "steps": [{"id": "thermostats_home", "alias": "Set Thermostats",
+                "icon": "fas fa-fire"}]}]}
+
+
+def _resp(code, payload):
+    r = MagicMock()
+    r.status_code = code
+    r.json.return_value = payload
+    return r
+
+
+@override_settings(BDL_MODES_URL=BM_URL, BDL_MODES_API_KEY="secret",
+                   BDL_MODES_PREHEAT=True)
+class BdlClientTests(TestCase):
+    @patch("vacation_mode.bdl_client.requests.post")
+    def test_sends_key_and_drops_none_fields(self, post):
+        post.return_value = _resp(200, BM_STATUS)
+        data, err, code = bdl_client.call("home", arrival=None,
+                                          skip_steps=["x"])
+        self.assertEqual((data, err, code), (BM_STATUS, None, 200))
+        args, kwargs = post.call_args
+        self.assertEqual(args[0], BM_URL)
+        self.assertEqual(kwargs["headers"]["X-API-Key"], "secret")
+        self.assertEqual(kwargs["json"], {"cmd": "home", "skip_steps": ["x"]})
+
+    @patch("vacation_mode.bdl_client.requests.post")
+    def test_unreachable(self, post):
+        post.side_effect = requests_lib.ConnectionError("refused")
+        data, err, code = bdl_client.call("status")
+        self.assertIsNone(data)
+        self.assertEqual(code, 502)
+        self.assertIn("unreachable", err)
+
+    @patch("vacation_mode.bdl_client.requests.post")
+    def test_error_passthrough(self, post):
+        post.return_value = _resp(400, {"error": "arrival must be in the future"})
+        _, err, code = bdl_client.call("preheat", arrival="2001-01-01T00:00")
+        self.assertEqual((err, code), ("arrival must be in the future", 400))
+
+
+@override_settings(BDL_MODES_URL=BM_URL, BDL_MODES_API_KEY="secret",
+                   BDL_MODES_PREHEAT=True)
+class BdlModesViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="u", password="p")
+        self.client = Client()
+
+    def login(self, staff=False):
+        self.user.is_staff = staff
+        self.user.save()
+        self.client.force_login(self.user)
+
+    def test_requires_login(self):
+        r = self.client.get("/vacation_mode/")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("login", r["Location"])
+        r = self.client.post("/vacation_mode/api/modes/command/",
+                             data=json.dumps({"cmd": "home"}),
+                             content_type="application/json")
+        self.assertEqual(r.status_code, 302)
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_page_renders_status_and_previews(self, call):
+        call.side_effect = lambda cmd, **kw: (
+            (BM_STATUS if cmd == "status" else BM_PREVIEW), None, 200)
+        self.login()
+        r = self.client.get("/vacation_mode/")
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'id="bm-status"')
+        self.assertContains(r, "thermostats_home")
+        self.assertEqual(r.context["status"]["occupancy"], "away")
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_page_shows_error_when_unreachable(self, call):
+        call.return_value = (None, "Lodge controller unreachable: x", 502)
+        self.login()
+        r = self.client.get("/vacation_mode/")
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Lodge controller unreachable")
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_command_allowlist(self, call):
+        self.login()
+        r = self.client.post("/vacation_mode/api/modes/command/",
+                             data=json.dumps({"cmd": "preview"}),
+                             content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        call.assert_not_called()
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_command_forwards_fields(self, call):
+        call.return_value = (BM_STATUS, None, 200)
+        self.login()
+        r = self.client.post("/vacation_mode/api/modes/command/", data=json.dumps(
+            {"cmd": "preheat", "arrival": "2030-01-02T16:00", "request_id": "r1",
+             "skip_steps": ["media_on"]}), content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        call.assert_called_once_with("preheat", arrival="2030-01-02T16:00",
+                                     skip_steps=["media_on"], request_id="r1",
+                                     dry_run=None)
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_dry_run_only_for_staff(self, call):
+        call.return_value = (BM_STATUS, None, 200)
+        self.login(staff=False)
+        self.client.post("/vacation_mode/api/modes/command/", data=json.dumps(
+            {"cmd": "home", "dry_run": True}), content_type="application/json")
+        self.assertIsNone(call.call_args.kwargs["dry_run"])
+        self.login(staff=True)
+        self.client.post("/vacation_mode/api/modes/command/", data=json.dumps(
+            {"cmd": "home", "dry_run": True}), content_type="application/json")
+        self.assertTrue(call.call_args.kwargs["dry_run"])
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_bad_skip_steps(self, call):
+        self.login()
+        r = self.client.post("/vacation_mode/api/modes/command/", data=json.dumps(
+            {"cmd": "home", "skip_steps": [1, 2]}), content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        call.assert_not_called()
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_controller_error_status_passthrough(self, call):
+        call.return_value = (None, "no active preheat to update", 400)
+        self.login()
+        r = self.client.post("/vacation_mode/api/modes/command/", data=json.dumps(
+            {"cmd": "update_arrival", "arrival": "2030-01-01T10:00"}),
+            content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()["error"], "no active preheat to update")
+
+    @override_settings(BDL_MODES_PREHEAT=False)
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_preheat_flag(self, call):
+        self.login()
+        r = self.client.post("/vacation_mode/api/modes/command/", data=json.dumps(
+            {"cmd": "preheat", "arrival": "2030-01-01T10:00"}),
+            content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        call.assert_not_called()
+
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_status_proxy(self, call):
+        call.return_value = (BM_STATUS, None, 200)
+        self.login()
+        r = self.client.get("/vacation_mode/api/modes/status/")
+        self.assertEqual(r.json()["occupancy"], "away")
+
+
+@override_settings(BDL_MODES_URL="")
+class BdlModesDisabledTests(TestCase):
+    @patch("vacation_mode.views.get_away_mode_state", return_value=False)
+    @patch("vacation_mode.views.get_active_run", return_value=None)
+    @patch("vacation_mode.views.get_current_season", return_value=("heating", 5.0))
+    @patch("vacation_mode.views.bdl_client.call")
+    def test_legacy_page_without_url(self, call, *_):
+        r = Client().get("/vacation_mode/")
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, "vacation_mode.html")
+        call.assert_not_called()

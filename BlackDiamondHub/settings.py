@@ -251,6 +251,16 @@ HOMEASSISTANT_URL_2 = os.environ.get('HOMEASSISTANT_URL_2', 'http://homeassistan
 HOMEASSISTANT_ACCESS_TOKEN_2 = os.environ.get('HOMEASSISTANT_ACCESS_TOKEN_2')
 
 #####################################
+### BDL Modes (AppDaemon) Settings ###
+#####################################
+# When BDL_MODES_URL is set, vacation mode runs in the bdl_modes AppDaemon
+# app (background retries, preheat scheduling) and this hub is only the UI.
+# e.g. http://192.168.10.217:5050/api/appdaemon/bdl_modes
+BDL_MODES_URL = os.environ.get('BDL_MODES_URL', '')
+BDL_MODES_API_KEY = os.environ.get('BDL_MODES_API_KEY', '')
+BDL_MODES_PREHEAT = os.environ.get('BDL_MODES_PREHEAT', 'false').lower() in ('1', 'true', 'yes')
+
+#####################################
 ### Napoleon Fireplace (Ayla) Settings ###
 #####################################
 # Cloud credentials for the Napoleon fireplace (pynapoleon / Ayla IoT).

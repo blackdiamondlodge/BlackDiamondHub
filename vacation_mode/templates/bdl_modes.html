@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+
+{% block title %}Vacation Mode{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<style>
+    body { background-color: #000 !important; }
+    .bm { max-width: 820px; margin: 10px auto 30px; padding: 0 20px; color: #eee; }
+    .bm-header { text-align: center; margin-bottom: 22px; }
+    .bm-header h1 { font-size: 24px; font-weight: bold; margin-bottom: 6px; }
+    .badge-pill { display: inline-block; margin: 2px 4px; padding: 4px 14px;
+                  border-radius: 20px; font-size: 13px; font-weight: 600; color: #fff; }
+    .b-away { background: #dc3545; }
+    .b-preheat { background: #fd7e14; }
+    .b-home { background: #28a745; }
+    .b-heating { background: #fd7e14; }
+    .b-cooling { background: #0d6efd; }
+    .b-dry { background: #6f42c1; }
+    .bm-error { background: #f8d7da; color: #721c24; border-radius: 8px;
+                padding: 10px 14px; margin-bottom: 14px; font-weight: 600; }
+    .panel { background: #1b1b1b; border: 1px solid #333; border-radius: 10px;
+             padding: 16px 18px; margin-bottom: 16px; }
+    .panel h2 { font-size: 19px; font-weight: 700; margin: 0 0 10px; }
+    .panel p.sub { color: #aaa; font-size: 14px; margin: -4px 0 12px; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .bm-btn { padding: 14px 26px; font-size: 18px; font-weight: bold; border-radius: 10px;
+              border: none; cursor: pointer; color: #fff; }
+    .bm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .bm-btn.small { padding: 9px 16px; font-size: 15px; }
+    .c-red { background: #dc3545; } .c-green { background: #28a745; }
+    .c-orange { background: #fd7e14; } .c-grey { background: #6c757d; }
+    .bm input[type=datetime-local] { font-size: 17px; padding: 9px 10px; border-radius: 8px;
+              border: 1px solid #555; background: #111; color: #eee; color-scheme: dark; }
+    .schedule { color: #ccc; font-size: 14px; margin-top: 8px; }
+    .group { margin-top: 14px; }
+    .group-head { display: flex; justify-content: space-between; align-items: baseline;
+                  font-size: 16px; font-weight: 700; color: #ddd; margin-bottom: 6px; }
+    .group-head .when { font-size: 13px; font-weight: 500; color: #aaa; }
+    .step-list { list-style: none; padding: 0; margin: 0; }
+    .step-item { display: flex; flex-wrap: wrap; align-items: center; padding: 10px 16px;
+                 margin-bottom: 5px; background: #fff; border-radius: 8px;
+                 border-left: 4px solid #dee2e6; }
+    .step-item.running { border-left-color: #007bff; background: #f0f7ff; }
+    .step-item.retrying { border-left-color: #fd7e14; background: #fff8f0; }
+    .step-item.success { border-left-color: #28a745; background: #f0fff4; }
+    .step-item.failed { border-left-color: #dc3545; background: #fff5f5; }
+    .step-item.skipped, .step-item.cancelled { border-left-color: #adb5bd; background: #f8f9fa; opacity: 0.6; }
+    .step-item.skipped .step-name { text-decoration: line-through; color: #adb5bd; }
+    .step-cb { margin-right: 8px; width: 22px; height: 22px; accent-color: #28a745; }
+    .step-icon { width: 32px; font-size: 19px; color: #999; text-align: center; }
+    .step-name { font-size: 18px; font-weight: 600; color: #333; margin-left: 10px; }
+    .step-status { margin-left: auto; font-size: 21px; width: 32px; text-align: center; }
+    .step-detail { width: 100%; padding-left: 52px; font-size: 13px; color: #888; }
+    .step-item.failed .step-detail { color: #dc3545; }
+    .step-item.retrying .step-detail { color: #c75c00; }
+    .step-item.running .step-detail { color: #007bff; }
+    @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+    .fa-spinner { animation: spin 1s linear infinite; }
+    .summary { padding: 10px; border-radius: 8px; font-weight: 600; text-align: center; margin-top: 10px; }
+    .summary.ok { background: #d4edda; color: #155724; }
+    .summary.bad { background: #fff3cd; color: #856404; }
+    .summary.off { background: #e2e3e5; color: #383d41; }
+    .dry-row { text-align: center; margin-top: 10px; font-size: 14px; color: #aaa; }
+    .muted { color: #999; font-size: 13px; }
+</style>
+
+<div class="bm">
+    <div class="bm-header">
+        <h1><i class="fas fa-mountain-sun"></i> Vacation Mode</h1>
+        <div id="badges"></div>
+    </div>
+    <div id="error" class="bm-error" {% if not error %}style="display:none"{% endif %}>{{ error|default:"" }}</div>
+    <div id="main"></div>
+</div>
+
+{{ status|json_script:"bm-status" }}
+{{ previews|json_script:"bm-previews" }}
+<script>
+    const csrfToken = '{{ csrf_token }}';
+    const PREHEAT = {{ preheat_enabled|yesno:"true,false" }};
+    const ALLOW_DRY = {{ allow_dry_run|yesno:"true,false" }};
+    let status = JSON.parse(document.getElementById('bm-status').textContent);
+    const previews = JSON.parse(document.getElementById('bm-previews').textContent);
+    const skipped = { vacation: new Set(), home: new Set() };
+    let busy = false;
+    let pollTimer = null;
+    let editingArrival = false;
+
+    const ACTIVE = ['scheduled', 'running', 'retrying'];
+    const KIND_LABEL = { vacation: 'Vacation mode', home: 'Arrival (now)', preheat: 'Preheat for arrival' };
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g,
+            c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function fmt(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric',
+                                      hour: 'numeric', minute: '2-digit' });
+    }
+    function localInput(iso) {
+        // datetime-local value in the lodge's (= browser's) local time
+        const d = iso ? new Date(iso) : new Date(Date.now() + 2 * 86400000);
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+    function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+    function activeOp() {
+        const op = status && status.active;
+        return op && ACTIVE.includes(op.status) ? op : null;
+    }
+
+    function renderBadges() {
+        const b = document.getElementById('badges');
+        if (!status) { b.innerHTML = ''; return; }
+        const occ = status.occupancy || 'unknown';
+        const occIcon = { away: 'fa-plane', preheat: 'fa-temperature-arrow-up', home: 'fa-house' }[occ] || 'fa-question';
+        const occCls = { away: 'b-away', preheat: 'b-preheat', home: 'b-home' }[occ] || 'c-grey';
+        let h = `<span class="badge-pill ${occCls}"><i class="fas ${occIcon}"></i> ${esc(occ[0].toUpperCase() + occ.slice(1))}</span>`;
+        const cool = status.season === 'cooling';
+        h += `<span class="badge-pill ${cool ? 'b-cooling' : 'b-heating'}"><i class="fas ${cool ? 'fa-snowflake' : 'fa-fire'}"></i> ${cool ? 'Cooling' : 'Heating'} season`;
+        if (status.season_avg != null) h += ` &middot; outdoor avg ${status.season_avg.toFixed(1)}&deg;C`;
+        h += '</span>';
+        if (status.dry_run) h += '<span class="badge-pill b-dry"><i class="fas fa-flask"></i> Dry run</span>';
+        b.innerHTML = h;
+    }
+
+    function statusIcon(st) {
+        return {
+            pending: '<i class="fas fa-circle" style="color:#dee2e6;font-size:13px"></i>',
+            running: '<i class="fas fa-spinner" style="color:#007bff"></i>',
+            retrying: '<i class="fas fa-spinner" style="color:#fd7e14"></i>',
+            success: '<i class="fas fa-check-circle" style="color:#28a745"></i>',
+            failed: '<i class="fas fa-times-circle" style="color:#dc3545"></i>',
+            skipped: '<i class="fas fa-forward" style="color:#adb5bd"></i>',
+            cancelled: '<i class="fas fa-ban" style="color:#adb5bd"></i>',
+        }[st] || '';
+    }
+    function stepDetail(s) {
+        if (s.status === 'running') return esc(s.progress || 'Running...');
+        if (s.status === 'retrying') {
+            let t = 'Not responding';
+            if (s.error) t += ': ' + esc(s.error);
+            if (s.next_retry_iso) t += ` &mdash; retrying in the background, next try ${fmt(s.next_retry_iso)}`;
+            return t;
+        }
+        if (s.status === 'failed') return esc(s.error || 'Failed');
+        return '';
+    }
+
+    function renderGroups(groups, opts) {
+        let h = '';
+        groups.forEach(g => {
+            let when = '';
+            if (opts.live) {
+                if (g.status === 'pending') when = 'starts ' + fmt(g.due_iso);
+                else if (g.status === 'retrying') when = 'retrying in background';
+                else when = g.status;
+            }
+            h += `<div class="group"><div class="group-head"><span>${esc(g.label)}</span><span class="when">${esc(when)}</span></div><ul class="step-list">`;
+            g.steps.forEach(s => {
+                let st = opts.live ? s.status : (opts.skip && opts.skip.has(s.id) ? 'skipped' : 'pending');
+                let cb = '';
+                if (opts.skip) {
+                    cb = `<input type="checkbox" class="step-cb" ${opts.skip.has(s.id) ? '' : 'checked'}
+                           onchange="toggleSkip('${opts.kind}','${esc(s.id)}',this.checked)">`;
+                }
+                const detail = opts.live ? stepDetail(s) : '';
+                h += `<li class="step-item ${st}">${cb}<div class="step-icon"><i class="${esc(s.icon)}"></i></div>
+                      <div class="step-name">${esc(s.alias)}</div>
+                      <div class="step-status">${opts.live || st === 'skipped' ? statusIcon(st) : ''}</div>
+                      ${detail ? `<div class="step-detail">${detail}</div>` : ''}</li>`;
+            });
+            h += '</ul></div>';
+        });
+        return h;
+    }
+
+    function previewSchedule(arrIso) {
+        if (!arrIso || !status) return '';
+        const arr = new Date(arrIso).getTime();
+        const L = status.leads_h || { house: 24, amenities: 6 };
+        const at = h => fmt(new Date(arr - h * 3600000).toISOString());
+        return `House heating starts ${at(L.house)}, hot tub &amp; water heater ${at(L.amenities)}, arrival steps ${at(0)}.`;
+    }
+
+    function render() {
+        renderBadges();
+        const m = document.getElementById('main');
+        if (!status) { m.innerHTML = ''; return; }
+        const op = activeOp();
+        let h = '';
+        if (op) {
+            h += `<div class="panel"><h2>${esc(KIND_LABEL[op.kind] || op.kind)}${op.dry_run ? ' (dry run)' : ''}</h2>`;
+            if (op.kind === 'preheat') {
+                h += `<p class="sub">Arriving <b>${esc(fmt(op.arrival_iso))}</b></p>`;
+                if (editingArrival) {
+                    h += `<div class="btn-row"><input type="datetime-local" id="arrival-edit" value="${localInput(op.arrival_iso)}">
+                          <button class="bm-btn small c-orange" onclick="saveArrival()">Save</button>
+                          <button class="bm-btn small c-grey" onclick="editingArrival=false;render()">Back</button></div>`;
+                } else {
+                    h += `<div class="btn-row">
+                          <button class="bm-btn small c-orange" onclick="editingArrival=true;render()"><i class="fas fa-clock"></i> Change arrival</button>
+                          <button class="bm-btn small c-green" onclick="send('arrive_now')"><i class="fas fa-house"></i> Arrive now</button>
+                          <button class="bm-btn small c-grey" onclick="cancelOp()"><i class="fas fa-ban"></i> Cancel schedule</button>
+                          <button class="bm-btn small c-red" onclick="returnToVacation()"><i class="fas fa-plane-departure"></i> Return to vacation</button></div>`;
+                }
+            } else {
+                h += `<div class="btn-row"><button class="bm-btn small c-grey" onclick="cancelOp()"><i class="fas fa-ban"></i> Stop</button>
+                      <span class="muted">Stopping leaves everything as it is now.</span></div>`;
+            }
+            h += renderGroups(op.groups, { live: true });
+            h += '</div>';
+        } else {
+            const last = status.active;
+            if (last && !sessionStorage.getItem('bm-dismiss-' + last.id)) {
+                const fails = last.groups.flatMap(g => g.steps).filter(s => s.status === 'failed');
+                const cls = last.status === 'done' ? 'ok' : last.status === 'failed' ? 'bad' : 'off';
+                const txt = last.status === 'done' ? `${KIND_LABEL[last.kind] || last.kind} finished`
+                          : last.status === 'failed' ? `${KIND_LABEL[last.kind] || last.kind} finished with problems`
+                          : `${KIND_LABEL[last.kind] || last.kind} ${last.status}`;
+                h += `<div class="panel"><div class="summary ${cls}">${esc(txt)}</div>`;
+                if (fails.length || last.status === 'failed') h += renderGroups(last.groups, { live: true });
+                h += `<div class="btn-row" style="justify-content:center;margin-top:10px">
+                      <button class="bm-btn small c-grey" onclick="sessionStorage.setItem('bm-dismiss-${esc(last.id)}','1');render()">Dismiss</button></div></div>`;
+            }
+            if (status.occupancy === 'home') {
+                h += `<div class="panel"><h2><i class="fas fa-plane-departure"></i> Put the lodge into vacation mode</h2>
+                      <div class="btn-row"><button class="bm-btn c-red" onclick="startNow('vacation')" ${busy ? 'disabled' : ''}>Activate</button></div>
+                      ${renderGroups(previews.vacation || [], { skip: skipped.vacation, kind: 'vacation' })}</div>`;
+            } else {
+                if (PREHEAT) {
+                    h += `<div class="panel"><h2><i class="fas fa-temperature-arrow-up"></i> Preheat for arrival</h2>
+                          <p class="sub">Pick when you arrive; the lodge starts warming in time.</p>
+                          <div class="btn-row"><input type="datetime-local" id="arrival-new" value="${localInput(null)}" oninput="updateSchedule()">
+                          <button class="bm-btn c-orange" onclick="schedulePreheat()" ${busy ? 'disabled' : ''}>Schedule</button></div>
+                          <div class="schedule" id="schedule-preview"></div></div>`;
+                }
+                h += `<div class="panel"><h2><i class="fas fa-house"></i> Prepare the lodge now</h2>
+                      <div class="btn-row"><button class="bm-btn c-green" onclick="startNow('home')" ${busy ? 'disabled' : ''}>Activate</button></div>
+                      ${renderGroups(previews.home || [], { skip: skipped.home, kind: 'home' })}</div>`;
+            }
+            if (ALLOW_DRY) {
+                h += `<div class="dry-row"><label><input type="checkbox" id="dry-run"> <i class="fas fa-flask"></i> Dry run</label></div>`;
+            }
+        }
+        const dry = document.getElementById('dry-run');
+        const keepDry = dry && dry.checked;
+        m.innerHTML = h;
+        if (keepDry && document.getElementById('dry-run')) document.getElementById('dry-run').checked = true;
+        updateSchedule();
+        schedulePoll();
+    }
+
+    function updateSchedule() {
+        const el = document.getElementById('schedule-preview');
+        const inp = document.getElementById('arrival-new');
+        if (el && inp && inp.value) el.innerHTML = previewSchedule(new Date(inp.value).toISOString());
+    }
+    function toggleSkip(kind, id, checked) {
+        if (checked) skipped[kind].delete(id); else skipped[kind].add(id);
+        render();
+    }
+    function showError(msg) {
+        const e = document.getElementById('error');
+        e.textContent = msg || '';
+        e.style.display = msg ? 'block' : 'none';
+    }
+
+    async function send(cmd, extra) {
+        busy = true;
+        showError('');
+        try {
+            const dry = document.getElementById('dry-run');
+            const body = Object.assign({ cmd: cmd, request_id: rid() }, extra || {});
+            if (dry && dry.checked) body.dry_run = true;
+            const res = await fetch('{% url "bdl_modes_command" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            if (data.error) { showError(data.error); return false; }
+            status = data;
+            editingArrival = false;
+            return true;
+        } catch (err) {
+            showError('Could not reach the hub: ' + err);
+            return false;
+        } finally {
+            busy = false;
+            render();
+        }
+    }
+    function startNow(kind) { send(kind, { skip_steps: Array.from(skipped[kind]) }); }
+    function schedulePreheat() {
+        const v = document.getElementById('arrival-new').value;
+        if (!v) { showError('Pick an arrival time'); return; }
+        send('preheat', { arrival: v });
+    }
+    function saveArrival() {
+        const v = document.getElementById('arrival-edit').value;
+        if (v) send('update_arrival', { arrival: v });
+    }
+    function cancelOp() {
+        if (confirm('Stop what is still pending? Nothing that already ran is undone.')) send('cancel');
+    }
+    function returnToVacation() {
+        if (confirm('Put the lodge back into vacation mode now?')) send('vacation');
+    }
+
+    function schedulePoll() {
+        if (pollTimer) clearTimeout(pollTimer);
+        const op = activeOp();
+        const fast = op && op.status !== 'scheduled';
+        pollTimer = setTimeout(poll, fast ? 2000 : 30000);
+    }
+    async function poll() {
+        try {
+            const res = await fetch('{% url "bdl_modes_status" %}');
+            const data = await res.json();
+            if (data.error) { showError(data.error); }
+            else {
+                if (document.getElementById('error').textContent.startsWith('Lodge controller')) showError('');
+                status = data;
+            }
+        } catch (err) { /* keep last state */ }
+        // don't wipe an arrival the user is typing
+        if (editingArrival || (document.activeElement && document.activeElement.type === 'datetime-local')) {
+            schedulePoll();
+        } else {
+            render();
+        }
+    }
+
+    render();
+</script>
+
+{% endblock %}
