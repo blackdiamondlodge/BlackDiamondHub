@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST, require_GET
@@ -11,10 +13,13 @@ from .executor import (
     get_active_run,
 )
 from .steps import build_vacation_steps, build_home_steps, SEASON_COOLING
+from . import bdl_client
 
 
 def vacation_mode_view(request):
     """Main page view — renders the vacation mode UI."""
+    if bdl_client.enabled():
+        return bdl_modes_view(request)
     is_away = get_away_mode_state()
     active_run = get_active_run()
 

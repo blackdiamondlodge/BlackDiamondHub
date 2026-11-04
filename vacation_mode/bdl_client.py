@@ -28,6 +28,7 @@ def call(cmd, **fields):
         return None, "Bad response from lodge controller (HTTP %s)" % (
             r.status_code), 502
     if r.status_code != 200:
-        return None, data.get("error") or "HTTP %s" % r.status_code, (
+        msg = data.get("error") if isinstance(data, dict) else None
+        return None, msg or "HTTP %s" % r.status_code, (
             r.status_code if r.status_code in (400, 401) else 502)
     return data, None, 200
