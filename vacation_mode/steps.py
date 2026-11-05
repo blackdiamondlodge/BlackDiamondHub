@@ -50,7 +50,7 @@ ZONE_THERMOSTATS = [
 ZONE_SETPOINTS = {
     SEASON_HEATING: {
         "home": {"climate.ski_room": 19, "_default": 20},
-        "away": {"_default": 13.5},
+        "away": {"_default": 12},
     },
     SEASON_COOLING: {
         "home": {"_default": 22},
@@ -601,7 +601,7 @@ def build_vacation_steps(season=SEASON_HEATING):
     thermo_alias = (
         "Set Thermostats to Away Cool (28°C)"
         if season == SEASON_COOLING
-        else "Set Thermostats to Away Heat (13.5°C)"
+        else "Set Thermostats to Away Heat (12°C)"
     )
     thermo_icon = "fas fa-snowflake" if season == SEASON_COOLING else "fas fa-temperature-arrow-down"
     return (
