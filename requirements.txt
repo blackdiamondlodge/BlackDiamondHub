@@ -79,5 +79,4 @@ zope.interface==7.0.3
 python-dateutil
 pytz
 websockets
-pynapoleon==0.0.2
 pygemstone==0.0.3

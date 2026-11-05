@@ -2,6 +2,7 @@
 Tests for the device_control app.
 """
 
+import json
 from unittest.mock import patch, MagicMock
 from django.test import TestCase, RequestFactory, tag
 from django.urls import reverse
@@ -226,62 +227,76 @@ class ViewTests(TestCase):
         self.assertFalse(data["ok"])
 
 
-class FireplaceViewTests(TestCase):
-    """Tests for the Napoleon fireplace endpoints (mocked napoleon_client)."""
+REGISTRY = {
+    "entities": {
+        "switch.lr_power": {"entity_id": "switch.lr_power", "device_id": "dev1",
+                            "platform": "napoleon", "translation_key": "fireplace_power"},
+        "light.lr_ember": {"entity_id": "light.lr_ember", "device_id": "dev1",
+                           "platform": "napoleon", "translation_key": "ember_bed"},
+    },
+    "devices": {"dev1": {"id": "dev1", "name": "Living Room", "name_by_user": None}},
+    "config": {"unit_system": {"temperature": "°C"}},
+}
 
-    def _state(self, **over):
-        base = {
-            "dsn": "AC000W000000001",
-            "name": "Living Room Fireplace",
-            "online": None,
-            "power": True,
-            "flame_speed": 3,
-            "orange_flame": 2,
-            "yellow_flame": 1,
-            "heater": 1,
-            "setpoint_c": 21,
-            "eco_mode": False,
-            "boost_mode": False,
-            "ember_bed_rgb": [255, 120, 0],
-            "ember_bed_brightness": 3,
-            "ember_bed_cycling": False,
-            "top_light_rgb": [0, 0, 0],
-            "top_light_cycling": False,
-            "current_favourite": None,
-        }
-        base.update(over)
-        return base
+
+class FireplaceViewTests(TestCase):
+    """Tests for the HA-backed fireplace endpoints (mocked HA client)."""
+
+    def setUp(self):
+        views._fireplace_cache.clear()
+
+    def _post(self, body):
+        return self.client.post(
+            reverse("device_control_fireplace_action"),
+            data=body if isinstance(body, str) else json.dumps(body),
+            content_type="application/json",
+        )
+
+    # ----- registry loading -----
+
+    @patch("device_control.views.ws_commands")
+    def test_registry_filters_to_napoleon(self, mock_ws):
+        mock_ws.return_value = [
+            [
+                {"entity_id": "switch.lr_power", "device_id": "dev1", "platform": "napoleon",
+                 "translation_key": "fireplace_power", "disabled_by": None, "extra": 1},
+                {"entity_id": "switch.other", "device_id": "dev2", "platform": "hue",
+                 "translation_key": None, "disabled_by": None},
+                {"entity_id": "switch.lr_off", "device_id": "dev1", "platform": "napoleon",
+                 "translation_key": "eco_mode", "disabled_by": "user"},
+            ],
+            [{"id": "dev1", "name": "Living Room", "name_by_user": "LR"}, {"id": "dev2", "name": "Hue"}],
+            {"unit_system": {"temperature": "°F"}},
+        ]
+        reg = views._napoleon_registry()
+        self.assertEqual(list(reg["entities"]), ["switch.lr_power"])
+        self.assertNotIn("extra", reg["entities"]["switch.lr_power"])
+        self.assertEqual(list(reg["devices"]), ["dev1"])
+        self.assertEqual(reg["config"]["unit_system"]["temperature"], "°F")
+        views._napoleon_registry()
+        mock_ws.assert_called_once()  # cached
 
     # ----- states endpoint -----
 
-    @patch("device_control.views.napoleon_client.is_configured", return_value=False)
-    def test_states_not_configured(self, _cfg):
+    @patch("device_control.views.get_all_states")
+    @patch("device_control.views._napoleon_registry", return_value=REGISTRY)
+    def test_states_returns_napoleon_states_only(self, _reg, mock_states):
+        mock_states.return_value = [
+            {"entity_id": "switch.lr_power", "state": "on"},
+            {"entity_id": "light.kitchen", "state": "on"},
+        ]
         resp = self.client.get(reverse("device_control_fireplace_states"))
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertFalse(data["configured"])
-        self.assertEqual(data["fireplaces"], [])
+        self.assertEqual(list(data["states"]), ["switch.lr_power"])
+        self.assertIn("dev1", data["devices"])
+        self.assertIn("light.lr_ember", data["entities"])
 
-    @patch("device_control.views.napoleon_client.get_states")
-    @patch("device_control.views.napoleon_client.is_configured", return_value=True)
-    def test_states_success(self, _cfg, mock_states):
-        mock_states.return_value = [self._state()]
-        resp = self.client.get(reverse("device_control_fireplace_states"))
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertTrue(data["configured"])
-        self.assertEqual(len(data["fireplaces"]), 1)
-        self.assertEqual(data["fireplaces"][0]["dsn"], "AC000W000000001")
-
-    @patch("device_control.views.napoleon_client.get_states")
-    @patch("device_control.views.napoleon_client.is_configured", return_value=True)
-    def test_states_cloud_error_returns_502(self, _cfg, mock_states):
-        mock_states.side_effect = views.napoleon_client.FireplaceError("cloud down")
+    @patch("device_control.views._napoleon_registry", side_effect=views.HAError("down"))
+    def test_states_ha_error_returns_502(self, _reg):
         resp = self.client.get(reverse("device_control_fireplace_states"))
         self.assertEqual(resp.status_code, 502)
-        data = resp.json()
-        self.assertTrue(data["configured"])
-        self.assertIn("error", data)
+        self.assertIn("error", resp.json())
 
     # ----- action endpoint -----
 
@@ -290,101 +305,60 @@ class FireplaceViewTests(TestCase):
         self.assertEqual(resp.status_code, 405)
 
     def test_action_rejects_bad_json(self):
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data="not json",
-            content_type="application/json",
-        )
+        self.assertEqual(self._post("not json").status_code, 400)
+
+    def test_action_rejects_disallowed_service(self):
+        resp = self._post({"domain": "lock", "service": "unlock", "data": {"entity_id": "lock.front"}})
+        self.assertEqual(resp.status_code, 400)
+        resp = self._post({"domain": "switch", "service": "toggle", "data": {"entity_id": "switch.lr_power"}})
         self.assertEqual(resp.status_code, 400)
 
-    def test_action_rejects_missing_dsn(self):
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"action": "power", "value": true}',
-            content_type="application/json",
-        )
+    def test_action_rejects_domain_mismatch(self):
+        resp = self._post({"domain": "switch", "service": "turn_on", "data": {"entity_id": "light.lr_ember"}})
         self.assertEqual(resp.status_code, 400)
 
-    def test_action_rejects_unknown_action(self):
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC1", "action": "explode", "value": true}',
-            content_type="application/json",
-        )
+    def test_action_rejects_unknown_fields(self):
+        resp = self._post({"domain": "light", "service": "turn_on",
+                           "data": {"entity_id": "light.lr_ember", "flash": "long"}})
         self.assertEqual(resp.status_code, 400)
 
-    def test_action_rejects_bad_value_type(self):
-        # flame_speed must be an int 1..5
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC1", "action": "flame_speed", "value": 9}',
-            content_type="application/json",
-        )
+    @patch("device_control.views.call_service")
+    @patch("device_control.views._napoleon_registry", return_value=REGISTRY)
+    def test_action_rejects_non_napoleon_entity(self, _reg, mock_call):
+        resp = self._post({"domain": "switch", "service": "turn_on", "data": {"entity_id": "switch.garage"}})
         self.assertEqual(resp.status_code, 400)
+        mock_call.assert_not_called()
 
-    def test_action_rejects_bad_rgb(self):
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC1", "action": "ember_bed_rgb", "value": [300, 0, 0]}',
-            content_type="application/json",
-        )
-        self.assertEqual(resp.status_code, 400)
-
-    @patch("device_control.views.napoleon_client.is_configured", return_value=False)
-    def test_action_not_configured_returns_503(self, _cfg):
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC1", "action": "power", "value": true}',
-            content_type="application/json",
-        )
-        self.assertEqual(resp.status_code, 503)
-
-    @patch("device_control.views.napoleon_client.apply_action")
-    @patch("device_control.views.napoleon_client.is_configured", return_value=True)
-    def test_action_success(self, _cfg, mock_apply):
-        mock_apply.return_value = self._state(power=False)
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC000W000000001", "action": "power", "value": false}',
-            content_type="application/json",
-        )
+    @patch("device_control.views.call_service", return_value=(True, None))
+    @patch("device_control.views._napoleon_registry", return_value=REGISTRY)
+    def test_action_success(self, _reg, mock_call):
+        resp = self._post({"domain": "light", "service": "turn_on",
+                           "data": {"entity_id": "light.lr_ember", "rgb_color": [255, 90, 30]}})
         self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertTrue(data["ok"])
-        self.assertFalse(data["fireplace"]["power"])
-        mock_apply.assert_called_once_with("AC000W000000001", "power", False)
+        self.assertTrue(resp.json()["ok"])
+        mock_call.assert_called_once_with("light", "turn_on", "light.lr_ember", {"rgb_color": [255, 90, 30]})
 
-    @patch("device_control.views.napoleon_client.apply_action")
-    @patch("device_control.views.napoleon_client.is_configured", return_value=True)
-    def test_action_favourite_valid(self, _cfg, mock_apply):
-        mock_apply.return_value = self._state(current_favourite="partytime")
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC000W000000001", "action": "favourite", "value": "partytime"}',
-            content_type="application/json",
-        )
-        self.assertEqual(resp.status_code, 200)
-        mock_apply.assert_called_once_with("AC000W000000001", "favourite", "partytime")
-
-    def test_action_favourite_invalid_slot(self):
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC1", "action": "favourite", "value": "disco"}',
-            content_type="application/json",
-        )
-        self.assertEqual(resp.status_code, 400)
-
-    @patch("device_control.views.napoleon_client.apply_action")
-    @patch("device_control.views.napoleon_client.is_configured", return_value=True)
-    def test_action_cloud_error_returns_502(self, _cfg, mock_apply):
-        mock_apply.side_effect = views.napoleon_client.FireplaceError("timeout")
-        resp = self.client.post(
-            reverse("device_control_fireplace_action"),
-            data='{"dsn": "AC1", "action": "power", "value": true}',
-            content_type="application/json",
-        )
+    @patch("device_control.views.call_service", return_value=(False, "HA returned 500"))
+    @patch("device_control.views._napoleon_registry", return_value=REGISTRY)
+    def test_action_ha_error_returns_502(self, _reg, _call):
+        resp = self._post({"domain": "switch", "service": "turn_off", "data": {"entity_id": "switch.lr_power"}})
         self.assertEqual(resp.status_code, 502)
         self.assertFalse(resp.json()["ok"])
+
+    # ----- card proxy -----
+
+    @patch("device_control.views.get_static", return_value=b"customElements.define('x', class {});")
+    def test_card_proxied_and_cached(self, mock_static):
+        for _ in range(2):
+            resp = self.client.get(reverse("device_control_fireplace_card"))
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp["Content-Type"], "application/javascript")
+        mock_static.assert_called_once_with(views.FIREPLACE_CARD_PATH)
+
+    @patch("device_control.views.get_static", side_effect=views.HAError("404"))
+    def test_card_unavailable_returns_502(self, _static):
+        resp = self.client.get(reverse("device_control_fireplace_card"))
+        self.assertEqual(resp.status_code, 502)
 
 
 class FireplaceTabTests(TestCase):
@@ -395,10 +369,10 @@ class FireplaceTabTests(TestCase):
         content = resp.content.decode()
         self.assertIn('id="panel-fireplace"', content)
         self.assertIn('id="fpSelect"', content)
-        self.assertIn('id="preview"', content)
-        self.assertIn('id="presetsBar"', content)
+        self.assertIn('id="fpCard"', content)
         self.assertIn('data-states-url', content)
         self.assertIn('data-action-url', content)
+        self.assertIn('data-card-url', content)
         self.assertIn('fireplace.js', content)
         self.assertIn('fireplace.css', content)
 

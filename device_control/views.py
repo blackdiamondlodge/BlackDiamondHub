@@ -9,14 +9,21 @@ Provides:
 
 import json
 import logging
+import time
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
-from .device_config import TABS, get_all_entity_ids, FIREPLACE_OVERRIDES, GEMSTONE_OVERRIDES
-from .ha_client import call_service, get_entity_states
-from . import napoleon_client
+from .device_config import TABS, get_all_entity_ids, GEMSTONE_OVERRIDES
+from .ha_client import (
+    HAError,
+    call_service,
+    get_all_states,
+    get_entity_states,
+    get_static,
+    ws_commands,
+)
 from . import gemstone_client
 
 logger = logging.getLogger(__name__)
@@ -139,110 +146,134 @@ def device_control_action(request):
 
 
 # ──────────────────────────────────────────────
-# Fireplace (Napoleon cloud) endpoints
+# Fireplace endpoints (Home Assistant / hass-napoleon)
 # ──────────────────────────────────────────────
-# These bypass Home Assistant entirely and talk to the Napoleon (Ayla) cloud
-# through device_control.napoleon_client. Validation of action names is done
-# against the bridge's own action map.
+# The fireplace tab renders the napoleon-fireplace-card Lovelace card that
+# ships with the hass-napoleon integration. These endpoints give the card a
+# minimal ``hass`` object (states + registries) and proxy its service calls,
+# restricted to Napoleon entities and the services the card actually uses.
 
-# Action -> validator for the supplied value. Anything not listed is rejected.
-_FIREPLACE_ACTION_VALIDATORS = {
-    "power": lambda v: isinstance(v, bool),
-    "flame_speed": lambda v: isinstance(v, int) and 1 <= v <= 5,
-    "orange_flame": lambda v: isinstance(v, int) and 0 <= v <= 4,
-    "yellow_flame": lambda v: isinstance(v, int) and 0 <= v <= 4,
-    "heater": lambda v: v in (0, 1, 2),
-    "setpoint_c": lambda v: isinstance(v, int) and 18 <= v <= 30,
-    "eco_mode": lambda v: isinstance(v, bool),
-    "boost_mode": lambda v: isinstance(v, bool),
-    "ember_bed_rgb": lambda v: _is_rgb(v),
-    "ember_bed_brightness": lambda v: isinstance(v, int) and 0 <= v <= 4,
-    "ember_bed_cycling": lambda v: isinstance(v, bool),
-    "top_light_rgb": lambda v: _is_rgb(v),
-    "top_light_cycling": lambda v: isinstance(v, bool),
-    "favourite": lambda v: v in (
-        "partytime",
-        "campfirewarmth",
-        "summerday",
-        "glowingsunset",
-    ),
+FIREPLACE_CARD_PATH = "/napoleon_static/napoleon-fireplace-card.js"
+_FIREPLACE_REGISTRY_TTL = 300  # seconds
+_FIREPLACE_CARD_TTL = 600
+_fireplace_cache = {}
+
+FIREPLACE_SERVICES = {
+    "switch": {"turn_on", "turn_off"},
+    "light": {"turn_on", "turn_off"},
+    "number": {"set_value"},
+    "select": {"select_option"},
+    "climate": {"set_hvac_mode", "set_preset_mode", "set_temperature"},
+}
+FIREPLACE_SERVICE_FIELDS = {
+    "hvac_mode", "preset_mode", "temperature", "value", "brightness", "rgb_color", "option",
 }
 
 
-def _is_rgb(v):
-    return (
-        isinstance(v, (list, tuple))
-        and len(v) == 3
-        and all(isinstance(c, int) and 0 <= c <= 255 for c in v)
+def _cached(key, ttl, loader):
+    hit = _fireplace_cache.get(key)
+    now = time.monotonic()
+    if hit and now - hit[0] < ttl:
+        return hit[1]
+    value = loader()
+    _fireplace_cache[key] = (now, value)
+    return value
+
+
+def _load_napoleon_registry():
+    entities, devices, config = ws_commands(
+        {"type": "config/entity_registry/list"},
+        {"type": "config/device_registry/list"},
+        {"type": "get_config"},
     )
+    ents = {
+        e["entity_id"]: {k: e.get(k) for k in ("entity_id", "device_id", "platform", "translation_key")}
+        for e in entities
+        if e.get("platform") == "napoleon" and not e.get("disabled_by")
+    }
+    device_ids = {e["device_id"] for e in ents.values() if e["device_id"]}
+    devs = {
+        d["id"]: {k: d.get(k) for k in ("id", "name", "name_by_user")}
+        for d in devices
+        if d["id"] in device_ids
+    }
+    unit = ((config or {}).get("unit_system") or {}).get("temperature", "°C")
+    return {"entities": ents, "devices": devs, "config": {"unit_system": {"temperature": unit}}}
 
 
-def _apply_overrides(state):
-    """Apply optional name/room overrides from device_config to a state dict."""
-    override = FIREPLACE_OVERRIDES.get(state.get("dsn"))
-    if override:
-        if override.get("name"):
-            state["name"] = override["name"]
-        if override.get("room"):
-            state["room"] = override["room"]
-    return state
+def _napoleon_registry():
+    return _cached("registry", _FIREPLACE_REGISTRY_TTL, _load_napoleon_registry)
 
 
 def device_control_fireplace_states(request):
-    """AJAX endpoint: current state of every discovered fireplace.
+    """AJAX endpoint: everything the fireplace card needs from ``hass``.
 
-    Returns JSON: { "configured": bool, "fireplaces": [ {...}, ... ] }
+    Returns JSON: { entities, devices, config, states } limited to Napoleon
+    entities, or 502 when Home Assistant is unreachable.
     """
-    if not napoleon_client.is_configured():
-        return JsonResponse({"configured": False, "fireplaces": []})
-
     try:
-        states = napoleon_client.get_states()
-    except napoleon_client.FireplaceError as exc:
+        registry = _napoleon_registry()
+        states = {
+            s["entity_id"]: s
+            for s in get_all_states()
+            if s.get("entity_id") in registry["entities"]
+        }
+    except HAError as exc:
         logger.warning("Fireplace states fetch failed: %s", exc)
-        return JsonResponse({"configured": True, "error": str(exc)}, status=502)
-
-    states = [_apply_overrides(s) for s in states]
-    return JsonResponse({"configured": True, "fireplaces": states})
+        return JsonResponse({"error": str(exc)}, status=502)
+    return JsonResponse({**registry, "states": states})
 
 
 @require_POST
 def device_control_fireplace_action(request):
-    """AJAX endpoint: apply a control action to a fireplace.
+    """AJAX endpoint: proxy a card service call to Home Assistant.
 
-    Expects JSON body: { dsn, action, value }
-    Returns the refreshed fireplace state on success.
+    Expects JSON body: { domain, service, data: { entity_id, ...fields } }
     """
     try:
         body = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
+    if not isinstance(body, dict):
+        return JsonResponse({"error": "Invalid body"}, status=400)
 
-    dsn = body.get("dsn", "")
-    action = body.get("action", "")
-    value = body.get("value")
-
-    if not dsn:
-        return JsonResponse({"error": "Missing dsn"}, status=400)
-
-    validator = _FIREPLACE_ACTION_VALIDATORS.get(action)
-    if validator is None:
-        return JsonResponse({"error": f"Unknown action: {action}"}, status=400)
-    if not validator(value):
-        return JsonResponse(
-            {"error": f"Invalid value for {action}: {value!r}"}, status=400
-        )
-
-    if not napoleon_client.is_configured():
-        return JsonResponse({"error": "Napoleon not configured"}, status=503)
+    domain = body.get("domain")
+    service = body.get("service")
+    data = body.get("data")
+    if service not in FIREPLACE_SERVICES.get(domain, ()):
+        return JsonResponse({"error": f"Service not allowed: {domain}.{service}"}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({"error": "Missing data"}, status=400)
+    entity_id = data.get("entity_id")
+    if not isinstance(entity_id, str) or entity_id.split(".", 1)[0] != domain:
+        return JsonResponse({"error": "Invalid entity_id"}, status=400)
+    extra = {k: v for k, v in data.items() if k != "entity_id"}
+    if set(extra) - FIREPLACE_SERVICE_FIELDS:
+        return JsonResponse({"error": "Unsupported service data"}, status=400)
 
     try:
-        state = napoleon_client.apply_action(dsn, action, value)
-    except napoleon_client.FireplaceError as exc:
-        logger.warning("Fireplace action %s failed: %s", action, exc)
+        registry = _napoleon_registry()
+    except HAError as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=502)
+    if entity_id not in registry["entities"]:
+        return JsonResponse({"error": "Not a Napoleon entity"}, status=400)
 
-    return JsonResponse({"ok": True, "fireplace": _apply_overrides(state)})
+    ok, err = call_service(domain, service, entity_id, extra)
+    if not ok:
+        return JsonResponse({"ok": False, "error": err}, status=502)
+    return JsonResponse({"ok": True})
+
+
+def device_control_fireplace_card(request):
+    """Serve the integration's card JS same-origin (proxied from HA, cached)."""
+    try:
+        js = _cached("card", _FIREPLACE_CARD_TTL, lambda: get_static(FIREPLACE_CARD_PATH))
+    except HAError as exc:
+        logger.warning("Fireplace card fetch failed: %s", exc)
+        return HttpResponse("// fireplace card unavailable", status=502, content_type="application/javascript")
+    resp = HttpResponse(js, content_type="application/javascript")
+    resp["Cache-Control"] = "max-age=300"
+    return resp
 
 
 # ──────────────────────────────────────────────

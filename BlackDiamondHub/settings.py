@@ -261,15 +261,6 @@ BDL_MODES_API_KEY = os.environ.get('BDL_MODES_API_KEY', '')
 BDL_MODES_PREHEAT = os.environ.get('BDL_MODES_PREHEAT', 'false').lower() in ('1', 'true', 'yes')
 
 #####################################
-### Napoleon Fireplace (Ayla) Settings ###
-#####################################
-# Cloud credentials for the Napoleon fireplace (pynapoleon / Ayla IoT).
-# Leave unset to hide the fireplace controls' live data.
-NAPOLEON_EMAIL = os.environ.get('NAPOLEON_EMAIL', '')
-NAPOLEON_PASSWORD = os.environ.get('NAPOLEON_PASSWORD', '')
-NAPOLEON_EUROPE = os.environ.get('NAPOLEON_EUROPE', 'false').lower() in ('1', 'true', 'yes')
-
-#####################################
 ### Gemstone Lights Settings ###
 #####################################
 # Cloud credentials for Gemstone Lights (pygemstone / AWS Amplify).

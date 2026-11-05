@@ -1,20 +1,18 @@
-/* Napoleon fireplace controls — ported from fireplace_mockup_v3.html.
-   All selectors are scoped under #panel-fireplace so they never collide
-   with the main Device Control stylesheet. Keyframes stay global (names
-   are fireplace-specific). */
+/* Fireplace tab: pill selector + the napoleon-fireplace-card (hass-napoleon).
+   All selectors are scoped under #panel-fireplace so they never collide with
+   the main Device Control stylesheet. */
 
 #panel-fireplace * { box-sizing: border-box; }
 
-/* Fill the viewport below the fixed header so the firebox always has height.
-   The parents (.dc-container/.dc-panel) are plain block flow with no height, so
-   without this the flex:1 chain collapses to ~0 and the firebox (whose children
-   are all position:absolute) disappears when there are no flames to look at.
-   The 285px offset = fixed header + the presets bar that sits below the firebox
-   inside .fp-wrap, so a 1080p display fits without vertical scroll. */
+/* Fill the viewport below the fixed header so the card's firebox has height.
+   The parents (.dc-container/.dc-panel) are plain block flow with no height,
+   so the flex chain needs an explicit min-height; the 285px offset keeps a
+   1080p display free of vertical scroll. */
 #panel-fireplace .fp-wrap { display: flex; flex-direction: column; min-height: calc(100vh - 285px); }
 
-/* Fireplace selector pills (only shown when >1 fireplace) */
+/* Fireplace selector pills (only rendered when >1 fireplace) */
 #panel-fireplace .fp-select { display: flex; gap: 10px; justify-content: center; padding: 8px 20px; flex-shrink: 0; flex-wrap: wrap; }
+#panel-fireplace .fp-select:empty { display: none; }
 #panel-fireplace .fp-pill { display: flex; align-items: center; gap: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 10px;
            padding: 8px 14px; cursor: pointer; min-width: 220px; transition: border-color .15s, background .15s; }
 #panel-fireplace .fp-pill:hover { background: #333; }
@@ -28,152 +26,12 @@
 #panel-fireplace .dot.online { color: #4caf50; }
 #panel-fireplace .dot.offline { color: #f44336; }
 
-#panel-fireplace .fp-detail { flex: 1; display: grid; grid-template-columns: 1fr; gap: 16px; padding: 4px 20px 8px; min-height: 0; }
+#panel-fireplace .fp-msg { margin: 4px 20px; padding: 8px 12px; border-radius: 8px; background: #3a2a14; border: 1px solid #6b4a1a;
+           color: #ffcf80; font-size: .85rem; text-align: center; flex-shrink: 0; }
 
-/* ---- PREVIEW with on-image hotspots ---- */
-#panel-fireplace .preview-wrap { background: #1a1a1a; border: 1px solid #444; border-radius: 12px; position: relative; overflow: hidden;
-                display: flex; flex-direction: column; min-height: 360px; }
-#panel-fireplace .preview-top { display: flex; align-items: center; gap: 12px; padding: 12px 16px; z-index: 6; }
-#panel-fireplace .preview-top .pt-name { font-size: 1.1rem; font-weight: 700; color: #fff; flex: 1; }
-#panel-fireplace .preview-top .pt-status { font-size: .8rem; color: #FFD700; font-weight: 600; }
-#panel-fireplace .preview-top .hint { font-size: .72rem; color: #888; }
-
-#panel-fireplace .firebox { position: relative; flex: 1; margin: 0 18px 18px; border-radius: 10px; overflow: hidden;
-           background: radial-gradient(ellipse at 50% 120%, #2a2018 0%, #141414 55%, #0c0c0c 100%);
-           border: 2px solid #333; box-shadow: inset 0 0 60px rgba(0,0,0,.8); }
-#panel-fireplace .top-glow { position: absolute; top: 0; left: 0; right: 0; height: 80px; opacity: 0; transition: opacity .4s;
-            background: radial-gradient(ellipse at 50% 0%, var(--top-color, #fff) 0%, transparent 70%); filter: blur(4px); }
-#panel-fireplace .ember-bed { position: absolute; bottom: 0; left: 8%; right: 8%; height: 50px; border-radius: 50% 50% 6px 6px / 80% 80% 6px 6px;
-             background: radial-gradient(ellipse at 50% 100%, var(--ember-color, #ff5a1e) 0%, transparent 75%);
-             opacity: var(--ember-bri, .6); filter: blur(3px); transition: opacity .4s, background .4s; }
-#panel-fireplace .ember-bed.cycle { animation: fpEmberCycle 6s linear infinite; }
-@keyframes fpEmberCycle { 0%{filter:blur(3px) hue-rotate(0);} 100%{filter:blur(3px) hue-rotate(360deg);} }
-
-/* log bed — sits on the ember bed, flames rise in front of it */
-#panel-fireplace .logs { position: absolute; bottom: 6px; left: 3%; right: 3%; height: 64px; pointer-events: none; }
-#panel-fireplace .log { position: absolute; bottom: 0; height: 24px; border-radius: 13px;
-       background: linear-gradient(to top, #170f08 0%, #341f12 45%, #4a2e1b 80%, #5a3a22 100%);
-       box-shadow: inset 0 3px 7px rgba(255,150,50,.18), inset 0 -3px 6px rgba(0,0,0,.7), 0 -2px 8px rgba(0,0,0,.55); }
-#panel-fireplace .log::after { content: ""; position: absolute; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%;
-              background: radial-gradient(circle, #ff8a2e 0%, #c0481a 55%, #2a1206 100%); box-shadow: 0 0 10px rgba(255,120,40,.6); }
-#panel-fireplace .log.l1 { left: 2%;  width: 44%; transform: rotate(-2.5deg); }
-#panel-fireplace .log.l1::after { right: -6px; }
-#panel-fireplace .log.l2 { right: 2%; width: 44%; transform: rotate(2.5deg); }
-#panel-fireplace .log.l2::after { left: -6px; }
-#panel-fireplace .log.l3 { left: 27%; width: 46%; bottom: 17px; height: 22px; transform: rotate(-1deg); }
-#panel-fireplace .log.l3::after { right: -6px; }
-#panel-fireplace .preview-wrap.on .log::after { animation: fpLogGlow 3.4s ease-in-out infinite; }
-@keyframes fpLogGlow { 0%,100%{ opacity:.85; } 50%{ opacity:1; filter:brightness(1.25); } }
-
-#panel-fireplace .flames { position: absolute; bottom: 24px; left: 2%; right: 2%; display: flex; align-items: flex-end; justify-content: center;
-          height: 82%; opacity: 0; transition: opacity .5s; pointer-events: none; }
-/* soft glowing mass of fire behind the tongues, for depth */
-#panel-fireplace .flames::before { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 58%; z-index: 0;
-          background: radial-gradient(ellipse at 50% 100%, rgba(255,160,50,.6) 0%, rgba(255,95,20,.28) 45%, transparent 75%);
-          filter: blur(16px); animation: fpGlowPulse 3.2s ease-in-out infinite; }
-@keyframes fpGlowPulse { 0%,100%{ opacity:.75; transform: scaleY(1); } 50%{ opacity:1; transform: scaleY(1.08); } }
-
-#panel-fireplace .flame { position: relative; z-index: 1; flex: 1 1 0; min-width: 0; height: calc(var(--flame-h, .5) * 100%); margin: 0 -7px;
-         border-radius: 50% 50% 46% 46% / 94% 94% 22% 22%; transform-origin: bottom center;
-         background: linear-gradient(to top, #fff0bf 0%, var(--flame-c2, #ffd24a) 24%, var(--flame-c1, #ff7a18) 62%, rgba(220,70,15,.35) 86%, transparent 100%);
-         filter: blur(4px); animation: fpFlicker 1.5s ease-in-out infinite; }
-#panel-fireplace .flame.f2 { flex-grow: 1.2; height: calc(var(--flame-h,.5) * 120%); animation-duration: 1.9s; animation-delay: -.4s; opacity: .94; }
-#panel-fireplace .flame.f3 { flex-grow: .82; height: calc(var(--flame-h,.5) * 82%); animation-duration: 1.25s; animation-delay: -.8s; }
-#panel-fireplace .flame.core { flex: 0 0 30px; filter: blur(2.5px); background: linear-gradient(to top, #ffd98c 0%, #fff6da 72%, rgba(255,255,220,.4) 100%); opacity: .95; }
-#panel-fireplace .flame:nth-child(2n) { animation-delay: -.55s; border-radius: 48% 48% 46% 46% / 92% 92% 26% 26%; }
-#panel-fireplace .flame:nth-child(3n) { animation-delay: -1.0s; }
-#panel-fireplace .flame:nth-child(5n) { animation-delay: -1.35s; }
-#panel-fireplace .flame:nth-child(3n+1) { border-radius: 46% 54% 47% 47% / 96% 90% 24% 24%; }
-@keyframes fpFlicker { 0%,100%{ transform: scaleY(1) scaleX(1) rotate(0deg) translateX(0); }
-                     25%{ transform: scaleY(1.1) scaleX(.92) rotate(-2.5deg) translateX(-3px); }
-                     50%{ transform: scaleY(.95) scaleX(1.05) rotate(1deg) translateX(2px); }
-                     75%{ transform: scaleY(1.07) scaleX(.94) rotate(2.5deg) translateX(3px); } }
-
-/* rising embers */
-#panel-fireplace .embers { position: absolute; left: 6%; right: 6%; bottom: 26px; top: 6%; pointer-events: none; opacity: 0; transition: opacity .5s; }
-#panel-fireplace .ember { position: absolute; bottom: 0; border-radius: 50%;
-         background: radial-gradient(circle, #ffe39e 0%, #ff7a1e 55%, transparent 78%); opacity: 0;
-         animation: fpRise linear infinite; }
-@keyframes fpRise { 0%{ transform: translateY(0) translateX(0) scale(1); opacity: 0; }
-                  12%{ opacity: var(--op,1); } 75%{ opacity: calc(var(--op,1) * .8); }
-                  100%{ transform: translateY(var(--rh,-200px)) translateX(var(--rx,8px)) scale(.25); opacity: 0; } }
-#panel-fireplace .preview-wrap.on .flames { opacity: 1; }
-#panel-fireplace .preview-wrap.on .embers { opacity: 1; }
-#panel-fireplace .preview-wrap.on .top-glow.lit { opacity: .85; }
-#panel-fireplace .preview-wrap.off .firebox { filter: grayscale(.4) brightness(.8); }
-#panel-fireplace .off-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #666;
-               font-size: .9rem; gap: 8px; z-index: 2; pointer-events: none; }
-#panel-fireplace .preview-wrap.on .off-overlay { display: none; }
-
-/* Hotspots (pucks) */
-#panel-fireplace .hotspot { position: absolute; z-index: 7; width: 46px; margin-left: -23px; }
-#panel-fireplace .hotspot.power { margin-left: 0; }
-#panel-fireplace .puck { width: 46px; height: 46px; border-radius: 50%; background: #1b1b1b; border: 1px solid rgba(255,255,255,.45);
-        color: #fff; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,.55), 0 0 0 3px rgba(255,215,0,.12); position: relative; transition: transform .12s, border-color .15s; }
-#panel-fireplace .puck:hover { transform: scale(1.08); border-color: #FFD700; }
-#panel-fireplace .puck[disabled] { opacity: .5; cursor: not-allowed; }
-#panel-fireplace .hotspot.open .puck { border-color: #FFD700; background: #3a2f12; transform: scale(1.08); }
-#panel-fireplace .puck .plabel { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: .64rem;
-                color: #ddd; background: rgba(0,0,0,.7); padding: 2px 7px; border-radius: 4px; opacity: 0; transition: opacity .15s; pointer-events: none; }
-#panel-fireplace .hotspot:not(.open) .puck:hover .plabel { opacity: 1; }
-#panel-fireplace .preview-wrap.off .hotspot:not(.power) { display: none; }
-
-/* Popover */
-#panel-fireplace .pop { position: absolute; left: 50%; margin-left: -120px; width: 240px; background: #232323; border: 1px solid #555;
-       border-radius: 10px; padding: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.6); z-index: 9; display: none; }
-#panel-fireplace .hotspot.open .pop { display: block; }
-#panel-fireplace .hotspot.below .pop { top: 56px; }
-#panel-fireplace .hotspot.above .pop { bottom: 56px; }
-#panel-fireplace .hotspot.heat .pop { left: 50%; margin-left: -18px; width: 250px; }
-#panel-fireplace .pop h4 { margin: 0 0 8px; font-size: .76rem; text-transform: uppercase; letter-spacing: .6px; color: #FFD700; display: flex; align-items: center; gap: 7px; }
-
-#panel-fireplace .power .puck { width: 52px; height: 52px; font-size: 1.2rem; }
-#panel-fireplace .preview-wrap.on .power .puck { color: #FFD700; border-color: #FFD700; }
-
-/* shared control widgets */
-#panel-fireplace .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-#panel-fireplace .row .rl { font-size: .78rem; color: #cfcfcf; width: 70px; min-width: 70px; }
-#panel-fireplace .row .rv { font-size: .78rem; color: #FFD700; font-weight: 700; min-width: 34px; text-align: right; }
-#panel-fireplace .sld { flex: 1; -webkit-appearance: none; appearance: none; height: 26px; border-radius: 4px; background: #444; border: 1px solid #555; outline: none; cursor: pointer; }
-#panel-fireplace .sld::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 30px; border-radius: 4px; background: #FFD700; border: 2px solid #333; cursor: pointer; }
-#panel-fireplace .sld.flamesld::-webkit-slider-thumb { background: #FF7A18; }
-#panel-fireplace .swatch { width: 40px; height: 28px; border-radius: 5px; border: 2px solid #555; cursor: pointer; flex-shrink: 0; padding: 0; background: none; -webkit-appearance: none; appearance: none; }
-#panel-fireplace .swatch::-webkit-color-swatch-wrapper { padding: 0; }
-#panel-fireplace .swatch::-webkit-color-swatch { border: none; border-radius: 3px; }
-#panel-fireplace .mini-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-#panel-fireplace .mini-row .rl { flex: 1; font-size: .78rem; color: #cfcfcf; }
-#panel-fireplace .fp-toggle { position: relative; display: inline-block; width: 50px; height: 27px; flex-shrink: 0; }
-#panel-fireplace .fp-toggle input { opacity: 0; width: 0; height: 0; }
-#panel-fireplace .tt { position: absolute; cursor: pointer; inset: 0; background: #555; border-radius: 4px; border: 1px solid #666; transition: background .25s; }
-#panel-fireplace .tt::after { content:''; position: absolute; width: 21px; height: 21px; left: 3px; bottom: 2px; background: #ccc; border-radius: 4px; transition: transform .25s, background .25s; }
-#panel-fireplace .fp-toggle input:checked + .tt { background: #D4A843; border-color: #D4A843; }
-#panel-fireplace .fp-toggle input:checked + .tt::after { transform: translateX(23px); background: #fff; }
-
-/* ---- bottom presets bar ---- */
-#panel-fireplace .presets-bar { padding: 0 20px 14px; flex-shrink: 0; }
-#panel-fireplace .presets-bar .ctl.disabled { opacity: .4; pointer-events: none; }
-#panel-fireplace .presets-bar .ctl h3 { text-align: center; justify-content: center; }
-#panel-fireplace .presets-bar .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-#panel-fireplace .presets-bar .preset { justify-content: center; padding: 12px 8px; }
-
-#panel-fireplace .ctl { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; padding: 12px 14px; }
-#panel-fireplace .ctl.disabled { opacity: .4; pointer-events: none; }
-#panel-fireplace .ctl h3 { margin: 0 0 10px; font-size: .78rem; text-transform: uppercase; letter-spacing: .6px; color: #ddd; display: flex; align-items: center; gap: 8px; }
-#panel-fireplace .ctl h3 i { color: #FFD700; }
-#panel-fireplace .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-#panel-fireplace .preset { background: #2f2a22; border: 1px solid #4a4030; color: #e8d9b0; border-radius: 8px; padding: 10px 8px; font-size: .8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 9px; }
-#panel-fireplace .preset:hover { background: #3a3326; }
-#panel-fireplace .preset.active { background: #5a3d18; border-color: #FFD700; color: #fff; }
-#panel-fireplace .preset i { color: #FF9A3C; }
-#panel-fireplace .seg { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid #555; flex: 1; }
-#panel-fireplace .seg button { flex: 1; background: #333; color: #aaa; border: none; padding: 8px 4px; font-size: .78rem; font-weight: 600; cursor: pointer; border-right: 1px solid #555; }
-#panel-fireplace .seg button:last-child { border-right: none; }
-#panel-fireplace .seg button.active { background: #B5562A; color: #fff; }
-#panel-fireplace .stepper { display: flex; align-items: center; gap: 8px; }
-#panel-fireplace .stepper button { width: 32px; height: 32px; border-radius: 7px; border: 1px solid #555; background: #333; color: #fff; font-size: 1rem; cursor: pointer; }
-#panel-fireplace .stepper .tv { font-size: 1.2rem; font-weight: 700; color: #FFD700; min-width: 58px; text-align: center; }
-
-/* states for empty / error / not-configured */
-#panel-fireplace .fp-msg { text-align: center; color: #999; padding: 40px 20px; font-size: .95rem; }
-#panel-fireplace .fp-msg i { color: #FFD700; margin-right: 8px; }
+/* The card stretches to fill the remaining height (fill mode). Theme
+   variables stand in for the Home Assistant theme the card normally gets. */
+#panel-fireplace .fp-card { flex: 1; display: flex; flex-direction: column; min-height: 0; margin: 4px 20px 8px;
+           background: #1a1a1a; border: 1px solid #444; border-radius: 12px; overflow: hidden;
+           --primary-text-color: #eee; --secondary-text-color: #999; --error-color: #f44336; }
+#panel-fireplace .fp-card napoleon-fireplace-card { flex: 1; min-height: 0; }

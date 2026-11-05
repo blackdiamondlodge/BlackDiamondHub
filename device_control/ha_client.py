@@ -5,6 +5,7 @@ Provides functions to fetch entity states and call services
 (switch on/off, cover open/close, light on/off, etc.).
 """
 
+import json
 import logging
 import requests
 from urllib.parse import urljoin
@@ -136,3 +137,68 @@ def call_service(domain, service, entity_id, extra_data=None):
         msg = f"Request failed: {exc}"
         logger.error(msg)
         return False, msg
+
+
+class HAError(Exception):
+    """Raised when a Home Assistant WebSocket command fails."""
+
+
+def ws_commands(*messages):
+    """
+    Run Home Assistant WebSocket commands over one connection.
+
+    Each message is a dict like {"type": "config/device_registry/list"}.
+    Returns the list of results in order. Used for data REST doesn't expose
+    (entity / device registries). Raises HAError on any failure.
+    """
+    import websocket
+
+    base = _base_url().rstrip("/")
+    url = base.replace("https://", "wss://", 1).replace("http://", "ws://", 1) + "/api/websocket"
+    try:
+        ws = websocket.create_connection(url, timeout=TIMEOUT)
+    except (OSError, websocket.WebSocketException) as exc:
+        raise HAError(f"connect failed: {exc}") from exc
+    try:
+        ws.recv()  # auth_required
+        ws.send(json.dumps({"type": "auth", "access_token": settings.HOMEASSISTANT_ACCESS_TOKEN}))
+        if json.loads(ws.recv()).get("type") != "auth_ok":
+            raise HAError("auth failed")
+        results = []
+        for i, message in enumerate(messages, start=1):
+            ws.send(json.dumps({**message, "id": i}))
+            while True:
+                msg = json.loads(ws.recv())
+                if msg.get("id") == i:
+                    break
+            if not msg.get("success"):
+                raise HAError(f"{message.get('type')} failed: {msg.get('error')}")
+            results.append(msg.get("result"))
+        return results
+    except (OSError, ValueError, websocket.WebSocketException) as exc:
+        raise HAError(f"websocket command failed: {exc}") from exc
+    finally:
+        ws.close()
+
+def get_all_states():
+    """Fetch every entity state as a list. Raises HAError on failure."""
+    url = urljoin(_base_url(), "/api/states")
+    try:
+        resp = requests.get(url, headers=_headers(), timeout=TIMEOUT)
+    except requests.RequestException as exc:
+        raise HAError(f"states fetch failed: {exc}") from exc
+    if resp.status_code != 200:
+        raise HAError(f"HA returned {resp.status_code} fetching states")
+    return resp.json()
+
+
+def get_static(path):
+    """Fetch a static file served by HA (e.g. an integration's card JS)."""
+    url = urljoin(_base_url(), path)
+    try:
+        resp = requests.get(url, timeout=TIMEOUT)
+    except requests.RequestException as exc:
+        raise HAError(f"fetch {path} failed: {exc}") from exc
+    if resp.status_code != 200:
+        raise HAError(f"HA returned {resp.status_code} for {path}")
+    return resp.content
