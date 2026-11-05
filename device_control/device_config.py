@@ -391,17 +391,12 @@ DECK_DEVICES = {
 # ──────────────────────────────────────────────
 # Tab: Fireplace
 # ──────────────────────────────────────────────
-# The fireplace tab is NOT Home Assistant-backed. It is driven directly by the
-# Napoleon (Ayla) cloud via device_control.napoleon_client, and uses a bespoke
-# on-image control UI rather than the generic device grid. It therefore carries
-# no HA entities ("devices" is empty so get_all_entity_ids() is unaffected).
-#
-# Fireplaces are discovered dynamically from the Napoleon account. Optionally
-# override a fireplace's display name / room by DSN here; unknown DSNs fall back
-# to the name reported by the cloud.
-FIREPLACE_OVERRIDES = {
-    # "AC000W0000000000": {"name": "Living Room Fireplace", "room": "Living Room"},
-}
+# The fireplace tab renders the napoleon-fireplace-card Lovelace card from the
+# hass-napoleon Home Assistant integration (proxied same-origin by
+# views.device_control_fireplace_card). Fireplaces are discovered from HA's
+# entity registry (platform "napoleon"), so the tab carries no hard-coded
+# entities ("devices" is empty so get_all_entity_ids() is unaffected). Rename a
+# fireplace in HA to change its name here.
 
 # ──────────────────────────────────────────────
 # Tab: Gemstone Lights

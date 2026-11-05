@@ -659,6 +659,7 @@
     <div id="panel-{{ tab.key }}" class="dc-panel{% if forloop.first %} active{% endif %}"{% if tab.key == "fireplace" %}
          data-states-url="{% url 'device_control_fireplace_states' %}"
          data-action-url="{% url 'device_control_fireplace_action' %}"
+         data-card-url="{% url 'device_control_fireplace_card' %}"
          data-csrf="{{ csrf_token }}"{% elif tab.key == "gemstone" %}
          data-states-url="{% url 'device_control_gemstone_states' %}"
          data-action-url="{% url 'device_control_gemstone_action' %}"
@@ -666,10 +667,8 @@
         {% if tab.key == "fireplace" %}
         <div class="fp-wrap">
             <div class="fp-select" id="fpSelect"></div>
-            <div class="fp-detail">
-                <div class="preview-wrap" id="preview"></div>
-            </div>
-            <div class="presets-bar" id="presetsBar"></div>
+            <div class="fp-msg" id="fpMsg" hidden></div>
+            <div class="fp-card" id="fpCard"></div>
         </div>
         {% elif tab.key == "gemstone" %}
         <div class="gem-wrap">
