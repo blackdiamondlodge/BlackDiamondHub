@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST, require_GET
@@ -11,10 +13,13 @@ from .executor import (
     get_active_run,
 )
 from .steps import build_vacation_steps, build_home_steps, SEASON_COOLING
+from . import bdl_client
 
 
 def vacation_mode_view(request):
     """Main page view — renders the vacation mode UI."""
+    if bdl_client.enabled():
+        return bdl_modes_view(request)
     is_away = get_away_mode_state()
     active_run = get_active_run()
 
@@ -99,3 +104,62 @@ def state_view(request):
             "steps": active_run["steps"],
         } if active_run else None,
     })
+
+
+# --------------------------------------------------------------------------
+# bdl_modes (AppDaemon) client views — used when BDL_MODES_URL is set.
+
+@login_required
+def bdl_modes_view(request):
+    status, error, _ = bdl_client.call("status")
+    previews = {}
+    if status:
+        for kind in ("vacation", "home"):
+            p, err, _ = bdl_client.call("preview", kind=kind)
+            previews[kind] = p["groups"] if p else []
+            error = error or err
+    return render(request, "bdl_modes.html", {
+        "status": status,
+        "previews": previews,
+        "error": error,
+        "preheat_enabled": settings.BDL_MODES_PREHEAT,
+        "allow_dry_run": request.user.is_staff,
+    })
+
+
+@login_required
+@require_GET
+def bdl_modes_status_view(request):
+    data, error, code = bdl_client.call("status")
+    if error:
+        return JsonResponse({"error": error}, status=code)
+    return JsonResponse(data)
+
+
+@login_required
+@require_POST
+def bdl_modes_command_view(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid request body"}, status=400)
+    if not isinstance(body, dict):
+        return JsonResponse({"error": "Invalid request body"}, status=400)
+    cmd = body.get("cmd")
+    if cmd not in bdl_client.COMMANDS:
+        return JsonResponse({"error": "Unknown command"}, status=400)
+    if cmd == "preheat" and not settings.BDL_MODES_PREHEAT:
+        return JsonResponse({"error": "Preheat is not enabled"}, status=400)
+    skip = body.get("skip_steps")
+    if skip is not None and not (
+            isinstance(skip, list) and all(isinstance(s, str) for s in skip)):
+        return JsonResponse({"error": "Invalid skip_steps"}, status=400)
+    data, error, code = bdl_client.call(
+        cmd, arrival=body.get("arrival"), skip_steps=skip,
+        request_id=str(body["request_id"])[:64]
+        if body.get("request_id") else None,
+        dry_run=True if (body.get("dry_run") and request.user.is_staff)
+        else None)
+    if error:
+        return JsonResponse({"error": error}, status=code)
+    return JsonResponse(data)
