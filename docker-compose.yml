@@ -60,6 +60,11 @@ services:
       GEMSTONE_EMAIL: ${GEMSTONE_EMAIL}
       GEMSTONE_PASSWORD: ${GEMSTONE_PASSWORD}
 
+      # bdl_modes AppDaemon app (vacation / preheat / home)
+      BDL_MODES_URL: ${BDL_MODES_URL:-}
+      BDL_MODES_API_KEY: ${BDL_MODES_API_KEY:-}
+      BDL_MODES_PREHEAT: ${BDL_MODES_PREHEAT:-false}
+
     network_mode: host
     
     restart: unless-stopped
