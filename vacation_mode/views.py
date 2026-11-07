@@ -16,6 +16,7 @@ from .steps import build_vacation_steps, build_home_steps, SEASON_COOLING
 from . import bdl_client
 
 
+@login_required
 def vacation_mode_view(request):
     """Main page view — renders the vacation mode UI."""
     if bdl_client.enabled():
@@ -58,6 +59,7 @@ def vacation_mode_view(request):
     return render(request, "vacation_mode.html", context)
 
 
+@login_required
 @require_POST
 def execute_view(request):
     """API endpoint to start executing vacation or home mode steps."""
@@ -80,6 +82,7 @@ def execute_view(request):
     return JsonResponse({"run_id": run_id, "mode": mode})
 
 
+@login_required
 @require_GET
 def status_view(request, run_id):
     """API endpoint to poll the status of a run."""
@@ -90,6 +93,7 @@ def status_view(request, run_id):
     return JsonResponse(run_data)
 
 
+@login_required
 @require_GET
 def state_view(request):
     """API endpoint to get current away mode state and any active run."""
