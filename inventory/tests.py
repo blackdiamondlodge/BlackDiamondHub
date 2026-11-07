@@ -24,7 +24,7 @@ class HomepageTileTests(TestCase):
         self.client.force_login(user)
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'inventory.png')
+        self.assertNotContains(response, 'inventory/hub/icon.svg')
         self.assertNotContains(response, 'Kitchen Inventory')
 
 @tag('selenium')

@@ -1080,14 +1080,14 @@ class HomepageIconTests(TestCase):
         self.client.force_login(user)
         response = self.client.get("/")
         self.assertContains(response, 'href="/vacation_mode/"')
-        self.assertContains(response, "vacation.png")
+        self.assertContains(response, "vacation_mode/hub/icon.svg")
         self.assertContains(response, "Vacation Mode")
 
     def test_homepage_hides_vacation_icon_when_logged_out(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'href="/vacation_mode/"')
-        self.assertNotContains(response, "vacation.png")
+        self.assertNotContains(response, "vacation_mode/hub/icon.svg")
         # Radiant stays public.
         self.assertContains(response, "/radiant/")
 

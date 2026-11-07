@@ -4,322 +4,171 @@
 
 {% block title %}Black Diamond Lodge Hub{% endblock %}
 
+{% block body_class %}hub-home mode-{{ hub_mode }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    body.hub-home {
+        --bg: #0d1420; --bg2: #121c2c; --card: #18243a; --card2: #1d2b45;
+        --line: #26354f; --fg: #eef3fa; --mut: #8fa3bd; --acc: #5ba4e6;
+        background: radial-gradient(1200px 600px at 15% -10%, #1b2d4a 0%, transparent 60%),
+                    linear-gradient(180deg, var(--bg2), var(--bg));
+        color: var(--fg);
+        font-family: "Segoe UI", Inter, system-ui, sans-serif;
+    }
+    body.hub-home.theme-night {
+        --bg: #0b0907; --bg2: #120e0a; --card: #1c1610; --card2: #231b13;
+        --line: #30261b; --fg: #f3e3cc; --mut: #a28f74; --acc: #f2a65a;
+        background: radial-gradient(1200px 600px at 85% -10%, #2a1c10 0%, transparent 60%),
+                    linear-gradient(180deg, var(--bg2), var(--bg));
+    }
+    body.hub-home .navbar.bg-dark {
+        background: var(--bg2) !important;
+        border-bottom: 1px solid var(--line);
+    }
+    body.hub-home .navbar-brand .fa-house { color: var(--acc); }
+
+    .hub-clock { font-size: 26px; font-weight: 600; color: var(--fg); white-space: nowrap; }
+    .hub-clock small { font-size: 15px; color: var(--mut); margin-left: 2px; }
+    .hub-date { font-size: 17px; color: var(--mut); margin: 0 14px 0 6px; white-space: nowrap; }
+
+    body.hub-home .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 62px);
+        overflow: hidden;
+        padding: 0 40px;
+    }
+
+    .hub-wx {
+        display: flex; gap: 18px; flex-shrink: 0;
+        margin-top: 22px; padding: 18px 22px;
+        background: var(--card); border: 1px solid var(--line); border-radius: 22px;
+    }
+    .hub-chip {
+        flex: 1; background: var(--card2); border-radius: 16px; padding: 12px 20px;
+        display: grid; grid-template-columns: auto 1fr; column-gap: 16px; align-items: center;
+    }
+    .hub-chip .temperature { grid-row: span 2; font-size: 40px; font-weight: 600; min-width: 2.6em; color: var(--fg); }
+    .hub-chip .location-name { font-size: 19px; font-weight: 400; color: var(--fg); margin: 0; }
+    .hub-chip .elevation { font-size: 16px; color: var(--mut); margin: 0; }
+
+    .hub-sections { display: flex; gap: 28px; flex: 1; min-height: 0; margin: 26px 0 32px; }
+    .hub-section { display: flex; flex-direction: column; min-width: 0; }
+    .hub-section h2 {
+        font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;
+        color: var(--mut); margin: 0 0 14px 4px;
+    }
+    .hub-tiles { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 18px; }
+    .hub-tile {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; padding: 24px 18px;
+        background: var(--card); border: 1px solid var(--line); border-radius: 24px;
+        color: var(--fg); text-decoration: none;
+        transition: transform .15s ease, background .15s ease;
+    }
+    .hub-tile:hover, .hub-tile:focus-visible { color: var(--fg); background: var(--card2); }
+    .hub-tile:active { transform: scale(.97); }
+    .hub-tile img { width: 120px; height: 120px; margin-bottom: 26px; flex-shrink: 0; }
+    .hub-tile-title { font-size: 26px; font-weight: 600; line-height: 1.15; min-height: 2.3em; display: flex; align-items: flex-start; }
+    .hub-tile-sub { font-size: 19px; line-height: 1.35; color: var(--mut); margin-top: 4px; min-height: 2.7em; }
+
+    /* Phones and small windows: stack and allow scrolling. */
+    @media (max-width: 1100px) {
+        body.hub-home .navbar.fixed-top { position: sticky; }
+        body.hub-home .content-wrapper { height: auto; overflow: visible; padding: 0 14px 20px; margin-top: 0; }
+        .hub-wx { flex-wrap: wrap; }
+        .hub-wx { gap: 10px; padding: 10px; }
+        .hub-chip { flex: 1 1 calc(50% - 5px); min-width: 0; padding: 10px 12px; column-gap: 10px; }
+        .hub-chip .temperature { font-size: 26px; min-width: 0; }
+        .hub-chip .location-name { font-size: 15px; }
+        .hub-chip .elevation { font-size: 13px; }
+        .hub-sections { flex-direction: column; }
+        .hub-section { flex: none !important; }
+        .hub-tiles { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
+        .hub-tile { padding: 22px 12px; }
+        .hub-tile img { width: 84px; height: 84px; margin-bottom: 14px; }
+        .hub-tile-title { font-size: 21px; min-height: 0; }
+        .hub-tile-sub { min-height: 0; }
+        .hub-date { display: none; }
+    }
+</style>
+{% endblock %}
+
 {% block navbar_extras %}
 <div class="navbar-extras">
+    <span class="hub-clock" id="hub-clock"></span>
+    <span class="hub-date" id="hub-date"></span>
     <button class="navbar-toggle-btn toggle-button" onclick="toggleUnits()">°C/°F</button>
 </div>
 {% endblock %}
 
 {% block content %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SunPeaks Weather</title>
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            overflow-x: hidden;
-        }
-        
-        body {
-            background-color: #000000;
-            display: flex;
-            flex-direction: column;
-            font-family: Arial, sans-serif;
-        }
+<section class="hub-wx" aria-label="Sun Peaks weather">
+    {% for weather in sunpeaks_weather %}
+    <div class="hub-chip">
+        <div class="temperature" data-metric="{{ weather.temperature }}" data-unit="C">{{ weather.temperature }}°C</div>
+        <div class="location-name">{{ weather.location }}</div>
+        <div class="elevation" data-metric="{{ weather.elevation }}" data-unit="m">{{ weather.elevation }} m</div>
+    </div>
+    {% endfor %}
+</section>
 
-        /* Content wrapper fills the viewport below the fixed navbar
-           and uses flex layout so children share the space without
-           overflowing. */
-        .content-wrapper {
-            display: flex;
-            flex-direction: column;
-            height: calc(100vh - 62px); /* viewport minus navbar */
-            overflow: hidden;
-        }
-        
-        .weather-container {
-            background-color: #ffffff;
-            width: calc(100% - 40px);
-            margin: 10px auto 0;
-            padding: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0; /* weather bar keeps its natural size */
-        }
-        
-        .weather-grid {
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-            text-align: center;
-            margin: 0 20px;
-        }
-        
-        li {
-            list-style-type: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 10px;
-            margin: 0 10px;
-            flex: 1;  /* Ensures each item takes up equal space */
-            min-width: 150px;
-        }
-        
-        .location-name {
-            font-size: 18px;
-            font-weight: bold;
-            color: #3C6090;
-            margin-bottom: 5px;
-        }
-        
-        .elevation {
-            font-size: 14px;
-            color: #7a7a7a;
-            margin-bottom: 10px;
-        }
-        
-        .temperature {
-            font-size: 48px;
-            font-weight: bold;
-            color: #4a4a4a;
-        }
-        
-
-        
-        /* Ensure the main container fills remaining space via flex */
-        .main-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            background-color: #000000;
-            position: relative;
-            min-height: 0; /* allow flex shrinking below content size */
-        }
-
-        .btn-container {
-            background-color: #ffffff;
-            padding: 20px 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            display: inline-block;
-            position: relative;
-            z-index: 1;
-        }
-
-        .btn-container h2, .btn-container p {
-            color: #000000;
-        }
-        
-        .btn {
-            margin: 10px;
-            padding: 10px 20px;
-            background-color: #000000; /* Black background for the buttons */
-            color: #ffffff; /* White text for buttons */
-            border: 2px solid #ffffff; /* White border for buttons */
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        .btn:hover {
-            background-color: #ffffff; /* Invert colors on hover for a sleek effect */
-            color: #000000;
-            border: 2px solid #000000;
-        }
-        
-        .btn-secondary {
-            background-color: #ffffff; /* White background for secondary button */
-            color: #000000; /* Black text for secondary button */
-            border: 2px solid #000000;
-        }
-
-        .icon-grid {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .icon-row {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            width: 100%;
-        }
-
-        .btn-icon {
-            margin: 5px;
-            display: inline-block;
-            text-decoration: none;
-        }
-        
-        .btn-icon img {
-            width: 150px;
-            height: 150px;
-            border-radius: 20px;  /* Adjust this value for more or less rounding */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        
-        .btn-icon img:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-        }      
-
-        .icon-caption {
-            margin-top: 8px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #000000;
-            text-align: center;
-        }        
-        
-    </style>
-</head>
-<body>
-    <div class="weather-container">
-        <div class="weather-grid">
-            {% for weather in sunpeaks_weather %}
-            <li>
-                <div class="location-name">{{ weather.location }}</div>
-                <div class="elevation" data-metric="{{ weather.elevation }}" data-unit="m">
-                    Elevation: {{ weather.elevation }} m
-                </div>
-                <div class="temperature" data-metric="{{ weather.temperature }}" data-unit="C">
-                    {{ weather.temperature }}°C
-                </div>
-            </li>
+<main class="hub-sections" id="hub-sections">
+    {% for key, title, tiles in hub_sections %}
+    <section class="hub-section hub-section-{{ key }}" style="flex: {{ tiles|length }}">
+        <h2>{{ title }}</h2>
+        <div class="hub-tiles">
+            {% for tile in tiles %}
+            <a class="hub-tile" href="{{ tile.url }}" data-plugin="{{ tile.plugin }}">
+                <img src="{% static tile.icon %}" alt="">
+                <span class="hub-tile-title">{{ tile.title }}</span>
+                {% if tile.subtitle %}<span class="hub-tile-sub">{{ tile.subtitle }}</span>{% endif %}
+            </a>
             {% endfor %}
         </div>
-    </div>
+    </section>
+    {% endfor %}
+</main>
 
-    <div class="main-container">
-        <div class="btn-container">
-            <h2>Welcome to Black Diamond Hub</h2>
-            <p>Manage your home with ease. Choose an option below to get started:</p>
-            <div class="icon-grid" id="icon-grid">
-                <a href="{% url 'webcams' %}" class="btn-icon">
-                    <img src="{% static 'img/webcams.png' %}" alt="Mountain Webcams" />
-                    <div class="icon-caption">Mountain Webcams</div>
-                </a>
-                <a href="{% url 'snow_report' %}" class="btn-icon">
-                    <img src="{% static 'img/snowreport.png' %}" alt="Snow Report" />
-                    <div class="icon-caption">Snow Report</div>
-                </a>
-                <a href="{% url 'sonos_control' %}" class="btn-icon">
-                    <img src="{% static 'img/music.png' %}" alt="Sonos" />
-                    <div class="icon-caption">Music</div>
-                </a>
-                <a href="{% url 'wifi_qr' %}" class="btn-icon">
-                    <img src="{% static 'img/wifi.png' %}" alt="Wifi Setup" />
-                    <div class="icon-caption">WiFi Setup</div>
-                </a>
-                <a href="{% url 'scenes' %}" class="btn-icon">
-                    <img src="{% static 'img/scene.png' %}" alt="Scene Control" />
-                    <div class="icon-caption">Scene Control</div>
-                </a>
-                <a href="{% url 'cameras' %}" class="btn-icon">
-                    <img src="{% static 'img/cameras.png' %}" alt="Cameras" />
-                    <div class="icon-caption">Cameras</div>
-                </a>
-                {% if user.is_authenticated %}
-                <a href="{% url 'vacation_mode' %}" class="btn-icon">
-                    <img src="{% static 'img/vacation.png' %}" alt="Vacation Mode" />
-                    <div class="icon-caption">Vacation Mode</div>
-                </a>
-                {% endif %}
-                <a href="{% url 'lift_status' %}" class="btn-icon">
-                    <img src="{% static 'img/lifts.png' %}" alt="Lift Status" />
-                    <div class="icon-caption">Lift Status</div>
-                </a>
-                <a href="{% url 'device_control' %}" class="btn-icon">
-                    <img src="{% static 'img/device_control.svg' %}" alt="Device Control" />
-                    <div class="icon-caption">Device Control</div>
-                </a>
-                <a href="{% url 'radiant' %}" class="btn-icon">
-                    <img src="{% static 'img/radiant.svg' %}" alt="Radiant System" />
-                    <div class="icon-caption">Radiant System</div>
-                </a>
-            </div>            
-        </div>
-    </div>
-
-    <script>
-        // Split icons into 2 centered rows (extra item on first row if odd)
-        document.addEventListener('DOMContentLoaded', function() {
-            const grid = document.getElementById('icon-grid');
-            const icons = Array.from(grid.querySelectorAll('.btn-icon'));
-            const total = icons.length;
-            const firstRowCount = Math.ceil(total / 2);
-
-            grid.innerHTML = '';
-
-            const row1 = document.createElement('div');
-            row1.className = 'icon-row';
-            icons.slice(0, firstRowCount).forEach(icon => row1.appendChild(icon));
-            grid.appendChild(row1);
-
-            const row2 = document.createElement('div');
-            row2.className = 'icon-row';
-            icons.slice(firstRowCount).forEach(icon => row2.appendChild(icon));
-            grid.appendChild(row2);
-        });
-
-        function toggleUnits() {
-            var toggleButton = document.querySelector('.toggle-button');
-            var elevations = document.querySelectorAll('.elevation');
-            var temperatures = document.querySelectorAll('.temperature');
-        
-            if (toggleButton.textContent === '°C/°F') {
-                elevations.forEach(function (elevation) {
-                    var metricValue = parseFloat(elevation.getAttribute('data-metric'));
-                    if (!isNaN(metricValue)) {
-                        var imperialValue = Math.round(metricValue * 3.28084); // Convert meters to feet and round
-                        elevation.textContent = 'Elevation: ' + imperialValue + ' ft';
-                        elevation.setAttribute('data-unit', 'ft');
-                    }
-                });
-                temperatures.forEach(function (temperature) {
-                    var metricValue = parseFloat(temperature.getAttribute('data-metric'));
-                    if (!isNaN(metricValue)) {
-                        var imperialValue = Math.round((metricValue * 9/5) + 32); // Convert Celsius to Fahrenheit and round
-                        temperature.textContent = imperialValue + '°F';
-                        temperature.setAttribute('data-unit', 'F');
-                    }
-                });
-                toggleButton.textContent = '°F/°C';
-            } else {
-                elevations.forEach(function (elevation) {
-                    var metricValue = elevation.getAttribute('data-metric');
-                    if (!isNaN(parseFloat(metricValue))) {
-                        elevation.textContent = 'Elevation: ' + Math.round(metricValue) + ' m';
-                        elevation.setAttribute('data-unit', 'm');
-                    }
-                });
-                temperatures.forEach(function (temperature) {
-                    var metricValue = temperature.getAttribute('data-metric');
-                    if (!isNaN(parseFloat(metricValue))) {
-                        temperature.textContent = Math.round(metricValue) + '°C';
-                        temperature.setAttribute('data-unit', 'C');
-                    }
-                });
-                toggleButton.textContent = '°C/°F';
+<script>
+    (function () {
+        function tick() {
+            var now = new Date();
+            var h = now.getHours();
+            document.body.classList.toggle('theme-night', h >= 18 || h < 6);
+            var parts = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).split(' ');
+            var clock = document.getElementById('hub-clock');
+            clock.textContent = parts[0];
+            if (parts[1]) {
+                var ampm = document.createElement('small');
+                ampm.textContent = parts[1];
+                clock.appendChild(ampm);
             }
+            document.getElementById('hub-date').textContent =
+                now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
         }
-       
-    </script>
-</body>
-</html>
+        tick();
+        setInterval(tick, 15000);
+    })();
+
+    function toggleUnits() {
+        var toggleButton = document.querySelector('.toggle-button');
+        var toImperial = toggleButton.textContent === '°C/°F';
+
+        document.querySelectorAll('.elevation').forEach(function (el) {
+            var m = parseFloat(el.getAttribute('data-metric'));
+            if (isNaN(m)) return;
+            el.textContent = toImperial ? Math.round(m * 3.28084) + ' ft' : Math.round(m) + ' m';
+            el.setAttribute('data-unit', toImperial ? 'ft' : 'm');
+        });
+        document.querySelectorAll('.temperature').forEach(function (el) {
+            var c = parseFloat(el.getAttribute('data-metric'));
+            if (isNaN(c)) return;
+            el.textContent = toImperial ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
+            el.setAttribute('data-unit', toImperial ? 'F' : 'C');
+        });
+        toggleButton.textContent = toImperial ? '°F/°C' : '°C/°F';
+    }
+</script>
 {% endblock %}

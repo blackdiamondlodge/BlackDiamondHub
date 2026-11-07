@@ -81,13 +81,13 @@ class LandingPageNoScrollTest(StaticLiveServerTestCase):
 
         # Wait for the page to fully load
         WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "btn-container"))
+            EC.presence_of_element_located((By.CLASS_NAME, "hub-sections"))
         )
 
-        # Wait for all icon images to finish loading
+        # Wait for all tile icons to finish loading
         WebDriverWait(self.browser, 20).until(
             lambda d: d.execute_script("""
-                var imgs = document.querySelectorAll('.btn-icon img');
+                var imgs = document.querySelectorAll('.hub-tile img');
                 return imgs.length > 0 && Array.from(imgs).every(
                     function(img) { return img.complete && img.naturalHeight > 0; }
                 );
@@ -194,15 +194,15 @@ class WeatherUnitToggleTest(StaticLiveServerTestCase):
         )
         self.browser.execute_script('''
             document.querySelector(".elevation").setAttribute("data-metric", "1000");
-            document.querySelector(".elevation").textContent = "Elevation: 1000 m";
+            document.querySelector(".elevation").textContent = "1000 m";
         ''')
         toggle_button = self.browser.find_element(By.CLASS_NAME, "toggle-button")
         toggle_button.click()
         elevation_text = self.browser.find_element(By.CLASS_NAME, "elevation").text
-        self.assertEqual(elevation_text, "Elevation: 3281 ft")  # 1000 meters -> 3281 feet
+        self.assertEqual(elevation_text, "3281 ft")  # 1000 meters -> 3281 feet
         toggle_button.click()
         elevation_text = self.browser.find_element(By.CLASS_NAME, "elevation").text
-        self.assertEqual(elevation_text, "Elevation: 1000 m")
+        self.assertEqual(elevation_text, "1000 m")
 
 @tag('selenium')
 class NavbarLoginButtonTest(StaticLiveServerTestCase):

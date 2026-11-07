@@ -26,19 +26,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', views.landing_page, name='landing_page'),
-    path('inventory/', include('inventory.urls')),
-    path('sunpeaks_webcams/', include('sunpeaks_webcams.urls')),
-    path('feedback/', include('feedback.urls')),
-    path('sonos_control/', include('sonos_control.urls')),
     path('auth/', include('social_django.urls', namespace='social')),
-    path('wifi/', include('wifi.urls')),
-    path('snow_report/', include('snow_report.urls')),
-    path('cameras/', include('cameras.urls')),
-    path('scenes/', include('scenes.urls')),
-    path('vacation_mode/', include('vacation_mode.urls')),
-    path('lift_status/', include('lift_status.urls')),
-    path('device_control/', include('device_control.urls')),
-    path('radiant/', include('radiant.urls')),
+]
+
+# Hub apps are mounted from their PluginSpec (see settings.HUB_PLUGINS).
+urlpatterns += [
+    path(spec.prefix, include(spec.urls))
+    for spec in settings.HUB_PLUGINS
+    if spec.urls
 ]
 
 if settings.DEBUG:

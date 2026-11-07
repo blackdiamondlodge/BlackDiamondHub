@@ -109,8 +109,10 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 
 ## Key Files
 
-- `BlackDiamondHub/settings.py` — Django settings, installed apps, database config
-- `BlackDiamondHub/urls.py` — URL routing for all apps
+- `BlackDiamondHub/settings.py` — Django settings, database config, and the `HUB_PLUGINS` list of hub apps
+- `BlackDiamondHub/urls.py` — core URLs; hub app URLs are mounted automatically from their `PluginSpec`
+- `hub/plugins.py` — plugin contract (`PluginSpec`, `Tile`, modes, sections) that every hub app implements
+- `hub/loader.py` / `hub/modes.py` — plugin discovery/validation and homepage mode (guest / dashboard / owner) + tile lookup
 - `vacation_mode/executor.py` — HA service call execution engine with state verification
 - `vacation_mode/steps.py` — Step definitions for vacation and home mode sequences
 - `cameras/protect_api.py` — UniFi Protect API client (camera discovery, RTSPS streams, PTZ control)
@@ -136,3 +138,13 @@ A template block in the navbar between the brand and the right-side icon group. 
 - **All other pages**: Block is empty, no toggle shown
 
 Use the `.navbar-toggle-btn` class for toggle buttons in this block. When adding a new page that needs a unit toggle or similar control, fill `{% block navbar_extras %}` with the appropriate buttons — don't add inline toggles to the page body.
+
+`base.html` also has `{% block extra_head %}` (page styles in `<head>`) and `{% block body_class %}` (classes on `<body>`).
+
+## Hub Apps (plugins)
+
+The hub is a platform; each feature is an app that describes itself in `<app>/plugin.py` with a `PluginSpec` (`hub/plugins.py`). The hub uses the specs to add apps to `INSTALLED_APPS`, mount their URLs at `<id>/`, and build the homepage tiles. Apps in their own repos register a `blackdiamondhub.plugins` entry point instead of being listed in `settings.HUB_PLUGINS`.
+
+To add an app: create `<app>/plugin.py` with `spec = PluginSpec(...)`, add `'<app>.plugin.spec'` to `HUB_PLUGINS`, and put its tile icon at `<app>/static/<app>/hub/icon.svg` (64×64 rounded tile, tinted gradient, white 2.6-stroke glyph — match the existing icons).
+
+Homepage modes: `owner` when signed in, `guest` while a stay is active, otherwise `dashboard`. `Tile.modes` only hides tiles — owner-only views must still enforce `@login_required` themselves.

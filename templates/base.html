@@ -329,8 +329,9 @@
             border-color: rgba(255, 255, 255, 0.85);
         }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <!-- ── Navbar ── -->
     <nav class="navbar navbar-dark bg-dark fixed-top">
         <div class="container-fluid">

@@ -14,6 +14,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+from hub.loader import load_plugins
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -46,19 +48,27 @@ INSTALLED_APPS = [
     'django_tables2',
     'crispy_forms',
     'crispy_bootstrap5',
-    'inventory',
-    'sunpeaks_webcams',
-    'feedback',
-    'sonos_control',
-    'wifi',
-    'snow_report',
-    'scenes',
-    'cameras',
-    'vacation_mode',
-    'lift_status',
-    'device_control',
-    'radiant',
+    'hub',
 ]
+
+# Hub apps. Each one describes itself in <app>/plugin.py; apps installed from
+# their own repos are discovered through the "blackdiamondhub.plugins" entry
+# point group.
+HUB_PLUGINS = load_plugins([
+    'inventory.plugin.spec',
+    'sunpeaks_webcams.plugin.spec',
+    'feedback.plugin.spec',
+    'sonos_control.plugin.spec',
+    'wifi.plugin.spec',
+    'snow_report.plugin.spec',
+    'scenes.plugin.spec',
+    'cameras.plugin.spec',
+    'vacation_mode.plugin.spec',
+    'lift_status.plugin.spec',
+    'device_control.plugin.spec',
+    'radiant.plugin.spec',
+])
+INSTALLED_APPS += [spec.app for spec in HUB_PLUGINS]
 
 CHANNEL_LAYERS = {
     'default': {

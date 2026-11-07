@@ -7,11 +7,13 @@ import re
 from social_django.utils import load_strategy
 from social_core.backends.spotify import SpotifyOAuth2
 
+from hub.modes import resolve_mode, tiles_for_mode
+
 def landing_page(request):
     url = 'https://www.sunpeaksresort.com/bike-hike/weather-webcams/weather'  # Replace with the URL you want to fetch
     current_weather = None
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         
         # Parse the HTML content
@@ -50,9 +52,11 @@ def landing_page(request):
         # Append the entry to the weather_data list
         weather_data.append(weather_entry)    
     
-    # Pass the content to the template
+    mode = resolve_mode(request)
     context = {
-        'sunpeaks_weather': weather_data
+        'sunpeaks_weather': weather_data,
+        'hub_mode': mode,
+        'hub_sections': tiles_for_mode(mode),
     }
     return render(request, 'index.html', context)
 
