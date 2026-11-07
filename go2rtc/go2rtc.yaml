@@ -15,6 +15,10 @@ api:
 
 webrtc:
   listen: ":8555"
+  # Advertise the host's LAN address; the container's bridge IP isn't
+  # reachable from browsers, which forced every camera onto MSE.
+  candidates:
+    - 192.168.10.216:8555
 streams:
   backyard:
     - rtsps://192.168.10.1:7441/Fx4CI9O2N6UuXCjz
