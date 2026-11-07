@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1
 # psycopg2 build deps, plus a pg_dump that matches the production server
 # (Postgres 16; Debian's own client is too old, so use the PGDG repo).
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq-dev gcc curl ca-certificates && \
+    apt-get install -y --no-install-recommends libpq-dev gcc libc6-dev curl ca-certificates && \
     install -d /usr/share/postgresql-common/pgdg && \
     curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
         https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
