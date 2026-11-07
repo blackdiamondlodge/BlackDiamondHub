@@ -238,10 +238,12 @@
                     <img src="{% static 'img/cameras.png' %}" alt="Cameras" />
                     <div class="icon-caption">Cameras</div>
                 </a>
+                {% if user.is_authenticated %}
                 <a href="{% url 'vacation_mode' %}" class="btn-icon">
                     <img src="{% static 'img/vacation.png' %}" alt="Vacation Mode" />
                     <div class="icon-caption">Vacation Mode</div>
                 </a>
+                {% endif %}
                 <a href="{% url 'lift_status' %}" class="btn-icon">
                     <img src="{% static 'img/lifts.png' %}" alt="Lift Status" />
                     <div class="icon-caption">Lift Status</div>
