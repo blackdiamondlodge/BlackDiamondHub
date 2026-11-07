@@ -8,6 +8,9 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
     
     steps:
       # 1. Check out the repo code
@@ -20,7 +23,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.BDL_PACKAGE_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # 3. Set a lowercase repository name in an environment variable
       - name: Convert repository name to lowercase

@@ -36,7 +36,7 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 1. **Code changes** go through feature branches → PRs → merge to `main`
 2. **GitHub Actions** (`docker-publish.yml`) triggers on push to `main`:
    - Builds the Docker image from the Dockerfile
-   - Pushes to GHCR: `ghcr.io/sslivins/blackdiamondhub/blackdiamondhub:latest`
+   - Pushes to GHCR: `ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:latest`
 3. **Watchtower** on production polls GHCR every 300s, pulls new images, and recreates the `BlackDiamondHub` container automatically
    - Watchtower only watches the `BlackDiamondHub` container (not go2rtc)
 
@@ -74,7 +74,7 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
   - Both jobs run on `ubuntu-22.04` with PostgreSQL 13 service container
   - Selenium tests use headless Chrome with shared helpers in `tests/selenium_helpers.py`
 - **Docker publish workflow** (`docker-publish.yml`): Runs on push to `main`
-  - Builds Docker image and pushes to GHCR (`ghcr.io/sslivins/blackdiamondhub/blackdiamondhub:latest`)
+  - Builds Docker image and pushes to GHCR (`ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:latest`)
   - Watchtower on production auto-pulls the new image (see Deployment section)
 
 ## Branch & Git Workflow
