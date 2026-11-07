@@ -90,6 +90,9 @@ services:
     #   WATCHTOWER_USERNAME: "${REGISTRY_USERNAME}"
     #   WATCHTOWER_PASSWORD: "${REGISTRY_PASSWORD}"
       - WATCHTOWER_POLL_INTERVAL=300
+      # Delete the old image after each update, otherwise every build is
+      # kept and the disk fills up (homehub hit 100% with 88 images).
+      - WATCHTOWER_CLEANUP=true
     # 
     # Keep watchtower running unless it crashes/restarts
     restart: unless-stopped
