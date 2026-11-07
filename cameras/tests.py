@@ -11,7 +11,7 @@ from django.core.cache import cache as django_cache
 from .protect_api import (
     get_protect_cameras, clear_cache, _camera_name_to_stream_name,
     _fetch_cameras_from_site, _is_ptz_camera, ptz_goto_preset,
-    PTZ_DEFAULT_PRESETS, CACHE_KEY_PREFIX,
+    PTZ_DEFAULT_PRESETS, CACHE_KEY_PREFIX, INCOMPLETE_CACHE_TTL,
 )
 
 
@@ -305,10 +305,10 @@ class ProtectCachingTests(TestCase):
     def setUp(self):
         clear_cache()
 
-    @patch('cameras.protect_api._fetch_cameras_from_site')
+    @patch('cameras.protect_api._fetch_cameras_from_site_ex')
     def test_caches_result(self, mock_fetch):
         """Second call uses cached result, doesn't re-fetch."""
-        mock_fetch.return_value = [{'name': 'Cam1', 'stream_name': 'cam1', 'rtsp_url': 'rtsps://x', 'rtsp_url_low': 'rtsps://x_low'}]
+        mock_fetch.return_value = ([{'name': 'Cam1', 'stream_name': 'cam1', 'rtsp_url': 'rtsps://x', 'rtsp_url_low': 'rtsps://x_low'}], True)
 
         result1 = get_protect_cameras()
         result2 = get_protect_cameras()
@@ -316,10 +316,10 @@ class ProtectCachingTests(TestCase):
         mock_fetch.assert_called_once()
         self.assertEqual(result1, result2)
 
-    @patch('cameras.protect_api._fetch_cameras_from_site')
+    @patch('cameras.protect_api._fetch_cameras_from_site_ex')
     def test_returns_empty_list_on_failure(self, mock_fetch):
         """Returns site with empty cameras when fetch fails (returns None)."""
-        mock_fetch.return_value = None
+        mock_fetch.return_value = (None, False)
 
         result = get_protect_cameras()
 
@@ -803,14 +803,39 @@ class PtzDetectionTests(TestCase):
         self.assertFalse(result)
 
     @patch('cameras.protect_api.requests.post')
-    def test_returns_false_on_network_error(self, mock_post):
-        """Returns False when request fails."""
+    def test_returns_none_on_network_error(self, mock_post):
+        """Returns None (unknown) when request fails."""
         import requests
         mock_post.side_effect = requests.RequestException("Timeout")
 
         result = _is_ptz_camera('192.168.10.1', 'key', 'cam1')
 
-        self.assertFalse(result)
+        self.assertIsNone(result)
+
+    @patch('cameras.protect_api.requests.post')
+    def test_detects_ptz_from_camera_type_without_probe(self, mock_post):
+        """A camera type containing "PTZ" is PTZ without an API call."""
+        result = _is_ptz_camera('192.168.10.1', 'key', 'cam1', 'UVC G5 PTZ')
+
+        self.assertTrue(result)
+        mock_post.assert_not_called()
+
+    @patch('cameras.protect_api.time.sleep')
+    @patch('cameras.protect_api.requests.post')
+    def test_retries_when_rate_limited(self, mock_post, mock_sleep):
+        """A 429 is retried rather than treated as "not PTZ"."""
+        mock_post.side_effect = [
+            _make_mock_response({}, status_code=429),
+            _make_mock_response(
+                {'error': "Entity 'preset' not found"}, status_code=404,
+            ),
+        ]
+
+        result = _is_ptz_camera('192.168.10.1', 'key', 'cam_ptz')
+
+        self.assertTrue(result)
+        self.assertEqual(mock_post.call_count, 2)
+        mock_sleep.assert_called_once()
 
 
 @override_settings(
@@ -823,10 +848,10 @@ class PtzGotoPresetTests(TestCase):
         clear_cache()
         # Populate cache so _find_site_for_camera can find the host
         cache_key = f'{CACHE_KEY_PREFIX}192.168.10.1'
-        django_cache.set(cache_key, {
-            'cameras': [{'camera_id': 'cam_ptz', 'name': 'PTZ Cam'},
-                        {'camera_id': 'cam_fixed', 'name': 'Fixed Cam'}],
-        }, 300)
+        django_cache.set(cache_key, [
+            {'camera_id': 'cam_ptz', 'name': 'PTZ Cam'},
+            {'camera_id': 'cam_fixed', 'name': 'Fixed Cam'},
+        ], 300)
 
     @patch('cameras.protect_api.requests.post')
     def test_returns_true_on_success(self, mock_post):
@@ -952,6 +977,41 @@ class FetchCamerasWithPtzTests(TestCase):
 
         self.assertEqual(cameras[0]['camera_id'], 'cam_back')
         self.assertEqual(cameras[1]['camera_id'], 'cam_front')
+
+    @override_settings(
+        UNIFI_PROTECT_SITES=[{'host': '192.168.10.1', 'api_key': 'k', 'name': 'S'}],
+    )
+    @patch('cameras.protect_api.time.sleep')
+    @patch('cameras.protect_api.requests.post')
+    @patch('cameras.protect_api.requests.get')
+    def test_rate_limited_result_cached_briefly(self, mock_get, mock_post, _):
+        """A partial (rate-limited) camera list is cached with the short TTL."""
+        def get_side_effect(url, **kwargs):
+            if 'cam_back/rtsps-stream' in url:
+                return _make_mock_response({}, status_code=429)
+            return _mock_get_side_effect(url, **kwargs)
+
+        def post_side_effect(url, **kwargs):
+            if 'cam_back/rtsps-stream' in url:
+                return _make_mock_response({}, status_code=429)
+            return _mock_post_non_ptz(url, **kwargs)
+
+        def raise_on_error(resp):
+            import requests
+            if resp.status_code >= 400:
+                resp.raise_for_status.side_effect = requests.HTTPError("429")
+            return resp
+
+        mock_get.side_effect = lambda url, **kw: raise_on_error(get_side_effect(url, **kw))
+        mock_post.side_effect = lambda url, **kw: raise_on_error(post_side_effect(url, **kw))
+
+        with patch('cameras.protect_api.django_cache') as mock_cache:
+            mock_cache.get.return_value = None
+            sites = get_protect_cameras()
+
+        self.assertEqual([c['name'] for c in sites[0]['cameras']], ['Front Door'])
+        ttl = mock_cache.set.call_args.args[2]
+        self.assertEqual(ttl, INCOMPLETE_CACHE_TTL)
 
 
 # --- PTZ View tests ---

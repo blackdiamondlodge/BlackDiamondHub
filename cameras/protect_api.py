@@ -26,9 +26,33 @@ logger = logging.getLogger(__name__)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 CACHE_TTL = 300  # 5 minutes
+# Shorter TTL when a refresh was incomplete (e.g. Protect rate-limited us), so
+# missing cameras / PTZ controls come back quickly instead of after 5 minutes.
+INCOMPLETE_CACHE_TTL = 30
 CACHE_KEY_PREFIX = 'protect_cameras_'
 
 API_BASE = '/proxy/protect/integration/v1'
+
+# Protect's integration API returns 429 when hit with a burst of requests.
+MAX_PARALLEL_REQUESTS = 4
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_BACKOFF_S = 1.0
+
+
+def _request(method, url, **kwargs):
+    """requests.<method> with retry/backoff on HTTP 429 (Too Many Requests)."""
+    func = getattr(requests, method)
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        resp = func(url, **kwargs)
+        if resp.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
+            return resp
+        try:
+            delay = float(resp.headers.get('Retry-After'))
+        except (TypeError, ValueError):
+            delay = RATE_LIMIT_BACKOFF_S * (2 ** attempt)
+        logger.info("Protect rate-limited %s; retrying in %.1fs", url, delay)
+        time.sleep(delay)
+    return resp
 
 
 def _camera_name_to_stream_name(name):
@@ -82,7 +106,7 @@ def get_protect_cameras():
                 api_key = site['api_key']
                 site_name = site.get('name', host)
                 f = pool.submit(
-                    _fetch_cameras_from_site, host, api_key, site_name,
+                    _fetch_cameras_from_site_ex, host, api_key, site_name,
                 )
                 futures[f] = (i, site)
 
@@ -90,10 +114,11 @@ def get_protect_cameras():
                 i, site = futures[f]
                 host = site['host']
                 site_name = site.get('name', host)
-                cameras = f.result()
+                cameras, complete = f.result()
                 if cameras is not None:
                     cache_key = f'{CACHE_KEY_PREFIX}{host}'
-                    django_cache.set(cache_key, cameras, CACHE_TTL)
+                    ttl = CACHE_TTL if complete else INCOMPLETE_CACHE_TTL
+                    django_cache.set(cache_key, cameras, ttl)
                 else:
                     cameras = []
                 result_map[i] = {
@@ -129,7 +154,7 @@ def _get_rtsps_url(host, api_key, camera_id):
 
     # Try to get existing RTSPS streams
     try:
-        resp = requests.get(base, headers=headers, verify=False, timeout=15)
+        resp = _request('get', base, headers=headers, verify=False, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         urls = {}
@@ -144,7 +169,8 @@ def _get_rtsps_url(host, api_key, camera_id):
 
     # No existing streams — create both high and low
     try:
-        resp = requests.post(
+        resp = _request(
+            'post',
             base,
             headers={**headers, 'Content-Type': 'application/json'},
             json={'qualities': ['high', 'low']},
@@ -212,7 +238,7 @@ def _find_site_for_camera(camera_id):
         host = site['host']
         cached = django_cache.get(f'{CACHE_KEY_PREFIX}{host}')
         if cached:
-            for cam in cached['cameras']:
+            for cam in cached:
                 if cam['camera_id'] == camera_id:
                     return host, site['api_key']
 
@@ -226,24 +252,42 @@ def _find_site_for_camera(camera_id):
 PTZ_DEFAULT_PRESETS = 4
 
 
-def _is_ptz_camera(host, api_key, camera_id):
+def _is_ptz_camera(host, api_key, camera_id, camera_type=''):
     """Detect if a camera supports PTZ without moving it.
 
-    Probes POST /ptz/goto/1000 (a slot that won't exist):
+    UniFi PTZ models carry "PTZ" in their type (e.g. "UVC G5 PTZ"), which
+    needs no extra request. Otherwise probes POST /ptz/goto/1000 (a slot
+    that won't exist):
     - 404 = PTZ camera (preset not found, but camera supports PTZ)
     - 400 = Not a PTZ camera ("Camera is not a type of PTZ")
+
+    Returns True/False, or None if the probe couldn't get an answer.
     """
+    if 'ptz' in (camera_type or '').lower():
+        return True
+
     url = f'https://{host}{API_BASE}/cameras/{camera_id}/ptz/goto/1000'
     headers = {'X-API-KEY': api_key}
 
     try:
-        resp = requests.post(url, headers=headers, verify=False, timeout=10)
-        return resp.status_code == 404
+        resp = _request('post', url, headers=headers, verify=False, timeout=10)
     except requests.RequestException:
+        return None
+    if resp.status_code == 404:
+        return True
+    if resp.status_code == 400:
         return False
+    logger.warning("PTZ probe for camera %s returned %d", camera_id,
+                   resp.status_code)
+    return None
 
 
 def _fetch_cameras_from_site(host, api_key, site_name=None):
+    """Like _fetch_cameras_from_site_ex but returns only the camera list."""
+    return _fetch_cameras_from_site_ex(host, api_key, site_name)[0]
+
+
+def _fetch_cameras_from_site_ex(host, api_key, site_name=None):
     """Fetch all cameras with RTSPS streams from a single Protect site.
 
     Uses API key authentication (X-API-KEY header). Discovers cameras via
@@ -254,18 +298,21 @@ def _fetch_cameras_from_site(host, api_key, site_name=None):
     name to avoid collisions when multiple sites have cameras with the
     same name (e.g., both sites have "Front Door").
 
-    PTZ capability is auto-detected by probing a non-existent preset
-    slot (1000), which returns 404 for PTZ cameras and 400 for non-PTZ
-    cameras — without moving the camera.
+    PTZ capability comes from the camera type when it says "PTZ", otherwise
+    from probing a non-existent preset slot (1000), which returns 404 for PTZ
+    cameras and 400 for non-PTZ cameras — without moving the camera.
 
-    Returns a list of camera dicts, or None on failure.
+    Returns (cameras, complete): cameras is a list of camera dicts (None on
+    failure); complete is False if any per-camera request failed (e.g. Protect
+    rate limiting), so callers can avoid caching a partial result for long.
     """
     if not all([host, api_key]):
         logger.warning("UniFi Protect not configured (need host and API key)")
-        return None
+        return None, False
 
     try:
-        resp = requests.get(
+        resp = _request(
+            'get',
             f'https://{host}{API_BASE}/cameras',
             headers={'X-API-KEY': api_key},
             verify=False,
@@ -291,20 +338,22 @@ def _fetch_cameras_from_site(host, api_key, site_name=None):
                 )
             else:
                 stream_name = _camera_name_to_stream_name(name)
-            pending.append((camera_id, name, stream_name))
+            pending.append((camera_id, name, stream_name, camera.get('type', '')))
 
         # Fetch RTSPS URLs and probe PTZ in a single parallel pass
         cameras = []
+        complete = True
         if not pending:
-            return cameras
-        with ThreadPoolExecutor(max_workers=min(len(pending) * 2, 16)) as pool:
+            return cameras, complete
+        workers = min(len(pending) * 2, MAX_PARALLEL_REQUESTS)
+        with ThreadPoolExecutor(max_workers=workers) as pool:
             rtsps_futures = {
                 pool.submit(_get_rtsps_url, host, api_key, cid): (cid, name, sn)
-                for cid, name, sn in pending
+                for cid, name, sn, _ in pending
             }
             ptz_futures = {
-                pool.submit(_is_ptz_camera, host, api_key, cid): cid
-                for cid, name, sn in pending
+                pool.submit(_is_ptz_camera, host, api_key, cid, ctype): cid
+                for cid, name, sn, ctype in pending
             }
 
             # Collect RTSPS results
@@ -322,19 +371,23 @@ def _fetch_cameras_from_site(host, api_key, site_name=None):
                         'is_ptz': False,
                         'ptz_presets': 0,
                     }
+                else:
+                    complete = False
 
             # Collect PTZ results
             for f in as_completed(ptz_futures):
                 camera_id = ptz_futures[f]
-                if camera_id in rtsps_results and f.result():
+                is_ptz = f.result()
+                if is_ptz is None:
+                    complete = False
+                if camera_id in rtsps_results and is_ptz:
                     rtsps_results[camera_id]['is_ptz'] = True
                     rtsps_results[camera_id]['ptz_presets'] = PTZ_DEFAULT_PRESETS
 
             cameras = list(rtsps_results.values())
 
         cameras.sort(key=lambda c: c['name'])
-        return cameras
-
+        return cameras, complete
     except requests.RequestException as e:
         logger.error("Failed to fetch cameras from UniFi Protect: %s", e)
-        return None
+        return None, False
