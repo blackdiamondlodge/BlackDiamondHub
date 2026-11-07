@@ -475,11 +475,17 @@ class VerifyEntityStateTests(TestCase):
         self.assertTrue(success)
 
 
+def _make_owner(username="owner"):
+    from django.contrib.auth.models import User
+    return User.objects.create_user(username, password="pw")
+
+
 class ViewTests(TestCase):
     """Tests for the vacation mode views."""
 
     def setUp(self):
         self.client = Client()
+        self.client.force_login(_make_owner())
         p = patch(
             "vacation_mode.views.get_current_season",
             return_value=("heating", 5.0),
@@ -578,6 +584,7 @@ class DryRunTests(TestCase):
         """Execute view should pass dry_run to start_execution."""
         mock_start.return_value = ("abc123", None)
         client = Client()
+        client.force_login(_make_owner())
         response = client.post(
             "/vacation_mode/api/execute/",
             data=json.dumps({"mode": "vacation", "dry_run": True}),
@@ -888,6 +895,7 @@ class AdditionalViewTests(TestCase):
 
     def setUp(self):
         self.client = Client()
+        self.client.force_login(_make_owner())
         p = patch(
             "vacation_mode.views.get_current_season",
             return_value=("heating", 5.0),
@@ -1002,6 +1010,8 @@ class TemplateRenderTests(TestCase):
     """Tests for template rendering correctness."""
 
     def setUp(self):
+        self.client = Client()
+        self.client.force_login(_make_owner())
         p = patch(
             "vacation_mode.views.get_current_season",
             return_value=("heating", 5.0),
@@ -1049,9 +1059,6 @@ class TemplateRenderTests(TestCase):
         mock_active.return_value = None
         response = self.client.get("/vacation_mode/")
         self.assertContains(response, "status-badge home")
-
-    def setUp(self):
-        self.client = Client()
 
 
 class HomepageIconTests(TestCase):
@@ -1119,6 +1126,15 @@ class SeleniumVacationModeTests(StaticLiveServerTestCase):
         # Reset browser state between tests
         self.driver.get('about:blank')
         self.driver.delete_all_cookies()
+        # The page is owner-only: log in by planting a session cookie.
+        client = Client()
+        client.force_login(_make_owner())
+        self.driver.get(self.live_server_url)
+        self.driver.add_cookie({
+            "name": "sessionid",
+            "value": client.cookies["sessionid"].value,
+            "path": "/",
+        })
         # Monkeypatch get_away_mode_state so the live server uses our mock
         from vacation_mode import views as vm_views
         self._original_get_away_mode_state = vm_views.get_away_mode_state
@@ -1708,7 +1724,45 @@ class BdlModesDisabledTests(TestCase):
     @patch("vacation_mode.views.get_current_season", return_value=("heating", 5.0))
     @patch("vacation_mode.views.bdl_client.call")
     def test_legacy_page_without_url(self, call, *_):
-        r = Client().get("/vacation_mode/")
+        client = Client()
+        client.force_login(User.objects.create_user("u", password="p"))
+        r = client.get("/vacation_mode/")
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, "vacation_mode.html")
         call.assert_not_called()
+
+
+@override_settings(BDL_MODES_URL="")
+class LegacyViewsRequireLoginTests(TestCase):
+    """Legacy vacation-mode page and API must not be reachable anonymously."""
+
+    def test_page_redirects_to_login(self):
+        r = self.client.get("/vacation_mode/")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("login", r["Location"])
+
+    @patch("vacation_mode.views.start_execution")
+    def test_execute_rejected(self, mock_start):
+        r = self.client.post(
+            "/vacation_mode/api/execute/",
+            data=json.dumps({"mode": "vacation"}),
+            content_type="application/json",
+        )
+        self.assertNotEqual(r.status_code, 200)
+        self.assertIn("login", r["Location"])
+        mock_start.assert_not_called()
+
+    @patch("vacation_mode.views.get_active_run")
+    @patch("vacation_mode.views.get_away_mode_state")
+    def test_state_rejected(self, mock_away, mock_active):
+        r = self.client.get("/vacation_mode/api/state/")
+        self.assertNotEqual(r.status_code, 200)
+        self.assertIn("login", r["Location"])
+        mock_away.assert_not_called()
+
+    @patch("vacation_mode.views.get_run_status")
+    def test_status_rejected(self, mock_status):
+        r = self.client.get("/vacation_mode/api/status/abc123/")
+        self.assertNotEqual(r.status_code, 200)
+        self.assertIn("login", r["Location"])
+        mock_status.assert_not_called()
