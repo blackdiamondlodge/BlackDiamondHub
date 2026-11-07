@@ -89,3 +89,31 @@ class HomepageRegistryTests(TestCase):
         response = self.client.get("/")
         self.assertEqual(response.context["hub_mode"], OWNER)
         self.assertContains(response, "mode-owner")
+
+
+class HealthCheckTests(TestCase):
+    def test_healthz_ok_for_any_host(self):
+        # The container probe uses 127.0.0.1, which is not in ALLOWED_HOSTS.
+        response = self.client.get("/healthz", HTTP_HOST="127.0.0.1")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+
+    def test_healthz_reports_database_failure(self):
+        with patch("hub.health.connection.cursor", side_effect=Exception("db down")):
+            response = self.client.get("/healthz")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["status"], "error")
+
+
+class WebSocketOriginTests(SimpleTestCase):
+    async def test_rejects_websocket_from_foreign_origin(self):
+        from channels.testing import WebsocketCommunicator
+
+        from BlackDiamondHub.asgi import application
+
+        communicator = WebsocketCommunicator(
+            application, "/ws/sonos_updates/", headers=[(b"origin", b"http://evil.example")]
+        )
+        connected, _ = await communicator.connect()
+        self.assertFalse(connected)
+        await communicator.disconnect()

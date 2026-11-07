@@ -7,6 +7,9 @@ services:
     container_name: BlackDiamondHub
     # Pass environment variables (secrets) to Django
     environment:
+      # Django core (DJANGO_SECRET_KEY is required; DJANGO_DEBUG defaults to off)
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       HOST: ${HOST}
       DB_HOST: ${DB_HOST}
@@ -34,6 +37,11 @@ services:
       # Home Assistant Settings 2
       HOMEASSISTANT_URL_2: ${HOMEASSISTANT_URL_2}
       HOMEASSISTANT_ACCESS_TOKEN_2: ${HOMEASSISTANT_ACCESS_TOKEN_2}
+
+      # Napoleon fireplaces (Ayla cloud)
+      NAPOLEON_EMAIL: ${NAPOLEON_EMAIL:-}
+      NAPOLEON_PASSWORD: ${NAPOLEON_PASSWORD:-}
+      NAPOLEON_EUROPE: ${NAPOLEON_EUROPE:-}
 
       # go2rtc API URL for server-side calls. Django uses host networking,
       # so this must be http://localhost:1984 (the "go2rtc" hostname only
@@ -63,6 +71,10 @@ services:
       BDL_MODES_PREHEAT: ${BDL_MODES_PREHEAT:-false}
 
     network_mode: host
+
+    # Database backups taken by the entrypoint before migrations run.
+    volumes:
+      - ./backups:/backups
     
     restart: unless-stopped
 

@@ -47,6 +47,10 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 
 ### Docker Services (docker-compose.yml)
 - **djangoapp** (`BlackDiamondHub`) — Django app on port 8000, image from GHCR
+  - Runs `docker/entrypoint.sh`: waits for the DB; if migrations are pending, `pg_dump`s to `./backups` (host volume, last 10 kept) and runs `migrate`; then serves with **Daphne** (not `runserver`). Static files are collected at image build and served by **WhiteNoise**.
+  - Requires `DJANGO_SECRET_KEY` in `.env`; `DJANGO_DEBUG` defaults to off (set `DJANGO_DEBUG=true` in a local `.env` for development).
+  - `/healthz` (DB check, exempt from ALLOWED_HOSTS) backs the image's Docker `HEALTHCHECK`.
+  - Rollback: images are also tagged `:sha-<commit>`; pin `image:` in compose to a previous sha and `docker compose up -d`. Watchtower does not roll back on its own, and an image rollback does not undo migrations (restore from `./backups` if needed).
 - **go2rtc** (`alexxit/go2rtc`) — RTSPS-to-WebRTC proxy on port 1984 (API/WebUI) and 8555 (WebRTC)
 - **watchtower** (`containrrr/watchtower`) — Auto-updates the Django container from GHCR
 
@@ -70,11 +74,11 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 ## CI/CD
 
 - **Test workflow** (`tests.yml`): Runs on every push/PR
-  - Two jobs: `unit-tests` (excludes selenium tag) and `selenium-tests` (selenium tag only, with retry via nick-fields/retry)
-  - Both jobs run on `ubuntu-22.04` with PostgreSQL 13 service container
+  - Three jobs: `unit-tests` (excludes selenium tag), `selenium-tests` (selenium tag only, with retry via nick-fields/retry), and `image-smoke-test` (builds the Docker image, boots it against Postgres 16 and checks backup, migrate, health, pages and static files)
+  - Test jobs run on `ubuntu-22.04` with a PostgreSQL service container
   - Selenium tests use headless Chrome with shared helpers in `tests/selenium_helpers.py`
 - **Docker publish workflow** (`docker-publish.yml`): Runs on push to `main`
-  - Builds Docker image and pushes to GHCR (`ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:latest`)
+  - Builds Docker image and pushes to GHCR (`ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:latest` and `:sha-<commit>`)
   - Watchtower on production auto-pulls the new image (see Deployment section)
 
 ## Branch & Git Workflow

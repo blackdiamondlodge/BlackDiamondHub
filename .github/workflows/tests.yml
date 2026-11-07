@@ -44,6 +44,7 @@ jobs:
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
         ALLOWED_HOSTS: localhost
+        DJANGO_SECRET_KEY: ci-test-only
         DB_NAME: test_db
         DB_HOST: localhost
         DB_USER: postgres
@@ -130,6 +131,7 @@ jobs:
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
         ALLOWED_HOSTS: localhost
+        DJANGO_SECRET_KEY: ci-test-only
         DB_NAME: test_db
         DB_HOST: localhost
         DB_USER: postgres
@@ -142,3 +144,69 @@ jobs:
       with:
         name: test-screenshot
         path: "**/*.png"
+
+  image-smoke-test:
+    # Build the production image and boot it the way homehub does:
+    # entrypoint backup + migrate, Daphne, WhiteNoise static, health check.
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: smoke_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build image
+      run: docker build -t bdh-smoke .
+
+    - name: Start container
+      run: |
+        mkdir -p /tmp/bdh-backups
+        docker run -d --name bdh --network host \
+          -e DJANGO_SECRET_KEY=smoke-test-only \
+          -e ALLOWED_HOSTS=localhost \
+          -e DB_HOST=localhost -e DB_NAME=smoke_db \
+          -e DB_USER=postgres -e DB_PASSWORD=postgres \
+          -v /tmp/bdh-backups:/backups \
+          bdh-smoke
+
+    - name: Wait for healthy container
+      run: |
+        for i in $(seq 1 60); do
+          status=$(docker inspect -f '{{.State.Health.Status}}' bdh 2>/dev/null || echo missing)
+          echo "health: $status"
+          [ "$status" = "healthy" ] && exit 0
+          [ "$(docker inspect -f '{{.State.Running}}' bdh)" = "true" ] || break
+          sleep 5
+        done
+        docker logs bdh
+        exit 1
+
+    - name: Check pages, static files and the pre-migration backup
+      run: |
+        set -e
+        curl -fsS http://localhost:8000/healthz
+        curl -fsS -H 'Host: localhost' http://localhost:8000/ | grep -q 'hub-sections'
+        curl -fsS -H 'Host: localhost' -o /dev/null http://localhost:8000/accounts/login/
+        curl -fsS -H 'Host: localhost' -o /dev/null http://localhost:8000/static/wifi/hub/icon.svg
+        # DEBUG must be off in the image: unknown URLs give the plain 404 page.
+        ! curl -sS -H 'Host: localhost' http://localhost:8000/no-such-page/ | grep -q 'URLconf'
+        ls -l /tmp/bdh-backups
+        ls /tmp/bdh-backups/*.sql.gz
+        docker logs bdh 2>&1 | grep -q 'backup written'
+
+    - name: Container logs
+      if: always()
+      run: docker logs bdh || true

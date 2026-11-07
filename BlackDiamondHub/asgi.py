@@ -8,19 +8,27 @@ https://docs.djangoproject.com/en/5.1/howto/deployment/asgi/
 """
 
 import os
-import django
+
 from django.core.asgi import get_asgi_application
-from channels.auth import AuthMiddlewareStack
-from channels.routing import ProtocolTypeRouter, URLRouter
-import sonos_control.routing
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'BlackDiamondHub.settings')
 
+# Set up Django before importing anything that touches models (consumers).
+django_asgi_app = get_asgi_application()
+
+from channels.auth import AuthMiddlewareStack  # noqa: E402
+from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
+from channels.security.websocket import AllowedHostsOriginValidator  # noqa: E402
+
+import sonos_control.routing  # noqa: E402
+
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
-    "websocket": AuthMiddlewareStack(
-        URLRouter(
-            sonos_control.routing.websocket_urlpatterns
+    "http": django_asgi_app,
+    "websocket": AllowedHostsOriginValidator(
+        AuthMiddlewareStack(
+            URLRouter(
+                sonos_control.routing.websocket_urlpatterns
+            )
         )
     ),
 })

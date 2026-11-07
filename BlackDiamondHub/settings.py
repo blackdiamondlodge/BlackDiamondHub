@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 from hub.loader import load_plugins
 
@@ -25,13 +26,27 @@ load_dotenv()
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-*-@iek83wyv#jk^*h_wnxj93&hn#%==cqoyfey17r_b6jy43$r'
+def _env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in ('1', 'true', 'yes', 'on')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+
+# Off unless DJANGO_DEBUG is set (put DJANGO_DEBUG=true in .env for local dev).
+DEBUG = _env_bool('DJANGO_DEBUG')
+
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is off.')
+    SECRET_KEY = 'django-insecure-local-development-only'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS').split(',') if os.getenv('ALLOWED_HOSTS') else []
+
+# Needed for logins through the HTTPS reverse proxy (HOST is the public URL).
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', os.getenv('HOST', '')).split(',')
+    if origin.strip().startswith(('http://', 'https://'))
+]
 
 # Application definition
 
@@ -82,7 +97,10 @@ ASGI_APPLICATION = 'BlackDiamondHub.asgi.application'
 WSGI_APPLICATION = 'BlackDiamondHub.wsgi.application'
 
 MIDDLEWARE = [
+    # First, so container health checks skip the ALLOWED_HOSTS check.
+    'hub.health.HealthCheckMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -192,6 +210,11 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# Static files are served by WhiteNoise (collected at image build time).
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -226,7 +249,7 @@ SOCIAL_AUTH_STRATEGY = "social_django.strategy.DjangoStrategy"
 SOCIAL_AUTH_STORAGE = "social_django.models.DjangoStorage"
 
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
-SOCIAL_AUTH_DEBUG = True
+SOCIAL_AUTH_DEBUG = DEBUG
 SOCIAL_AUTH_REVOKE_TOKENS_ON_DISCONNECT = True
 SOCIAL_AUTH_REFRESH_TOKENS = True
 SOCIAL_AUTH_SESSION_EXPIRATION = True

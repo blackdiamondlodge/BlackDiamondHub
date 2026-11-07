@@ -36,6 +36,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ env.REPO }}/blackdiamondhub:latest
+          # :latest is what Watchtower follows; :sha-<commit> allows pinning for rollback.
+          tags: |
+            ghcr.io/${{ env.REPO }}/blackdiamondhub:latest
+            ghcr.io/${{ env.REPO }}/blackdiamondhub:sha-${{ github.sha }}
 
 
