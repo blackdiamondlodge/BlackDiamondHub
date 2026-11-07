@@ -1055,37 +1055,34 @@ class TemplateRenderTests(TestCase):
 
 
 class HomepageIconTests(TestCase):
-    """Tests for the vacation mode icon on the homepage."""
+    """The vacation mode icon is shown on the homepage only to logged-in users."""
 
     def setUp(self):
         self.client = Client()
-
-    @patch("BlackDiamondHub.views.requests.get")
-    def test_homepage_has_vacation_link(self, mock_get):
+        patcher = patch("BlackDiamondHub.views.requests.get")
+        mock_get = patcher.start()
+        self.addCleanup(patcher.stop)
         mock_response = MagicMock(status_code=200)
         mock_response.content = b'<div class="weather current-conditions"><ul class="list-temps"></ul></div>'
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
-        response = self.client.get("/")
-        self.assertContains(response, "/vacation_mode/")
 
-    @patch("BlackDiamondHub.views.requests.get")
-    def test_homepage_has_vacation_icon(self, mock_get):
-        mock_response = MagicMock(status_code=200)
-        mock_response.content = b'<div class="weather current-conditions"><ul class="list-temps"></ul></div>'
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
+    def test_homepage_shows_vacation_icon_when_logged_in(self):
+        from django.contrib.auth.models import User
+        user = User.objects.create_user("owner", password="pw")
+        self.client.force_login(user)
         response = self.client.get("/")
+        self.assertContains(response, 'href="/vacation_mode/"')
         self.assertContains(response, "vacation.png")
-
-    @patch("BlackDiamondHub.views.requests.get")
-    def test_homepage_has_vacation_caption(self, mock_get):
-        mock_response = MagicMock(status_code=200)
-        mock_response.content = b'<div class="weather current-conditions"><ul class="list-temps"></ul></div>'
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
-        response = self.client.get("/")
         self.assertContains(response, "Vacation Mode")
+
+    def test_homepage_hides_vacation_icon_when_logged_out(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'href="/vacation_mode/"')
+        self.assertNotContains(response, "vacation.png")
+        # Radiant stays public.
+        self.assertContains(response, "/radiant/")
 
 
 @tag('selenium')
