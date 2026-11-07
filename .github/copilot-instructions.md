@@ -43,6 +43,7 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 ### What auto-deploys vs. what doesn't
 - **Auto-deploys** (via Watchtower): Any code change inside the Docker image — Django code, templates, static files, Python dependencies
 - **Does NOT auto-deploy**: Changes to `docker-compose.yml`, `.env`, or `go2rtc/go2rtc.yaml` on the server — these require manual SSH + `git pull` + `docker compose up -d --force-recreate`
+- `go2rtc/go2rtc.yaml` is **not tracked** (go2rtc writes stream URLs with RTSPS access tokens into it). Copy `go2rtc/go2rtc.example.yaml` to create it; never commit stream URLs.
 
 ### Docker Services (docker-compose.yml)
 - **djangoapp** (`BlackDiamondHub`) — Django app on port 8000, image from GHCR
@@ -50,7 +51,7 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 - **watchtower** (`containrrr/watchtower`) — Auto-updates the Django container from GHCR
 
 ### go2rtc Browser URL Strategy
-- The Django container talks to go2rtc internally via Docker network (`GO2RTC_URL=http://go2rtc:1984`)
+- Django uses host networking, so it calls go2rtc at `GO2RTC_URL=http://localhost:1984` and registers each camera's RTSPS stream via `PUT /api/streams` (re-registering if the URL changed)
 - The **browser** needs to reach go2rtc directly — the template uses `window.location.hostname` + port 1984 so it works from any subnet without hardcoding an IP
 
 ## UniFi Protect Integration API

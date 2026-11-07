@@ -10,3 +10,5 @@ media/items/test_image_*.png
 
 # go2rtc binary (for local testing)
 go2rtc/go2rtc.exe
+# Live go2rtc config (contains RTSPS tokens); see go2rtc/go2rtc.example.yaml
+go2rtc/go2rtc.yaml
