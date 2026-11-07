@@ -15,6 +15,17 @@ import base64
 from selenium.common.exceptions import NoSuchElementException
 from django.contrib.auth.models import User
 from tests.selenium_helpers import get_chrome_options, login_from_page
+from django.test import TestCase
+
+
+class HomepageTileTests(TestCase):
+    def test_kitchen_inventory_tile_hidden(self):
+        user = User.objects.create_user(username='u', password='p')
+        self.client.force_login(user)
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'inventory.png')
+        self.assertNotContains(response, 'Kitchen Inventory')
 
 @tag('selenium')
 class ItemModalTests(StaticLiveServerTestCase):
