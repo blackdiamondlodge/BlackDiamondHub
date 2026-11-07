@@ -72,6 +72,33 @@
     .hub-tile img { width: 120px; height: 120px; margin-bottom: 26px; flex-shrink: 0; }
     .hub-tile-title { font-size: 26px; font-weight: 600; line-height: 1.15; min-height: 2.3em; display: flex; align-items: flex-start; }
     .hub-tile-sub { font-size: 19px; line-height: 1.35; color: var(--mut); margin-top: 4px; min-height: 2.7em; }
+    .hub-tile-sub.is-status { color: var(--fg); }
+    .hub-tile-sub.lvl-on { color: var(--acc); }
+    .hub-tile-sub.lvl-warn { color: #f0b429; }
+    .hub-tile-sub.is-stale { opacity: .55; }
+
+    .hub-quick {
+        display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+        margin: -8px 0 28px; padding: 14px 22px;
+        background: var(--card); border: 1px solid var(--line); border-radius: 22px;
+        overflow-x: auto;
+    }
+    .hub-quick[hidden] { display: none; }
+    .hub-quick-label {
+        font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;
+        color: var(--mut); margin-right: 6px; white-space: nowrap;
+    }
+    .hub-quick-btn {
+        display: inline-flex; align-items: center; gap: 12px; white-space: nowrap;
+        padding: 14px 24px; font-size: 20px; font-weight: 600;
+        color: var(--fg); background: var(--card2); border: 1px solid var(--line); border-radius: 16px;
+        transition: transform .15s ease, background .15s ease, color .15s ease;
+    }
+    .hub-quick-btn i { color: var(--acc); font-size: 20px; }
+    .hub-quick-btn:active { transform: scale(.96); }
+    .hub-quick-btn:disabled { opacity: .6; }
+    .hub-quick-btn.is-done, .hub-quick-btn.is-done i { color: #4cc38a; }
+    .hub-quick-btn.is-error, .hub-quick-btn.is-error i { color: #ef6b6b; }
 
     /* Phones and small windows: stack and allow scrolling. */
     @media (max-width: 1100px) {
@@ -90,6 +117,9 @@
         .hub-tile img { width: 84px; height: 84px; margin-bottom: 14px; }
         .hub-tile-title { font-size: 21px; min-height: 0; }
         .hub-tile-sub { min-height: 0; }
+        .hub-quick { flex-wrap: wrap; margin: 0 0 20px; padding: 12px; gap: 10px; }
+        .hub-quick-label { width: 100%; }
+        .hub-quick-btn { font-size: 17px; padding: 12px 16px; }
         .hub-date { display: none; }
     }
 </style>
@@ -123,13 +153,103 @@
             <a class="hub-tile" href="{{ tile.url }}" data-plugin="{{ tile.plugin }}">
                 <img src="{% static tile.icon %}" alt="">
                 <span class="hub-tile-title">{{ tile.title }}</span>
-                {% if tile.subtitle %}<span class="hub-tile-sub">{{ tile.subtitle }}</span>{% endif %}
+                <span class="hub-tile-sub" data-subtitle="{{ tile.subtitle }}">{{ tile.subtitle }}</span>
             </a>
             {% endfor %}
         </div>
     </section>
     {% endfor %}
 </main>
+
+<section class="hub-quick" id="hub-quick" aria-label="Quick actions" hidden>
+    <span class="hub-quick-label">Quick actions</span>
+</section>
+{% csrf_token %}
+
+<script>
+    (function () {
+        var STATUS_URL = "{% url 'hub_status' %}";
+        var POLL_MS = 60000;
+        var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        var quick = document.getElementById('hub-quick');
+
+        function applyStatus(status) {
+            document.querySelectorAll('.hub-tile[data-plugin]').forEach(function (tile) {
+                var sub = tile.querySelector('.hub-tile-sub');
+                var s = status[tile.getAttribute('data-plugin')];
+                sub.className = 'hub-tile-sub';
+                if (s) {
+                    sub.textContent = s.text;
+                    sub.classList.add('is-status', 'lvl-' + s.level);
+                    if (s.stale) sub.classList.add('is-stale');
+                } else {
+                    sub.textContent = sub.getAttribute('data-subtitle');
+                }
+            });
+        }
+
+        function flash(btn, cls, label) {
+            var text = btn.querySelector('span');
+            var original = btn.getAttribute('data-title');
+            btn.classList.add(cls);
+            text.textContent = label;
+            setTimeout(function () {
+                btn.classList.remove(cls);
+                text.textContent = original;
+                btn.disabled = false;
+            }, 2500);
+        }
+
+        function runShortcut(btn, sc) {
+            btn.disabled = true;
+            fetch(sc.url, { method: 'POST', headers: { 'X-CSRFToken': csrf }, credentials: 'same-origin' })
+                .then(function (r) { return r.json().then(function (d) { return { ok: r.ok && d.ok, d: d }; }); })
+                .then(function (res) {
+                    if (res.ok) flash(btn, 'is-done', res.d.message || 'Done');
+                    else flash(btn, 'is-error', res.d.error || 'Failed');
+                    refresh();
+                })
+                .catch(function () { flash(btn, 'is-error', 'Failed'); });
+        }
+
+        function renderShortcuts(shortcuts) {
+            var key = JSON.stringify(shortcuts);
+            if (quick.getAttribute('data-key') === key) return;
+            quick.setAttribute('data-key', key);
+            quick.querySelectorAll('.hub-quick-btn').forEach(function (b) { b.remove(); });
+            shortcuts.forEach(function (sc) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'hub-quick-btn';
+                btn.setAttribute('data-title', sc.title);
+                var icon = document.createElement('i');
+                icon.className = sc.icon;
+                var label = document.createElement('span');
+                label.textContent = sc.title;
+                btn.appendChild(icon);
+                btn.appendChild(label);
+                sc.url = sc.url || '';
+                btn.addEventListener('click', function () { runShortcut(btn, sc); });
+                quick.appendChild(btn);
+            });
+            quick.hidden = shortcuts.length === 0;
+        }
+
+        function refresh() {
+            fetch(STATUS_URL, { credentials: 'same-origin' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    if (!d) return;
+                    applyStatus(d.status || {});
+                    renderShortcuts(d.shortcuts || []);
+                })
+                .catch(function () {});
+        }
+
+        refresh();
+        setInterval(refresh, POLL_MS);
+    })();
+</script>
 
 <script>
     (function () {

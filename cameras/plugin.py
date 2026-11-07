@@ -4,6 +4,7 @@ spec = PluginSpec(
     id="cameras",
     app="cameras",
     urls="cameras.urls",
+    status="cameras.homepage.status",
     tiles=(
         Tile(
             title="Cameras",

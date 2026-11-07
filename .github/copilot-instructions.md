@@ -152,3 +152,8 @@ The hub is a platform; each feature is an app that describes itself in `<app>/pl
 To add an app: create `<app>/plugin.py` with `spec = PluginSpec(...)`, add `'<app>.plugin.spec'` to `HUB_PLUGINS`, and put its tile icon at `<app>/static/<app>/hub/icon.svg` (64×64 rounded tile, tinted gradient, white 2.6-stroke glyph — match the existing icons).
 
 Homepage modes: `owner` when signed in, `guest` while a stay is active, otherwise `dashboard`. `Tile.modes` only hides tiles — owner-only views must still enforce `@login_required` themselves.
+
+Homepage hooks (optional, dotted paths in the spec, conventionally in `<app>/homepage.py`):
+- `status` → `Status(text, level)` (levels `info`/`on`/`warn`) replaces the tile subtitle. Hooks run in a thread pool with a 6 s deadline and are cached 60 s; on failure the last good value is shown faded as stale.
+- `shortcuts` → list of `Shortcut` for the Quick actions row, run via `run_shortcut(id)` from `POST /hub/api/shortcut/<plugin>/<id>/` (CSRF). Shortcuts are owner-only unless they set `modes` explicitly; the hub rejects shortcuts not offered in the caller's mode.
+- The homepage polls `GET /hub/api/status/` every minute.

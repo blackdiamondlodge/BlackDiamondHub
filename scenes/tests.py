@@ -55,6 +55,7 @@ class SceneControlTests(TestCase):
                 "Content-Type": "application/json",
             },
             json={"entity_id": scene_id},
+            timeout=10,
         )
 
     def test_homeassistant_icon_mapping(self):
@@ -86,3 +87,25 @@ class SceneControlTests(TestCase):
         
         self.assertEqual(response.status_code, 302)  # Redirect after activation
         mock_activate_scene.assert_called_once_with(scene_id)
+
+
+class HomepageHookTests(TestCase):
+    @patch("scenes.homepage.requests.get")
+    def test_status_counts_lights_but_not_groups(self, mock_get):
+        mock_get.return_value = MagicMock(json=lambda: [
+            {"entity_id": "light.a", "state": "on", "attributes": {}},
+            {"entity_id": "light.b", "state": "off", "attributes": {}},
+            {"entity_id": "light.group", "state": "on", "attributes": {"entity_id": ["light.a"]}},
+            {"entity_id": "switch.c", "state": "on", "attributes": {}},
+        ])
+        from scenes.homepage import status
+        self.assertEqual(status().text, "1 light on")
+
+    @patch("scenes.homepage.activate_scene")
+    @patch("scenes.homepage.get_scenes")
+    def test_scene_shortcuts(self, mock_scenes, mock_activate):
+        mock_scenes.return_value = [{"id": "scene.movie", "name": "Movie", "icon": "fas fa-tv"}]
+        from scenes.homepage import run_shortcut, shortcuts
+        self.assertEqual([s.id for s in shortcuts()], ["movie"])
+        run_shortcut("movie")
+        mock_activate.assert_called_once_with("scene.movie")

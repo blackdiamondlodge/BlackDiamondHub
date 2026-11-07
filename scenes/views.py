@@ -16,7 +16,7 @@ def get_scenes():
     api_endpoint = "/api/states"
     url = urljoin(base_url, api_endpoint)
 
-    response = requests.get(url, headers=HEADERS)
+    response = requests.get(url, headers=HEADERS, timeout=10)
     scenes = []
     if response.status_code == 200:
         entities = response.json()
@@ -39,7 +39,8 @@ def activate_scene(scene_id):
     """Activate a scene using Home Assistant API."""
     url = f"{settings.HOMEASSISTANT_URL}/api/services/scene/turn_on"
     data = {"entity_id": scene_id}
-    requests.post(url, headers=HEADERS, json=data)
+    response = requests.post(url, headers=HEADERS, json=data, timeout=10)
+    response.raise_for_status()
 
 def scenes(request):
     """View to display and activate scenes."""
@@ -146,9 +147,10 @@ def homeassistant_icon_mapping(hass_icon):
         "mdi:solar-panel": "fa-solid fa-solar-panel",  # Solar panel
         
         "mdi:theater": "fas fa-tv",
-        "mdi:chef-hat": "fas fa-fire-burner",
+        "mdi:chef-hat": "fas fa-blender",
         "mdi:briefcase": "fas fa-briefcase",
-        "mdi:food": "fas fa-utensils",        
+        "mdi:food": "fas fa-utensils",
+        "mdi:account-voice": "fas fa-glass-cheers",        
     }
     
     

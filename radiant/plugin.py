@@ -4,6 +4,7 @@ spec = PluginSpec(
     id="radiant",
     app="radiant",
     urls="radiant.urls",
+    status="radiant.homepage.status",
     tiles=(
         Tile(
             title="Radiant Heat",
