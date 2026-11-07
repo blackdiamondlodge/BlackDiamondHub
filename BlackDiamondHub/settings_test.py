@@ -5,7 +5,11 @@ SQLite database so tests don't require a live PostgreSQL server.
 Usage:
     python manage.py test vacation_mode --settings=BlackDiamondHub.settings_test
 """
-from .settings import *  # noqa: F401,F403
+import os
+
+os.environ.setdefault("DJANGO_SECRET_KEY", "test-only-secret-key")
+
+from .settings import *  # noqa: F401,F403,E402
 
 DATABASES = {
     "default": {

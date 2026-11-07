@@ -1,0 +1,12 @@
+.git
+.github
+venv
+.venv
+env
+**/__pycache__
+staticfiles
+.env
+.env.*
+*.bak.*
+backups
+go2rtc

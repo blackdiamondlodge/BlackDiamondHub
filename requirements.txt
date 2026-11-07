@@ -79,4 +79,5 @@ zope.interface==7.0.3
 python-dateutil
 pytz
 websockets
+whitenoise==6.8.2
 pygemstone==0.0.3

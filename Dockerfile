@@ -1,34 +1,42 @@
 # Dockerfile
 
-# 1. Choose a small Python base image
 FROM python:3.12.9-slim
 
-# 2. Prevent Python from writing .pyc files to disk and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 3. Install system dependencies needed for psycopg2
+# psycopg2 build deps, plus a pg_dump that matches the production server
+# (Postgres 16; Debian's own client is too old, so use the PGDG repo).
 RUN apt-get update && \
-    apt-get install -y libpq-dev gcc && \
+    apt-get install -y --no-install-recommends libpq-dev gcc libc6-dev curl ca-certificates && \
+    install -d /usr/share/postgresql-common/pgdg && \
+    curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+        https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
+    . /etc/os-release && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-client-17 && \
     rm -rf /var/lib/apt/lists/*
 
-# 4. Create and set the working directory inside the container
 WORKDIR /app
 
-# 5. Copy your requirements and install them
 COPY requirements.txt /app/
 
-# 6. Install dependencies
 RUN python -m venv /app/.venv && \
     . /app/.venv/bin/activate && \
     pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# 7. Copy the rest of your Django project code into the container
 COPY . /app/
 
-# 8. Expose the default Django port 
+# Collect static files for WhiteNoise. The key is only needed to import settings.
+RUN . /app/.venv/bin/activate && \
+    DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput
+
 EXPOSE 8000
 
-# 9.run the server
-CMD ["/bin/bash", "-c", "source /app/.venv/bin/activate && python manage.py runserver 0.0.0.0:8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4)" || exit 1
+
+CMD ["/bin/bash", "/app/docker/entrypoint.sh"]

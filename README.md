@@ -43,6 +43,8 @@ BlackDiamondHub is a Django-based web application designed to manage inventory, 
 4. Set up the environment variables. You can create a `.env` file in the root directory of the project with the following content:
 
     ```env
+    DJANGO_SECRET_KEY=any-long-random-string
+    DJANGO_DEBUG=true
     ALLOWED_HOSTS="List of hosts to allow to server this site"
     DB_HOST=your_db_host
     DB_NAME=your_db_name
