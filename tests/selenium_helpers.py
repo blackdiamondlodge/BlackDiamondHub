@@ -50,6 +50,12 @@ def login_via_browser(driver, live_server_url, username="testuser", password="te
     login_button = driver.find_element(By.ID, 'login-submit')
     login_button.click()
 
+    # The login page shares base.html elements (e.g. feedback-button) with the
+    # destination, so wait for the redirect to avoid grabbing stale elements.
+    WebDriverWait(driver, 20).until(
+        lambda d: '/accounts/login/' not in d.current_url
+    )
+
 
 def login_from_page(driver, live_server_url, username="testuser", password="testpassword"):
     """
