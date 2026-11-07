@@ -761,6 +761,31 @@ class RegisterStreamsTests(TestCase):
         # Only one call: GET streams (no PUTs needed)
         self.assertEqual(mock_urlopen.call_count, 1)
 
+    @patch("cameras.views._put_stream")
+    @patch("cameras.views.urllib.request.urlopen")
+    def test_reregisters_stream_when_url_changes(self, mock_urlopen, mock_put):
+        """A rotated RTSPS token replaces the stale source in go2rtc."""
+        get_resp = MagicMock()
+        get_resp.read.return_value = json.dumps({
+            "front_door": {"producers": [{"url": "rtsps://host:7441/old"}]},
+            "front_door_low": {"producers": [{"url": "rtsps://host:7441/abc_low"}]},
+        }).encode()
+        get_resp.__enter__ = lambda s: s
+        get_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = get_resp
+
+        cameras = [
+            {'name': 'Front Door', 'stream_name': 'front_door',
+             'rtsp_url': 'rtsps://host:7441/new',
+             'rtsp_url_low': 'rtsps://host:7441/abc_low'},
+        ]
+
+        _register_streams_with_go2rtc('http://localhost:1984', cameras)
+
+        mock_put.assert_called_once_with(
+            'http://localhost:1984', 'front_door', 'rtsps://host:7441/new',
+        )
+
     @patch("cameras.views.urllib.request.urlopen")
     def test_handles_go2rtc_unreachable(self, mock_urlopen):
         """Gracefully handles go2rtc being unreachable."""

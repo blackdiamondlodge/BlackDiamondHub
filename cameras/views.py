@@ -45,28 +45,27 @@ def _register_streams_with_go2rtc(go2rtc_url, cameras):
     - {stream_name} — high quality (used for fullscreen)
     - {stream_name}_low — low quality (used in grid view)
 
-    Only registers streams that don't already exist in go2rtc.
+    Registers streams that are missing from go2rtc, and re-registers ones
+    whose source URL has changed (e.g. after the RTSPS token was rotated).
     """
     # Fetch existing streams once
     try:
         req = urllib.request.Request(f'{go2rtc_url}/api/streams')
         with urllib.request.urlopen(req, timeout=5) as response:
-            existing = set(json.loads(response.read()).keys())
+            existing = _stream_sources(json.loads(response.read()))
     except (urllib.error.URLError, json.JSONDecodeError, OSError):
-        existing = set()
+        existing = {}
 
     # Collect streams that need registration
     to_register = []
     for camera in cameras:
-        # High quality stream
-        if camera['stream_name'] not in existing:
-            to_register.append((camera['stream_name'], camera['rtsp_url']))
-
-        # Low quality stream (if available)
+        candidates = [(camera['stream_name'], camera['rtsp_url'])]
         low_url = camera.get('rtsp_url_low', '')
-        low_name = f"{camera['stream_name']}_low"
-        if low_url and low_name not in existing:
-            to_register.append((low_name, low_url))
+        if low_url:
+            candidates.append((f"{camera['stream_name']}_low", low_url))
+        for name, url in candidates:
+            if name not in existing or url not in existing[name]:
+                to_register.append((name, url))
 
     # Register all new streams in parallel
     if to_register:
@@ -75,6 +74,20 @@ def _register_streams_with_go2rtc(go2rtc_url, cameras):
                 lambda args: _put_stream(go2rtc_url, *args),
                 to_register,
             )
+
+
+def _stream_sources(data):
+    """Map each go2rtc stream name to the set of its source URLs.
+
+    go2rtc returns ``{name: {"producers": [{"url": ...}], ...}}``.
+    """
+    sources = {}
+    for name, info in (data or {}).items():
+        producers = info.get('producers') if isinstance(info, dict) else info
+        sources[name] = {
+            p.get('url') for p in (producers or []) if isinstance(p, dict)
+        }
+    return sources
 
 
 def _put_stream(go2rtc_url, name, rtsp_url):

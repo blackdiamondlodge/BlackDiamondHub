@@ -1,0 +1,25 @@
+# go2rtc configuration for BlackDiamondHub cameras
+#
+# Copy to go2rtc.yaml (git-ignored) before 'docker compose up'. go2rtc writes
+# registered streams - including RTSPS access tokens - into that file, so it
+# must never be committed.
+# Documentation: https://github.com/AlexxIT/go2rtc
+#
+# Camera streams are registered dynamically by Django via the Protect API.
+# No hardcoded streams are needed here.
+#
+# If you don't use UniFi Protect, you can manually add streams below:
+# streams:
+#   front_door: rtsps://nvr-ip:7441/CAMERA_RTSP_ALIAS
+#   backyard: rtsp://camera-ip:554/s0
+
+api:
+  listen: ":1984"
+  origin: "*"       # Allow CORS from Django app
+
+webrtc:
+  listen: ":8555"
+  # Advertise the host's LAN address; the container's bridge IP isn't
+  # reachable from browsers, which forced every camera onto MSE.
+  candidates:
+    - 192.168.10.216:8555
