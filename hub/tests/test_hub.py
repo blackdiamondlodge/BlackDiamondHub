@@ -153,6 +153,10 @@ def slow_status():
     return Status("late")
 
 
+def mode_status(mode):
+    return Status(f"{mode} view")
+
+
 def demo_shortcuts():
     return [
         Shortcut(id="movie", title="Movie", icon="fa-solid fa-film", modes=ALL_MODES),
@@ -211,6 +215,13 @@ class HomeStatusTests(TestCase):
     def test_failed_hook_without_history_is_left_out(self):
         HOOK_STATE["fail"] = True
         self.assertNotIn("flaky", home_data(DASHBOARD)["status"])
+
+    def test_mode_aware_hook_is_called_and_cached_per_mode(self):
+        plugins = (_spec("cams", status="hub.tests.test_hub.mode_status"),)
+        with override_settings(HUB_PLUGINS=plugins):
+            self.assertEqual(home_data(DASHBOARD)["status"]["cams"]["text"], "dashboard view")
+            self.assertEqual(home_data(OWNER)["status"]["cams"]["text"], "owner view")
+            self.assertEqual(home_data(DASHBOARD)["status"]["cams"]["text"], "dashboard view")
 
     def test_slow_hook_does_not_block_the_homepage(self):
         HOOK_STATE["release"] = threading.Event()
