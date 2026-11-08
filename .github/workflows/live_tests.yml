@@ -68,22 +68,5 @@ jobs:
           DB_PASSWORD: postgres      
         run: python manage.py test BlackDiamondHub.tests.LandingPageLiveTests -v 2
 
-      - name: Verify Webcam Parsing from Sunpeaks Website
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
-          ALLOWED_HOSTS: localhost
-          DB_NAME: test_db
-          DB_HOST: localhost
-          DB_USER: postgres
-          DB_PASSWORD: postgres      
-        run: python manage.py test sunpeaks_webcams.tests.CheckForNewWebcamsTests -v 2
-
-      - name: Verify Snow Report Parsing from Sunpeaks Website
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
-          ALLOWED_HOSTS: localhost
-          DB_NAME: test_db
-          DB_HOST: localhost
-          DB_USER: postgres
-          DB_PASSWORD: postgres      
-        run: python manage.py test snow_report.tests.LiveParseWeatherHtmlTests -v 2
+      # The webcam, snow report and lift status scrapers live in their own
+      # repos (blackdiamondlodge/bdh-app-*); their CI runs the live tests daily.
