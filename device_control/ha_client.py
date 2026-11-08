@@ -1,8 +1,8 @@
-"""Compatibility shim: the Home Assistant client now lives in hub.ha_client."""
+"""Compatibility shim: the Home Assistant client now lives in bdh_sdk.ha."""
 
 import requests  # noqa: F401  (kept so tests can patch device_control.ha_client.requests)
 
-from hub.ha_client import (  # noqa: F401
+from bdh_sdk.ha import (  # noqa: F401
     TIMEOUT,
     HAError,
     call_service,
