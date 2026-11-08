@@ -4,12 +4,17 @@ Built-in apps are listed explicitly by dotted path to their ``spec``.
 Separately installed apps register a ``blackdiamondhub.plugins`` entry point
 that resolves to a ``PluginSpec``.
 """
+import re
 from importlib import import_module
 from importlib.metadata import entry_points
 
 from .plugins import API_VERSION, SECTIONS, PluginSpec
 
 ENTRY_POINT_GROUP = "blackdiamondhub.plugins"
+
+# Spec fields holding "module.attribute" paths that are resolved lazily.
+DOTTED_FIELDS = ("status", "shortcuts", "run_shortcut", "websocket_routes")
+_DOTTED = re.compile(r"[A-Za-z_]\w*(\.[A-Za-z_]\w*)+")
 
 
 class PluginError(Exception):
@@ -46,6 +51,15 @@ def validate(specs):
             raise PluginError(
                 f"plugin {spec.id!r} must set both shortcuts and run_shortcut"
             )
+        for name in DOTTED_FIELDS:
+            value = getattr(spec, name)
+            if value is not None and not (
+                isinstance(value, str) and _DOTTED.fullmatch(value)
+            ):
+                raise PluginError(
+                    f"plugin {spec.id!r} {name} must be a dotted "
+                    f"'module.attribute' path, got {value!r}"
+                )
         for tile in spec.tiles:
             if tile.section not in SECTIONS:
                 raise PluginError(
@@ -60,3 +74,20 @@ def load_plugins(builtin_paths, include_entry_points=True):
     if include_entry_points:
         specs += _entry_point_specs()
     return tuple(validate(specs))
+
+
+def websocket_urlpatterns(specs=None):
+    """Channels URL patterns from every installed plugin, in plugin order.
+
+    Imports each plugin's ``websocket_routes`` module, so call it only once
+    Django is set up (the ASGI app does so after ``get_asgi_application()``).
+    """
+    if specs is None:
+        from django.conf import settings
+
+        specs = getattr(settings, "HUB_PLUGINS", ())
+    patterns = []
+    for spec in specs:
+        if spec.websocket_routes:
+            patterns.extend(_import_spec(spec.websocket_routes))
+    return patterns

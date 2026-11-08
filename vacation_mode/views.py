@@ -56,7 +56,7 @@ def vacation_mode_view(request):
         "season_is_cooling": season == SEASON_COOLING,
         "season_avg": season_avg,
     }
-    return render(request, "vacation_mode.html", context)
+    return render(request, "vacation_mode/vacation_mode.html", context)
 
 
 @login_required
@@ -122,7 +122,7 @@ def bdl_modes_view(request):
             p, err, _ = bdl_client.call("preview", kind=kind)
             previews[kind] = p["groups"] if p else []
             error = error or err
-    return render(request, "bdl_modes.html", {
+    return render(request, "vacation_mode/bdl_modes.html", {
         "status": status,
         "previews": previews,
         "error": error,

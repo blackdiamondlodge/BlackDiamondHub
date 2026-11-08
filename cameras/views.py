@@ -153,7 +153,7 @@ def camera_feed_view(request):
     from urllib.parse import urlparse
     go2rtc_port = urlparse(go2rtc_url).port or 1984
 
-    return render(request, 'camera_feeds.html', {
+    return render(request, 'cameras/camera_feeds.html', {
         'sites': sites,
         'go2rtc_url': go2rtc_url,
         'go2rtc_port': go2rtc_port,

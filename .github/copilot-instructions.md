@@ -116,7 +116,8 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 - `BlackDiamondHub/settings.py` — Django settings, database config, and the `HUB_PLUGINS` list of hub apps
 - `BlackDiamondHub/urls.py` — core URLs; hub app URLs are mounted automatically from their `PluginSpec`
 - `hub/plugins.py` — plugin contract (`PluginSpec`, `Tile`, modes, sections) that every hub app implements
-- `hub/loader.py` / `hub/modes.py` — plugin discovery/validation and homepage mode (guest / dashboard / owner) + tile lookup
+- `hub/loader.py` / `hub/modes.py` — plugin discovery/validation, websocket route collection and homepage mode (guest / dashboard / owner) + tile lookup
+- `hub/ha_client.py` — shared Home Assistant client (`get_entity_states`, `get_history`, `call_service`, `ws_commands`…). Apps import it from here, never from another app (`device_control.ha_client` is a compatibility re-export)
 - `vacation_mode/executor.py` — HA service call execution engine with state verification
 - `vacation_mode/steps.py` — Step definitions for vacation and home mode sequences
 - `cameras/protect_api.py` — UniFi Protect API client (camera discovery, RTSPS streams, PTZ control)
@@ -126,6 +127,8 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 - `requirements.txt` — Python dependencies
 
 ## Base Template & Navbar (`templates/base.html`)
+
+`templates/base.html` is the public shell contract for hub apps: every app page does `{% extends 'base.html' %}` and fills its blocks (`content`, `navbar_extras`, `extra_head`, `body_class`). Keep those block names stable — apps in other repos depend on them. Core templates (`base.html`, `index.html`, `registration/login.html`) stay in the project `templates/` folder.
 
 All pages extend `base.html`, which provides:
 - **Navbar**: Bootstrap 5 `navbar-dark bg-dark fixed-top` with brand "Black Diamond Hub" on the left, icon buttons (feedback, notifications, login/logout) on the right
@@ -138,7 +141,7 @@ All pages extend `base.html`, which provides:
 A template block in the navbar between the brand and the right-side icon group. Pages that need unit-conversion toggles (or other page-specific navbar controls) fill this block:
 
 - **Landing page** (`index.html`): `°C/°F` button — client-side JS `toggleUnits()` converts temperature/elevation in-place via `data-metric` attributes
-- **Snow report** (`snow_report.html`): `°C, m` / `°F, ft` buttons — server-side reload via `?units=metric` / `?units=imperial` query param
+- **Snow report** (`snow_report/snow_report.html`): `°C, m` / `°F, ft` buttons — server-side reload via `?units=metric` / `?units=imperial` query param
 - **All other pages**: Block is empty, no toggle shown
 
 Use the `.navbar-toggle-btn` class for toggle buttons in this block. When adding a new page that needs a unit toggle or similar control, fill `{% block navbar_extras %}` with the appropriate buttons — don't add inline toggles to the page body.
@@ -157,3 +160,10 @@ Homepage hooks (optional, dotted paths in the spec, conventionally in `<app>/hom
 - `status` → `Status(text, level)` (levels `info`/`on`/`warn`) replaces the tile subtitle. Hooks run in a thread pool with a 6 s deadline and are cached 60 s; on failure the last good value is shown faded as stale.
 - `shortcuts` → list of `Shortcut` for the Quick actions row, run via `run_shortcut(id)` from `POST /hub/api/shortcut/<plugin>/<id>/` (CSRF). Shortcuts are owner-only unless they set `modes` explicitly; the hub rejects shortcuts not offered in the caller's mode.
 - The homepage polls `GET /hub/api/status/` every minute.
+- `websocket_routes` → dotted path to a list of Channels URL patterns (e.g. `"sonos_control.routing.websocket_urlpatterns"`). `BlackDiamondHub/asgi.py` collects them from every installed plugin with `hub.loader.websocket_urlpatterns()` after Django is set up, and serves them behind `AllowedHostsOriginValidator(AuthMiddlewareStack(...))`. Never import an app's routing from core code.
+
+### Rules that keep apps extractable into their own repos
+
+- **Namespaced templates.** An app's templates live in `<app>/templates/<app_label>/` and are always referenced with the prefix — `render(request, "wifi/wifi_qr.html")`, `{% include "sonos_control/partials/spotify.html" %}`, `assertTemplateUsed(r, "vacation_mode/vacation_mode.html")`. Never add un-prefixed templates to an app; they collide across apps.
+- **Side-effect-free `plugin.py`.** `<app>/plugin.py` may import only `hub.plugins` (and the stdlib). It must not import the app's models, views or homepage, `requests`, or anything that calls Home Assistant/HTTP or starts threads — specs are loaded while settings are still being built. Point hooks at code with dotted strings. `hub/tests/test_plugin_entrypoints.py` enforces this in a fresh interpreter.
+- **No cross-app imports.** Apps import from `hub` (e.g. `hub.ha_client`, `hub.plugins`) and Django, not from each other. Shared helpers belong in `hub`.

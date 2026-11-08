@@ -14,7 +14,7 @@ def webcams(request):
         'sunpeaks_webcams': webcams
     }
     
-    return render(request, 'webcams.html', context)
+    return render(request, 'sunpeaks_webcams/webcams.html', context)
 
 def check_for_new_webcams_json(request):
 

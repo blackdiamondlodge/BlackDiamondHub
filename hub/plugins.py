@@ -92,6 +92,10 @@ class PluginSpec:
     - ``run_shortcut``: ``(shortcut_id) -> str | None``. Runs a shortcut the
       hub has already checked is offered in the caller's mode. Raise to
       report failure; the optional return value is shown to the user.
+    - ``websocket_routes``: a list of Channels URL patterns (e.g.
+      ``"myapp.routing.websocket_urlpatterns"``). Imported by the ASGI
+      application after Django is set up and mounted under the shared
+      websocket router.
     """
 
     id: str
@@ -102,6 +106,7 @@ class PluginSpec:
     status: str | None = None
     shortcuts: str | None = None
     run_shortcut: str | None = None
+    websocket_routes: str | None = None
     api_version: int = API_VERSION
 
     @property

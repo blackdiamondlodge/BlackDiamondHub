@@ -20,7 +20,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from device_control.ha_client import call_service, get_entity_states, get_history
+from hub.ha_client import call_service, get_entity_states, get_history
 
 from . import config as cfg
 
