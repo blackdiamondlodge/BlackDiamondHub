@@ -221,7 +221,9 @@
                 .then(function (res) {
                     if (res.ok) flash(btn, 'is-done', res.d.message || 'Done');
                     else flash(btn, 'is-error', res.d.error || 'Failed');
-                    refresh();
+                    // After the flash, so a shortcut that no longer applies
+                    // doesn't vanish before its "Done" shows.
+                    setTimeout(refresh, 2600);
                 })
                 .catch(function () { flash(btn, 'is-error', 'Failed'); });
         }

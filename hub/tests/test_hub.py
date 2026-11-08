@@ -235,6 +235,13 @@ class ShortcutApiTests(TestCase):
         self.assertEqual(response.json(), {"ok": True, "message": "Enjoy the show"})
         self.assertEqual(HOOK_STATE["ran"], ["movie"])
 
+    def test_running_shortcut_refreshes_status_and_shortcuts(self):
+        home_data(DASHBOARD)
+        self.assertIsNotNone(cache.get("hub:shortcuts:lights"))
+        self.client.post("/hub/api/shortcut/lights/movie/")
+        self.assertIsNone(cache.get("hub:status:lights"))
+        self.assertIsNone(cache.get("hub:shortcuts:lights"))
+
     def test_owner_only_shortcut_needs_sign_in(self):
         response = self.client.post("/hub/api/shortcut/lights/lock_up/")
         self.assertEqual(response.status_code, 404)

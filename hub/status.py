@@ -21,7 +21,7 @@ from .plugins import INFO, STATUS_LEVELS, Shortcut, Status, Stay
 logger = logging.getLogger(__name__)
 
 STATUS_TTL = 60
-SHORTCUTS_TTL = 300
+SHORTCUTS_TTL = 60
 STAY_TTL = 60
 LAST_GOOD_TTL = 6 * 3600
 TIMEOUT = 6.0
@@ -226,6 +226,7 @@ def run_shortcut(plugin_id, shortcut_id, mode, timeout=TIMEOUT):
         raise ShortcutNotFound(f"{plugin_id}/{shortcut_id}")
 
     message = _resolve(spec.run_shortcut)(shortcut_id)
-    # The shortcut probably changed what the status line should say.
+    # The shortcut probably changed the status line and which shortcuts apply.
     cache.delete(_fresh_key("status", spec.id))
+    cache.delete(_fresh_key("shortcuts", spec.id))
     return message
