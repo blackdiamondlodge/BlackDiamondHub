@@ -6,7 +6,6 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 
 ## Django Apps
 
-- **inventory** — Property inventory management with item tracking, images, and QR code labels (uses pyzbar for scanning)
 - **feedback** — User feedback submission and admin review (django-tables2)
 
 Installed from their own repos via `sites/sunpeaks/apps.txt`:
@@ -22,6 +21,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **vacation_mode** (`bdh-app-vacation-mode`) — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices (`BDH_VACATION_MODE_MODES_URL`/`_MODES_API_KEY`/`_PREHEAT`, legacy `BDL_MODES_*`)
 - **sonos_control** (`bdh-app-sonos-control`) — Sonos speaker control with Spotify integration (`BDH_SONOS_CONTROL_INTERFACE`, legacy `SONOS_INTERFACE`; Spotify OAuth/social-auth settings stay in core)
 - **stays** (`bdh-app-stays`) — no pages; its `stay` hook reads `sensor.bdl_stay_current` from the Stays AppDaemon app to put the homepage in guest mode (`BDH_STAYS_ENTITY`)
+- **inventory** (`bdh-app-inventory`) — kitchen inventory with item photos and QR code labels at `/inventory/` (sign-in, no homepage tile). Its tests use pyzbar, so keep `pyzbar`/`libzbar0` in the hub requirements and CI
 
 ## Tech Stack
 

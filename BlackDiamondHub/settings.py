@@ -70,7 +70,6 @@ INSTALLED_APPS = [
 # their own repos are discovered through the "blackdiamondhub.plugins" entry
 # point group.
 HUB_PLUGINS = load_plugins([
-    'inventory.plugin.spec',
     'feedback.plugin.spec',
 ])
 INSTALLED_APPS += [spec.app for spec in HUB_PLUGINS]
