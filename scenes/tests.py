@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.conf import settings
 from unittest.mock import patch, MagicMock
+import requests
 from .views import get_scenes, activate_scene, homeassistant_icon_mapping
 
 class SceneControlTests(TestCase):
@@ -39,6 +40,12 @@ class SceneControlTests(TestCase):
 
         self.assertEqual(len(scenes), 1)
         self.assertEqual(scenes[0]["name"], "Dinner Time")
+
+    @patch("requests.get", side_effect=requests.ConnectionError("unreachable"))
+    def test_scenes_page_renders_when_home_assistant_is_unreachable(self, mock_get):
+        response = Client().get("/scenes/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["scenes"], [])
 
     @patch("requests.post")
     def test_activate_scene(self, mock_post):

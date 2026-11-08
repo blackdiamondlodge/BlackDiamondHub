@@ -16,7 +16,11 @@ def get_scenes():
     api_endpoint = "/api/states"
     url = urljoin(base_url, api_endpoint)
 
-    response = requests.get(url, headers=HEADERS, timeout=10)
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+    except requests.RequestException as exc:
+        print(f"Error fetching scenes: {exc}")
+        return []
     scenes = []
     if response.status_code == 200:
         entities = response.json()
