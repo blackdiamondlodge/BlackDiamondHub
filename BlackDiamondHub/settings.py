@@ -71,14 +71,11 @@ INSTALLED_APPS = [
 # point group.
 HUB_PLUGINS = load_plugins([
     'inventory.plugin.spec',
-    'sunpeaks_webcams.plugin.spec',
     'feedback.plugin.spec',
     'sonos_control.plugin.spec',
-    'snow_report.plugin.spec',
     'scenes.plugin.spec',
     'cameras.plugin.spec',
     'vacation_mode.plugin.spec',
-    'lift_status.plugin.spec',
     'device_control.plugin.spec',
     'radiant.plugin.spec',
 ])
