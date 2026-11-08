@@ -13,16 +13,20 @@ from importlib import import_module
 
 from django.core.cache import cache
 from django.db import close_old_connections
+from django.utils import timezone
 
 from .modes import plugins
-from .plugins import INFO, STATUS_LEVELS, Shortcut, Status
+from .plugins import INFO, STATUS_LEVELS, Shortcut, Status, Stay
 
 logger = logging.getLogger(__name__)
 
 STATUS_TTL = 60
 SHORTCUTS_TTL = 300
+STAY_TTL = 60
 LAST_GOOD_TTL = 6 * 3600
 TIMEOUT = 6.0
+# Every homepage request waits on the stay hook, so give up on it sooner.
+STAY_TIMEOUT = 3.0
 
 _SLUG = re.compile(r"[-a-zA-Z0-9_]+")
 
@@ -67,6 +71,14 @@ def _shortcuts_value(result):
             "modes": sorted(sc.modes),
         })
     return items
+
+
+def _stay_value(result):
+    if result is None:
+        return None
+    if not isinstance(result, Stay):
+        raise TypeError(f"stay hook returned {type(result).__name__}")
+    return {"guest": result.guest, "arrival": result.arrival, "checkout": result.checkout}
 
 
 def _fresh_key(kind, plugin_id):
@@ -170,6 +182,30 @@ def home_data(mode, timeout=TIMEOUT):
                 })
     shortcuts.sort(key=lambda sc: (sc["order"], sc["title"]))
     return {"status": status, "shortcuts": shortcuts}
+
+
+def current_stay(timeout=STAY_TIMEOUT, now=None):
+    """The stay reported by the first app with a stay hook, or None.
+
+    When a hook fails its last good answer is used, but never past that
+    stay's checkout, so a broken hook can't hold the homepage in guest mode.
+    """
+    specs = [s for s in plugins() if s.stay]
+    if not specs:
+        return None
+    results = _gather(
+        [("stay", s.id, s.stay, _stay_value, STAY_TTL) for s in specs], timeout
+    )
+    now = now or timezone.now()
+    for spec in specs:
+        entry = results.get(("stay", spec.id))
+        stay = entry["value"] if entry else None
+        if stay is None:
+            continue
+        if stay["checkout"] is not None and stay["checkout"] <= now:
+            continue
+        return stay
+    return None
 
 
 def run_shortcut(plugin_id, shortcut_id, mode, timeout=TIMEOUT):

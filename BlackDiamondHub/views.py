@@ -7,7 +7,8 @@ import re
 from social_django.utils import load_strategy
 from social_core.backends.spotify import SpotifyOAuth2
 
-from hub.modes import resolve_mode, tiles_for_mode
+from hub.modes import current_stay, resolve_mode, tiles_for_mode, welcome
+from hub.plugins import GUEST
 
 def landing_page(request):
     url = 'https://www.sunpeaksresort.com/bike-hike/weather-webcams/weather'  # Replace with the URL you want to fetch
@@ -57,6 +58,7 @@ def landing_page(request):
         'sunpeaks_weather': weather_data,
         'hub_mode': mode,
         'hub_sections': tiles_for_mode(mode),
+        'hub_welcome': welcome(current_stay(request)) if mode == GUEST else None,
     }
     return render(request, 'index.html', context)
 
