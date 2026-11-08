@@ -116,7 +116,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media',
                 'feedback.context_processors.unread_feedback_count',
-                'sonos_control.context_processors.spotify_token',
+                'hub.spotify_auth.spotify_token',
             ],
         },
     },
@@ -134,11 +134,11 @@ AUTHENTICATION_BACKENDS = (
 # )
 
 SOCIAL_AUTH_DISCONNECT_PIPELINE = (
-    'sonos_control.pipeline.custom_allowed_to_disconnect',
+    'hub.spotify_auth.custom_allowed_to_disconnect',
     'social_core.pipeline.disconnect.get_entries',    
     'social_core.pipeline.disconnect.revoke_tokens',
     'social_core.pipeline.disconnect.disconnect',
-    'sonos_control.pipeline.clear_session_and_logout',
+    'hub.spotify_auth.clear_session_and_logout',
 )
 
 
