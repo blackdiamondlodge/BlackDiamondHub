@@ -4,6 +4,7 @@ Hooks are called in a shared thread pool with a deadline, so one slow or
 broken app can't hold up the homepage. Results are cached; when a hook fails
 or times out the last good result is served marked ``stale``.
 """
+import inspect
 import logging
 import re
 import threading
@@ -17,7 +18,7 @@ from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
 from .modes import plugins
-from .plugins import GUEST, INFO, STATUS_LEVELS, WARN, Card, Reading, Shortcut, Status, Stay
+from .plugins import ALL_MODES, GUEST, INFO, STATUS_LEVELS, WARN, Card, Reading, Shortcut, Status, Stay
 
 logger = logging.getLogger(__name__)
 
@@ -110,49 +111,61 @@ def _card_value(result):
     }
 
 
-def _fresh_key(kind, plugin_id):
-    return f"hub:{kind}:{plugin_id}"
+def _fresh_key(kind, plugin_id, mode=None):
+    return f"hub:{kind}:{plugin_id}" + (f":{mode}" if mode else "")
 
 
-def _last_key(kind, plugin_id):
-    return f"hub:{kind}:{plugin_id}:last"
+def _last_key(kind, plugin_id, mode=None):
+    return _fresh_key(kind, plugin_id, mode) + ":last"
 
 
-def _run_hook(kind, plugin_id, path, convert, ttl):
+def _takes_mode(path):
+    """True when the hook at ``path`` accepts a ``mode`` argument."""
     try:
-        value = convert(_resolve(path)())
+        return "mode" in inspect.signature(_resolve(path)).parameters
+    except Exception:
+        return False
+
+
+def _run_hook(kind, plugin_id, path, convert, ttl, mode=None):
+    try:
+        hook = _resolve(path)
+        value = convert(hook(mode=mode) if mode else hook())
         entry = {"value": value, "updated": time.time()}
-        cache.set(_fresh_key(kind, plugin_id), entry, ttl)
-        cache.set(_last_key(kind, plugin_id), entry, LAST_GOOD_TTL)
+        cache.set(_fresh_key(kind, plugin_id, mode), entry, ttl)
+        cache.set(_last_key(kind, plugin_id, mode), entry, LAST_GOOD_TTL)
         return entry
     finally:
         close_old_connections()
 
 
-def _submit(kind, plugin_id, path, convert, ttl):
+def _submit(kind, plugin_id, path, convert, ttl, mode=None):
     """Start the hook unless the same one is already running."""
-    key = _fresh_key(kind, plugin_id)
+    key = _fresh_key(kind, plugin_id, mode)
     with _inflight_lock:
         future = _inflight.get(key)
         if future is None or future.done():
-            future = _executor.submit(_run_hook, kind, plugin_id, path, convert, ttl)
+            future = _executor.submit(_run_hook, kind, plugin_id, path, convert, ttl, mode)
             _inflight[key] = future
     return future
 
 
 def _gather(jobs, timeout):
-    """Run (kind, plugin_id, path, convert, ttl) jobs; return {(kind, id): entry}.
+    """Run (kind, plugin_id, path, convert, ttl[, mode]) jobs; return {(kind, id): entry}.
 
+    A job with a mode calls its hook with ``mode=`` and is cached per mode.
     Entries are ``{"value", "updated", "stale"}``. Jobs with no fresh result
     and no last good result are left out.
     """
-    results, pending = {}, {}
-    for kind, plugin_id, path, convert, ttl in jobs:
-        hit = cache.get(_fresh_key(kind, plugin_id))
+    results, pending, modes = {}, {}, {}
+    for kind, plugin_id, path, convert, ttl, *rest in jobs:
+        mode = rest[0] if rest else None
+        modes[(kind, plugin_id)] = mode
+        hit = cache.get(_fresh_key(kind, plugin_id, mode))
         if hit is not None:
             results[(kind, plugin_id)] = {**hit, "stale": False}
         else:
-            pending[(kind, plugin_id)] = _submit(kind, plugin_id, path, convert, ttl)
+            pending[(kind, plugin_id)] = _submit(kind, plugin_id, path, convert, ttl, mode)
 
     if pending:
         wait(pending.values(), timeout=timeout)
@@ -164,7 +177,7 @@ def _gather(jobs, timeout):
             logger.warning("%s hook for %s failed: %s", kind, plugin_id, future.exception())
         else:
             logger.warning("%s hook for %s timed out", kind, plugin_id)
-        last = cache.get(_last_key(kind, plugin_id))
+        last = cache.get(_last_key(kind, plugin_id, modes[(kind, plugin_id)]))
         if last is not None:
             results[(kind, plugin_id)] = {**last, "stale": True}
     return results
@@ -182,7 +195,8 @@ def home_data(mode, timeout=TIMEOUT):
     """Status lines and shortcuts for the homepage in ``mode``."""
     specs = plugins()
     jobs = [
-        ("status", s.id, s.status, _status_value, STATUS_TTL)
+        ("status", s.id, s.status, _status_value, STATUS_TTL,
+         mode if _takes_mode(s.status) else None)
         for s in specs if s.status and _visible(s, mode)
     ] + [
         ("shortcuts", s.id, s.shortcuts, _shortcuts_value, SHORTCUTS_TTL)
@@ -278,6 +292,6 @@ def run_shortcut(plugin_id, shortcut_id, mode, timeout=TIMEOUT):
 
     message = _resolve(spec.run_shortcut)(shortcut_id)
     # The shortcut probably changed the status line and which shortcuts apply.
-    cache.delete(_fresh_key("status", spec.id))
+    cache.delete_many([_fresh_key("status", spec.id, m) for m in (None, *ALL_MODES)])
     cache.delete(_fresh_key("shortcuts", spec.id))
     return message
