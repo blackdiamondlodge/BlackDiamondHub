@@ -4,6 +4,7 @@ spec = PluginSpec(
     id="sonos_control",
     app="sonos_control",
     urls="sonos_control.urls",
+    websocket_routes="sonos_control.routing.websocket_urlpatterns",
     tiles=(
         Tile(
             title="Music",

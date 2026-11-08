@@ -51,7 +51,7 @@ def scenes(request):
         return redirect("scenes")  # Refresh page after activating scene
 
     scenes_list = get_scenes()
-    return render(request, "scene_control.html", {"scenes": scenes_list})
+    return render(request, "scenes/scene_control.html", {"scenes": scenes_list})
 
 def homeassistant_icon_mapping(hass_icon):
     """Map Home Assistant icons to Font Awesome icons."""

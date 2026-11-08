@@ -21,6 +21,12 @@ def _tile(**kw):
 
 
 class LoaderValidationTests(SimpleTestCase):
+    def test_loader_rejects_hook_that_is_not_a_dotted_path(self):
+        with self.assertRaisesMessage(PluginError, "websocket_routes must be a dotted"):
+            validate([PluginSpec(id="a", app="a", websocket_routes="routing")])
+        with self.assertRaisesMessage(PluginError, "status must be a dotted"):
+            validate([PluginSpec(id="a", app="a", status=print)])
+
     def test_rejects_duplicate_ids(self):
         with self.assertRaisesMessage(PluginError, "duplicate plugin id"):
             validate([PluginSpec(id="a", app="a"), PluginSpec(id="a", app="b")])
@@ -163,10 +169,10 @@ def _spec(id, **kw):
 
 
 STATUS_PLUGINS = (
-    _spec("lights", status="hub.tests.ok_status",
-          shortcuts="hub.tests.demo_shortcuts", run_shortcut="hub.tests.demo_run"),
-    _spec("flaky", status="hub.tests.failing_status"),
-    PluginSpec(id="hidden", app="hidden", status="hub.tests.ok_status",
+    _spec("lights", status="hub.tests.test_hub.ok_status",
+          shortcuts="hub.tests.test_hub.demo_shortcuts", run_shortcut="hub.tests.test_hub.demo_run"),
+    _spec("flaky", status="hub.tests.test_hub.failing_status"),
+    PluginSpec(id="hidden", app="hidden", status="hub.tests.test_hub.ok_status",
                tiles=(_tile(title="Hidden", modes=OWNER_ONLY),)),
 )
 
@@ -205,7 +211,7 @@ class HomeStatusTests(TestCase):
 
     def test_slow_hook_does_not_block_the_homepage(self):
         HOOK_STATE["release"] = threading.Event()
-        plugins = (_spec("slow", status="hub.tests.slow_status"),)
+        plugins = (_spec("slow", status="hub.tests.test_hub.slow_status"),)
         try:
             with override_settings(HUB_PLUGINS=plugins):
                 started = time.monotonic()

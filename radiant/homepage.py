@@ -1,4 +1,4 @@
-from device_control.ha_client import get_entity_states
+from hub.ha_client import get_entity_states
 from hub.plugins import INFO, ON, WARN, Status
 
 from . import config as cfg

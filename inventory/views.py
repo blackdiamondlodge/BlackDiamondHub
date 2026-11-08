@@ -31,7 +31,7 @@ def index(request):
         'keyword': keyword
     }
     
-    return render(request, 'inventory.html', context)
+    return render(request, 'inventory/inventory.html', context)
 
 def item_detail(request, id):
     item = get_object_or_404(Item, pk=id)
@@ -51,7 +51,7 @@ def item_detail(request, id):
         'item': item,
         'qr_code_data': qr_code_data,  # Pass the QR code data to the template
     }
-    return render(request, 'item_detail.html', context)
+    return render(request, 'inventory/item_detail.html', context)
 
 def item_detail_json(request, id):
     item = get_object_or_404(Item, pk=id)
@@ -100,8 +100,8 @@ def edit_item(request, id):
         # If the request is GET, populate the form with the item data
         form = ItemForm(instance=item)
     
-    # Render the edit.html template with the form and item data
-    return render(request, 'edit.html', {'form': form, 'item': item})
+    # Render the inventory/edit.html template with the form and item data
+    return render(request, 'inventory/edit.html', {'form': form, 'item': item})
 
 @login_required
 @require_POST
@@ -140,9 +140,9 @@ def add_item(request):
             return redirect('inventory')  # Redirect to the inventory page after adding the item
     else:
         form = ItemForm()
-    return render(request, 'add_item.html', {'form': form})
+    return render(request, 'inventory/add_item.html', {'form': form})
   
   
 @login_required
 def profile(request):
-    return render(request, 'profile.html')
+    return render(request, 'inventory/profile.html')

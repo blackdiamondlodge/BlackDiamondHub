@@ -56,7 +56,7 @@ def snow_report(request):
 
     weather_data = parse_weather_html(html_content, units)
 
-    return render(request, "snow_report.html", weather_data)
+    return render(request, "snow_report/snow_report.html", weather_data)
 
 # Data Extraction & Parsing
 def parse_weather_html(html, units):

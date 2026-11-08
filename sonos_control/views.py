@@ -42,13 +42,13 @@ def sonos_control_view(request):
         'speaker_info': speakers_info,
     }
 
-    return render(request, 'sonos.html', context)
+    return render(request, 'sonos_control/sonos.html', context)
 
 # def get_sonos_status_partial(request):
 #     speakers_info = sonos_get_speaker_info()
 
 #     # Render the partial HTML for the speakers
-#     rendered_html = render(request, 'partials/sonos_speakers.html', {'speaker_info': speakers_info})
+#     rendered_html = render(request, 'sonos_control/partials/sonos_speakers.html', {'speaker_info': speakers_info})
 
 #     return JsonResponse({'status': 'success', 'html': rendered_html.content.decode('utf-8')})
 
@@ -413,7 +413,7 @@ def sonos_get_speaker_info():
 def spotify_view(request):
     if request.user.is_authenticated:
         # User is authenticated; render the template as before
-        return render(request, 'spotify.html')
+        return render(request, 'sonos_control/spotify.html')
     else:
         # Generate a unique session ID and store it
         session_id = str(uuid.uuid4())
@@ -430,7 +430,7 @@ def spotify_view(request):
             'qr_code_img': qr_code_img,
             'session_id': session_id,
         }
-        return render(request, 'partials/spotify.html', context)
+        return render(request, 'sonos_control/partials/spotify.html', context)
     
 def spotify_auth_qrcode(request):
     # Generate a unique session ID and store it
@@ -522,7 +522,7 @@ def spotify_callback(request):
         return JsonResponse({'error': str(e)}, status=500)
     # Token info is automatically saved in the session via cache_handler
 
-    return render(request, 'spotify_callback.html')
+    return render(request, 'sonos_control/spotify_callback.html')
 
     
 def spotify_home(request):
@@ -530,7 +530,7 @@ def spotify_home(request):
     if isinstance(sp, spotipy.Spotify):
         # Fetch user data or playlists
         user_profile = sp.current_user()
-        return render(request, 'spotify.html', {'user_profile': user_profile})
+        return render(request, 'sonos_control/spotify.html', {'user_profile': user_profile})
     else:
         # Redirect to login if not authenticated
         return sp    

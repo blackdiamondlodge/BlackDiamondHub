@@ -1728,7 +1728,7 @@ class BdlModesDisabledTests(TestCase):
         client.force_login(User.objects.create_user("u", password="p"))
         r = client.get("/vacation_mode/")
         self.assertEqual(r.status_code, 200)
-        self.assertTemplateUsed(r, "vacation_mode.html")
+        self.assertTemplateUsed(r, "vacation_mode/vacation_mode.html")
         call.assert_not_called()
 
 
