@@ -65,7 +65,8 @@ jobs:
           DB_NAME: test_db
           DB_HOST: localhost
           DB_USER: postgres
-          DB_PASSWORD: postgres      
+          DB_PASSWORD: postgres
+          DJANGO_SECRET_KEY: ci-test-only
         run: python manage.py test BlackDiamondHub.tests.LandingPageLiveTests -v 2
 
       # The webcam, snow report and lift status scrapers live in their own
