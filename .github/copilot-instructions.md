@@ -7,7 +7,6 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 ## Django Apps
 
 - **inventory** — Property inventory management with item tracking, images, and QR code labels (uses pyzbar for scanning)
-- **vacation_mode** — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices
 - **sonos_control** — Sonos speaker control with Spotify integration via OAuth (social-auth)
 - **feedback** — User feedback submission and admin review (django-tables2)
 
@@ -21,6 +20,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **radiant** (`bdh-app-radiant`) — Radiant heating / heat-pump plant dashboard
 - **device_control** (`bdh-app-device-control`) — Lights, blinds, fireplace and Gemstone Lights via Home Assistant (`BDH_DEVICE_CONTROL_GEMSTONE_EMAIL`/`_PASSWORD`, legacy `GEMSTONE_*`)
 - **cameras** (`bdh-app-cameras`) — Live camera feeds via go2rtc + UniFi Protect Integration API (`BDH_CAMERAS_GO2RTC_URL`, `BDH_CAMERAS_PROTECT_{HOST,API_KEY,NAME}_n`; legacy `GO2RTC_URL`, `UNIFI_PROTECT_*_n`)
+- **vacation_mode** (`bdh-app-vacation-mode`) — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices (`BDH_VACATION_MODE_MODES_URL`/`_MODES_API_KEY`/`_PREHEAT`, legacy `BDL_MODES_*`)
 
 ## Tech Stack
 
@@ -107,7 +107,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 
 - Install the site's extracted apps into the venv first (once, and after each `apps.txt` bump): `venv\Scripts\python.exe -m pip install --require-hashes --no-deps -r sites\sunpeaks\apps.txt`. Their own tests run in each app repo's CI, not here.
 - Run unit tests: `venv\Scripts\python.exe manage.py test --exclude-tag=selenium --verbosity 2`
-- Run vacation_mode tests only: `venv\Scripts\python.exe manage.py test vacation_mode --verbosity 2`
+- Run one app's tests only: `venv\Scripts\python.exe manage.py test hub --verbosity 2` (installed apps need a module label, e.g. `vacation_mode.tests`)
 - Run all tests: `$env:PGPASSWORD='postgres'; venv\Scripts\python.exe manage.py test --verbosity 2`
 - Selenium tests extend `StaticLiveServerTestCase` and use shared `get_chrome_options()` from `tests/selenium_helpers.py`
 - Always run relevant tests after making changes
@@ -126,8 +126,6 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - `hub/loader.py` / `hub/modes.py` — plugin discovery/validation, websocket route collection and homepage mode (guest / dashboard / owner) + tile lookup
 - `hub/spotify_auth.py` — platform-owned Spotify social-auth hooks (`spotify_token` context processor, disconnect-pipeline steps) referenced from core settings
 - `bdh_sdk.ha` — shared Home Assistant client (`get_entity_states`, `get_history`, `call_service`, `ws_commands`…), in bdh-sdk so extracted apps can use it. Apps import it from `bdh_sdk.ha`, never from another app (`hub/ha_client.py` and `device_control.ha_client` are compatibility re-exports)
-- `vacation_mode/executor.py` — HA service call execution engine with state verification
-- `vacation_mode/steps.py` — Step definitions for vacation and home mode sequences
 - `tests/selenium_helpers.py` — Shared Selenium test utilities (login, Chrome options, network waits)
 - `.env` — Environment variables (HA_TOKEN, DB credentials, etc.)
 - `requirements.txt` — Python dependencies
