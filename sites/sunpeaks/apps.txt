@@ -9,3 +9,6 @@
 #
 # An app's third-party dependencies must be in the hub's requirements.txt.
 # Installed apps register through the "blackdiamondhub.plugins" entry point.
+
+bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.0.0/bdh_app_wifi-1.0.0-py3-none-any.whl \
+    --hash=sha256:ac541b4a1a549f931f41c59c8dd978d111fbcdc69d7bfff5e26a4d24ceaa8568

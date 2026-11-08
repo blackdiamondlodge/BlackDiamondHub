@@ -13,8 +13,11 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 - **sunpeaks_webcams** — Sun Peaks resort webcam viewer
 - **snow_report** — Snow/weather report display
 - **scenes** — Home Assistant scene control
-- **wifi** — WiFi QR code generator with password display
 - **feedback** — User feedback submission and admin review (django-tables2)
+
+Installed from their own repos via `sites/sunpeaks/apps.txt`:
+
+- **wifi** (`blackdiamondlodge/bdh-app-wifi`) — WiFi QR code generator with password display
 
 ## Tech Stack
 
@@ -99,6 +102,7 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 
 ## Testing
 
+- Install the site's extracted apps into the venv first (once, and after each `apps.txt` bump): `venv\Scripts\python.exe -m pip install --require-hashes --no-deps -r sites\sunpeaks\apps.txt`. Their own tests run in each app repo's CI, not here.
 - Run unit tests: `venv\Scripts\python.exe manage.py test --exclude-tag=selenium --verbosity 2`
 - Run vacation_mode tests only: `venv\Scripts\python.exe manage.py test vacation_mode --verbosity 2`
 - Run all tests: `$env:PGPASSWORD='postgres'; venv\Scripts\python.exe manage.py test --verbosity 2`
@@ -171,5 +175,5 @@ Homepage hooks (optional, dotted paths in the spec, conventionally in `<app>/hom
 ### SDK, per-site apps and acceptance smoke test
 
 - The contract (`PluginSpec`, `Tile`, `Status`, `Shortcut`, modes, sections) lives in **`bdh-sdk`** (github.com/blackdiamondlodge/bdh-sdk), pinned in `requirements.txt` by GitHub release wheel URL. `hub/plugins.py` only re-exports it — change the contract in bdh-sdk, release it, then bump the pin. bdh-sdk also provides `bdh_sdk.settings.app_setting(app_id, key, legacy=...)` (reads `BDH_<ID>_<KEY>`, then legacy env names, then Django settings) and the reusable app CI workflow `app-ci.yml`.
-- Apps from their own repos (`blackdiamondlodge/bdh-app-<id>`) are installed per site from `sites/<site>/apps.txt` (hashed wheel URLs, `pip install --require-hashes --no-deps`); the image is built with `--build-arg HUB_SITE=<site>` and tagged `:<site>` (`:sunpeaks` and `:latest` today). An app's third-party deps must be in the hub's `requirements.txt`. When an app is extracted, remove it from `HUB_PLUGINS` in the same PR that adds it to the site's `apps.txt`.
+- Apps from their own repos (`blackdiamondlodge/bdh-app-<id>`) are installed per site from `sites/<site>/apps.txt` (hashed wheel URLs, `pip install --require-hashes --no-deps`); the image is built with `--build-arg HUB_SITE=<site>` and tagged `:<site>` (`:sunpeaks` and `:latest` today). An app's third-party deps must be in the hub's `requirements.txt`. When an app is extracted, remove it from `HUB_PLUGINS` in the same PR that adds it to the site's `apps.txt`. Hub CI installs `sites/sunpeaks/apps.txt` and runs `hub_smoke` before the unit tests; the app's CI (bdh-sdk `app-ci.yml`) deletes any in-tree copy from the hub checkout so it can be tested before the hub drops it.
 - `python manage.py hub_smoke [--app <id>]` is the acceptance check: hook paths import, tile icons resolve via static finders, and every tile page renders (<500) for a signed-in superuser against a throwaway test DB. The reusable app CI runs it after installing the app's wheel next to the hub.

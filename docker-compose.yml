@@ -22,7 +22,7 @@ services:
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
 
-      # Wifi App Settings
+      # Wifi app settings (bdh-app-wifi)
       WIFI_NETWORKS_AUTH: ${WIFI_NETWORKS_AUTH}
       WIFI_NETWORKS_PUBLIC: ${WIFI_NETWORKS_PUBLIC}
 

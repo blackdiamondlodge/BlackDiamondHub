@@ -16,10 +16,10 @@ class HubSmokeCommandTests(SimpleTestCase):
     def test_smoke_passes_for_an_app(self):
         # Runs in its own process: the command creates its own test database.
         result = subprocess.run(
-            [sys.executable, "manage.py", "hub_smoke", "--app", "wifi",
+            [sys.executable, "manage.py", "hub_smoke", "--app", "lift_status",
              "--settings=BlackDiamondHub.settings_test"],
             cwd=ROOT, capture_output=True, text=True, timeout=120,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("wifi: GET /wifi/ -> 200", result.stdout)
+        self.assertIn("lift_status: GET /lift_status/ -> 200", result.stdout)
         self.assertIn("hub smoke OK", result.stdout)

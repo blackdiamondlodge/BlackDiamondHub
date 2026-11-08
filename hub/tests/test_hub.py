@@ -51,9 +51,9 @@ class LoaderValidationTests(SimpleTestCase):
         ep = MagicMock()
         ep.load.return_value = external
         with patch("hub.loader.entry_points", return_value=[ep]) as eps:
-            specs = load_plugins(["wifi.plugin.spec"])
+            specs = load_plugins(["radiant.plugin.spec"])
         eps.assert_called_once_with(group="blackdiamondhub.plugins")
-        self.assertEqual([s.id for s in specs], ["wifi", "external"])
+        self.assertEqual([s.id for s in specs], ["radiant", "external"])
 
 
 class TileModeTests(SimpleTestCase):
@@ -91,7 +91,7 @@ class HomepageRegistryTests(TestCase):
         for href, icon in [
             ("/snow_report/", "snow_report/hub/icon.svg"),
             ("/radiant/", "radiant/hub/icon.svg"),
-            ("/wifi/", "wifi/hub/icon.svg"),
+            ("/lift_status/", "lift_status/hub/icon.svg"),
         ]:
             self.assertContains(response, f'href="{href}"')
             self.assertContains(response, icon)
