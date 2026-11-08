@@ -7,7 +7,6 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 ## Django Apps
 
 - **inventory** — Property inventory management with item tracking, images, and QR code labels (uses pyzbar for scanning)
-- **sonos_control** — Sonos speaker control with Spotify integration via OAuth (social-auth)
 - **feedback** — User feedback submission and admin review (django-tables2)
 
 Installed from their own repos via `sites/sunpeaks/apps.txt`:
@@ -21,6 +20,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **device_control** (`bdh-app-device-control`) — Lights, blinds, fireplace and Gemstone Lights via Home Assistant (`BDH_DEVICE_CONTROL_GEMSTONE_EMAIL`/`_PASSWORD`, legacy `GEMSTONE_*`)
 - **cameras** (`bdh-app-cameras`) — Live camera feeds via go2rtc + UniFi Protect Integration API (`BDH_CAMERAS_GO2RTC_URL`, `BDH_CAMERAS_PROTECT_{HOST,API_KEY,NAME}_n`; legacy `GO2RTC_URL`, `UNIFI_PROTECT_*_n`)
 - **vacation_mode** (`bdh-app-vacation-mode`) — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices (`BDH_VACATION_MODE_MODES_URL`/`_MODES_API_KEY`/`_PREHEAT`, legacy `BDL_MODES_*`)
+- **sonos_control** (`bdh-app-sonos-control`) — Sonos speaker control with Spotify integration (`BDH_SONOS_CONTROL_INTERFACE`, legacy `SONOS_INTERFACE`; Spotify OAuth/social-auth settings stay in core)
 
 ## Tech Stack
 
