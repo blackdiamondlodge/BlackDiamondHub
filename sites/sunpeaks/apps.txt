@@ -32,3 +32,5 @@ bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-contr
     --hash=sha256:a461c4449e00f5e0896c1324adde34c2128ced9c80931db40f8a28c3d4231ad0
 bdh-app-stays @ https://github.com/blackdiamondlodge/bdh-app-stays/releases/download/v1.0.0/bdh_app_stays-1.0.0-py3-none-any.whl \
     --hash=sha256:f24df3a80ded30764e1fa2e6d34fecb7ca39ae583f849b26241517ff1b88536b
+bdh-app-inventory @ https://github.com/blackdiamondlodge/bdh-app-inventory/releases/download/v1.0.0/bdh_app_inventory-1.0.0-py3-none-any.whl \
+    --hash=sha256:ec8bf0ce59ec4f3e49528e107afa2adc1424b0f2b1c4061ed7276c7ef040b65c
