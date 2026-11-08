@@ -73,7 +73,6 @@ HUB_PLUGINS = load_plugins([
     'inventory.plugin.spec',
     'feedback.plugin.spec',
     'sonos_control.plugin.spec',
-    'vacation_mode.plugin.spec',
 ])
 INSTALLED_APPS += [spec.app for spec in HUB_PLUGINS]
 
@@ -265,16 +264,6 @@ HOMEASSISTANT_ACCESS_TOKEN = os.environ.get('HOMEASSISTANT_ACCESS_TOKEN')
 
 HOMEASSISTANT_URL_2 = os.environ.get('HOMEASSISTANT_URL_2', 'http://homeassistant.local:8123')
 HOMEASSISTANT_ACCESS_TOKEN_2 = os.environ.get('HOMEASSISTANT_ACCESS_TOKEN_2')
-
-#####################################
-### BDL Modes (AppDaemon) Settings ###
-#####################################
-# When BDL_MODES_URL is set, vacation mode runs in the bdl_modes AppDaemon
-# app (background retries, preheat scheduling) and this hub is only the UI.
-# e.g. http://192.168.10.217:5050/api/appdaemon/bdl_modes
-BDL_MODES_URL = os.environ.get('BDL_MODES_URL', '')
-BDL_MODES_API_KEY = os.environ.get('BDL_MODES_API_KEY', '')
-BDL_MODES_PREHEAT = os.environ.get('BDL_MODES_PREHEAT', 'false').lower() in ('1', 'true', 'yes')
 
 ############################################
 ### Security headers (internal LAN app)  ###
