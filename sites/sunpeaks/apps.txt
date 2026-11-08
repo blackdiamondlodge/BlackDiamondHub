@@ -24,3 +24,5 @@ bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/
     --hash=sha256:83d3ecf521b8fcc51c6a26faa316c6776ca81ffa796e5eb6e20db80d775d43ab
 bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-control/releases/download/v1.0.0/bdh_app_device_control-1.0.0-py3-none-any.whl \
     --hash=sha256:4ad1cad01189616ae3c370f60934aef2f6e3838b5c6ab228bf4b86f58e539dac
+bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.0.0/bdh_app_cameras-1.0.0-py3-none-any.whl \
+    --hash=sha256:50574555fee84a6a44ba82d90cc1a3e20fcab309b59d95e8ee5517eeb1f508f4

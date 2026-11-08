@@ -73,7 +73,6 @@ HUB_PLUGINS = load_plugins([
     'inventory.plugin.spec',
     'feedback.plugin.spec',
     'sonos_control.plugin.spec',
-    'cameras.plugin.spec',
     'vacation_mode.plugin.spec',
 ])
 INSTALLED_APPS += [spec.app for spec in HUB_PLUGINS]
@@ -276,29 +275,6 @@ HOMEASSISTANT_ACCESS_TOKEN_2 = os.environ.get('HOMEASSISTANT_ACCESS_TOKEN_2')
 BDL_MODES_URL = os.environ.get('BDL_MODES_URL', '')
 BDL_MODES_API_KEY = os.environ.get('BDL_MODES_API_KEY', '')
 BDL_MODES_PREHEAT = os.environ.get('BDL_MODES_PREHEAT', 'false').lower() in ('1', 'true', 'yes')
-
-###########################
-### go2rtc Camera Settings ###
-###########################
-GO2RTC_URL = os.environ.get('GO2RTC_URL', 'http://localhost:1984')
-# Public URL for browser access (defaults to GO2RTC_URL for non-Docker setups)
-GO2RTC_PUBLIC_URL = os.environ.get('GO2RTC_PUBLIC_URL', GO2RTC_URL)
-
-#################################
-### UniFi Protect Settings ###
-#################################
-# Multi-site: numbered pairs (UNIFI_PROTECT_HOST_1, _API_KEY_1, _NAME_1, etc.)
-UNIFI_PROTECT_SITES = []
-for i in range(1, 10):
-    host = os.environ.get(f'UNIFI_PROTECT_HOST_{i}', '')
-    api_key = os.environ.get(f'UNIFI_PROTECT_API_KEY_{i}', '')
-    name = os.environ.get(f'UNIFI_PROTECT_NAME_{i}', f'Site {i}')
-    if host and api_key:
-        UNIFI_PROTECT_SITES.append({
-            'host': host,
-            'api_key': api_key,
-            'name': name,
-        })
 
 ############################################
 ### Security headers (internal LAN app)  ###

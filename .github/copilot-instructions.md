@@ -9,7 +9,6 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 - **inventory** — Property inventory management with item tracking, images, and QR code labels (uses pyzbar for scanning)
 - **vacation_mode** — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices
 - **sonos_control** — Sonos speaker control with Spotify integration via OAuth (social-auth)
-- **cameras** — Live camera feeds via go2rtc + UniFi Protect Integration API
 - **feedback** — User feedback submission and admin review (django-tables2)
 
 Installed from their own repos via `sites/sunpeaks/apps.txt`:
@@ -21,6 +20,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **scenes** (`bdh-app-scenes`) — Home Assistant scene control (`BDH_SCENES_FILTER`, legacy `SCENE_FILTER`)
 - **radiant** (`bdh-app-radiant`) — Radiant heating / heat-pump plant dashboard
 - **device_control** (`bdh-app-device-control`) — Lights, blinds, fireplace and Gemstone Lights via Home Assistant (`BDH_DEVICE_CONTROL_GEMSTONE_EMAIL`/`_PASSWORD`, legacy `GEMSTONE_*`)
+- **cameras** (`bdh-app-cameras`) — Live camera feeds via go2rtc + UniFi Protect Integration API (`BDH_CAMERAS_GO2RTC_URL`, `BDH_CAMERAS_PROTECT_{HOST,API_KEY,NAME}_n`; legacy `GO2RTC_URL`, `UNIFI_PROTECT_*_n`)
 
 ## Tech Stack
 
@@ -127,8 +127,6 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - `bdh_sdk.ha` — shared Home Assistant client (`get_entity_states`, `get_history`, `call_service`, `ws_commands`…), in bdh-sdk so extracted apps can use it. Apps import it from `bdh_sdk.ha`, never from another app (`hub/ha_client.py` and `device_control.ha_client` are compatibility re-exports)
 - `vacation_mode/executor.py` — HA service call execution engine with state verification
 - `vacation_mode/steps.py` — Step definitions for vacation and home mode sequences
-- `cameras/protect_api.py` — UniFi Protect API client (camera discovery, RTSPS streams, PTZ control)
-- `cameras/views.py` — Camera feed views, go2rtc stream registration
 - `tests/selenium_helpers.py` — Shared Selenium test utilities (login, Chrome options, network waits)
 - `.env` — Environment variables (HA_TOKEN, DB credentials, etc.)
 - `requirements.txt` — Python dependencies
