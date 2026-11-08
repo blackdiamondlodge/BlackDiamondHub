@@ -72,7 +72,6 @@ INSTALLED_APPS = [
 HUB_PLUGINS = load_plugins([
     'inventory.plugin.spec',
     'feedback.plugin.spec',
-    'sonos_control.plugin.spec',
 ])
 INSTALLED_APPS += [spec.app for spec in HUB_PLUGINS]
 
