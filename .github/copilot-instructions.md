@@ -20,7 +20,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **cameras** (`bdh-app-cameras`) — Live camera feeds via go2rtc + UniFi Protect Integration API (`BDH_CAMERAS_GO2RTC_URL`, `BDH_CAMERAS_PROTECT_{HOST,API_KEY,NAME}_n`; legacy `GO2RTC_URL`, `UNIFI_PROTECT_*_n`)
 - **vacation_mode** (`bdh-app-vacation-mode`) — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices (`BDH_VACATION_MODE_MODES_URL`/`_MODES_API_KEY`/`_PREHEAT`, legacy `BDL_MODES_*`)
 - **sonos_control** (`bdh-app-sonos-control`) — Sonos speaker control with Spotify integration (`BDH_SONOS_CONTROL_INTERFACE`, legacy `SONOS_INTERFACE`; Spotify OAuth/social-auth settings stay in core)
-- **stays** (`bdh-app-stays`) — no pages; its `stay` hook reads `sensor.bdl_stay_current` from the Stays AppDaemon app to put the homepage in guest mode (`BDH_STAYS_ENTITY`)
+- **stays** (`bdh-app-stays`) — no pages; its `stay` hook reads `sensor.bdl_stay_current` from the Stays AppDaemon app to put the homepage in guest (or owner-visit) mode, and its `card` hook provides the lodge card (`BDH_STAYS_ENTITY` and friends, see its README)
 - **inventory** (`bdh-app-inventory`) — kitchen inventory with item photos and QR code labels at `/inventory/` (sign-in, no homepage tile). Its tests use pyzbar, so keep `pyzbar`/`libzbar0` in the hub requirements and CI
 
 ## Tech Stack
@@ -159,13 +159,14 @@ The hub is a platform; each feature is an app that describes itself in `<app>/pl
 
 To add an app: create `<app>/plugin.py` with `spec = PluginSpec(...)`, add `'<app>.plugin.spec'` to `HUB_PLUGINS`, and put its tile icon at `<app>/static/<app>/hub/icon.svg` (64×64 rounded tile, tinted gradient, white 2.6-stroke glyph — match the existing icons).
 
-Homepage modes: `owner` when signed in, `guest` while an app's `stay` hook reports a stay, otherwise `dashboard`. `Tile.modes` only hides tiles — owner-only views must still enforce `@login_required` themselves. In guest mode the homepage shows a welcome line (guest name and checkout) and never mentions owner features beyond the navbar login icon; the page reloads itself when the polled mode changes.
+Homepage modes: `owner` when signed in, `guest` while an app's `stay` hook reports a stay, otherwise `dashboard`. `Tile.modes` only hides tiles — owner-only views must still enforce `@login_required` themselves. During an owner visit (`Stay.owner`), `hub.owner_visit.OwnerVisitMiddleware` makes `request.user` the `HUB_OWNER_VISIT_USER` account (blank = off); nothing is stored in the session, so it ends with the visit. In guest mode the homepage never mentions owner features beyond the navbar login icon; the page reloads itself when the polled mode changes.
 
 Homepage hooks (optional, dotted paths in the spec, conventionally in `<app>/homepage.py`):
 - `status` → `Status(text, level)` (levels `info`/`on`/`warn`) replaces the tile subtitle. Hooks run in a thread pool with a 6 s deadline and are cached 60 s; on failure the last good value is shown faded as stale.
 - `shortcuts` → list of `Shortcut` for the Quick actions row, run via `run_shortcut(id)` from `POST /hub/api/shortcut/<plugin>/<id>/` (CSRF). Shortcuts are owner-only unless they set `modes` explicitly; the hub rejects shortcuts not offered in the caller's mode.
 - The homepage polls `GET /hub/api/status/` every minute.
-- `stay` → `Stay(guest, arrival, checkout)` or None (`hub.status.current_stay`). Run like `status` but with a 3 s deadline since every homepage request needs it; a stale last-good stay is dropped once its checkout passes. Never put door PINs in a `Stay`.
+- `stay` → `Stay(guest, arrival, checkout, owner)` or None (`hub.status.current_stay`). Run like `status` but with a 3 s deadline since every homepage request needs it; a stale last-good stay is dropped once its checkout passes. Never put door PINs in a `Stay`.
+- `card` → `Card(title, detail, readings, alerts, url_name, level)` or None (`hub.status.lodge_card`): the lodge card at the top of the homepage in every mode, from the first app with the hook. Same 3 s deadline; also returned by the status API and re-rendered on each poll. Guests get it without alerts or the link. Without a card app, guests get the plain welcome line.
 - `websocket_routes` → dotted path to a list of Channels URL patterns (e.g. `"sonos_control.routing.websocket_urlpatterns"`). `BlackDiamondHub/asgi.py` collects them from every installed plugin with `hub.loader.websocket_urlpatterns()` after Django is set up, and serves them behind `AllowedHostsOriginValidator(AuthMiddlewareStack(...))`. Never import an app's routing from core code.
 
 ### Rules that keep apps extractable into their own repos

@@ -9,6 +9,7 @@ from social_core.backends.spotify import SpotifyOAuth2
 
 from hub.modes import current_stay, resolve_mode, tiles_for_mode, welcome
 from hub.plugins import GUEST
+from hub.status import lodge_card
 
 def landing_page(request):
     url = 'https://www.sunpeaksresort.com/bike-hike/weather-webcams/weather'  # Replace with the URL you want to fetch
@@ -54,11 +55,14 @@ def landing_page(request):
         weather_data.append(weather_entry)    
     
     mode = resolve_mode(request)
+    card = lodge_card(mode)
     context = {
         'sunpeaks_weather': weather_data,
         'hub_mode': mode,
         'hub_sections': tiles_for_mode(mode),
-        'hub_welcome': welcome(current_stay(request)) if mode == GUEST else None,
+        'hub_card': card,
+        # Without a card app, guests still get the plain welcome line.
+        'hub_welcome': welcome(current_stay(request)) if mode == GUEST and not card else None,
     }
     return render(request, 'index.html', context)
 

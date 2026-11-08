@@ -60,6 +60,32 @@
     .hub-welcome h1 { font-size: 34px; font-weight: 600; color: var(--fg); margin: 0; }
     .hub-welcome p { font-size: 18px; color: var(--mut); margin: 0; }
 
+    .hub-card {
+        display: flex; align-items: center; gap: 24px; flex-shrink: 0;
+        margin-top: 22px; padding: 16px 22px;
+        background: var(--card); border: 1px solid var(--line); border-radius: 22px;
+        color: var(--fg); text-decoration: none;
+    }
+    a.hub-card:hover, a.hub-card:focus-visible { color: var(--fg); background: var(--card2); }
+    a.hub-card:active { transform: scale(.99); }
+    .hub-card.lvl-on { border-color: var(--acc); }
+    .hub-card.lvl-warn { border-color: #f0b429; }
+    .hub-card.is-stale { opacity: .7; }
+    .hub-card-main { flex: 1; min-width: 0; }
+    .hub-card-main h1 { font-size: 30px; font-weight: 600; margin: 0; }
+    .hub-card-main p { font-size: 18px; color: var(--mut); margin: 2px 0 0; }
+    .hub-card.lvl-on .hub-card-main h1 { color: var(--acc); }
+    .hub-card-alerts { list-style: none; margin: 0; padding: 0; font-size: 18px; color: #f0b429; }
+    .hub-card-alerts li {
+        display: flex; flex-direction: row; align-items: center; gap: 10px;
+        padding: 2px 0; margin: 0; min-width: 0; white-space: nowrap;
+    }
+    .hub-card-readings { display: flex; gap: 12px; }
+    .hub-reading { background: var(--card2); border-radius: 14px; padding: 8px 18px; text-align: center; }
+    .hub-reading .hub-reading-value { display: block; font-size: 28px; font-weight: 600; color: var(--fg); }
+    .hub-reading-label { display: block; font-size: 14px; color: var(--mut); text-transform: uppercase; letter-spacing: 1px; }
+    .hub-card-go { color: var(--mut); font-size: 22px; }
+
     .hub-sections { display: flex; gap: 28px; flex: 1; min-height: 0; margin: 26px 0 32px; }
     .hub-section { display: flex; flex-direction: column; min-width: 0; }
     .hub-section h2 {
@@ -127,6 +153,10 @@
         .hub-quick { flex-wrap: wrap; margin: 0 0 20px; padding: 12px; gap: 10px; }
         .hub-quick-label { width: 100%; }
         .hub-quick-btn { font-size: 17px; padding: 12px 16px; }
+        .hub-card { flex-wrap: wrap; gap: 12px; padding: 12px 14px; }
+        .hub-card-main { flex-basis: 100%; }
+        .hub-card-main h1 { font-size: 24px; }
+        .hub-card-alerts li { white-space: normal; }
         .hub-date { display: none; }
     }
 </style>
@@ -141,6 +171,8 @@
 {% endblock %}
 
 {% block content %}
+<div id="hub-card-slot"></div>
+{{ hub_card|json_script:"hub-card-data" }}
 {% if hub_welcome %}
 <section class="hub-welcome" aria-label="Welcome">
     <h1>Welcome{% if hub_welcome.guest %}, {{ hub_welcome.guest }}{% endif %}</h1>
@@ -260,6 +292,7 @@
                     if (d.mode && d.mode !== HUB_MODE) { window.location.reload(); return; }
                     applyStatus(d.status || {});
                     renderShortcuts(d.shortcuts || []);
+                    if ('card' in d) renderCard(d.card);
                 })
                 .catch(function () {});
         }
@@ -267,6 +300,79 @@
         refresh();
         setInterval(refresh, POLL_MS);
     })();
+
+    // The lodge card: rendered from the page's JSON, then on every poll.
+    function renderCard(card) {
+        var slot = document.getElementById('hub-card-slot');
+        slot.textContent = '';
+        if (!card) return;
+        var el = document.createElement(card.url ? 'a' : 'section');
+        el.className = 'hub-card lvl-' + card.level + (card.stale ? ' is-stale' : '');
+        el.setAttribute('aria-label', 'Lodge');
+        if (card.url) el.href = card.url;
+
+        var main = document.createElement('div');
+        main.className = 'hub-card-main';
+        var h = document.createElement('h1');
+        h.textContent = card.title;
+        main.appendChild(h);
+        if (card.detail) {
+            var p = document.createElement('p');
+            p.textContent = card.detail;
+            main.appendChild(p);
+        }
+        el.appendChild(main);
+
+        if (card.alerts && card.alerts.length) {
+            var ul = document.createElement('ul');
+            ul.className = 'hub-card-alerts';
+            card.alerts.forEach(function (a) {
+                var li = document.createElement('li');
+                var icon = document.createElement('i');
+                icon.className = 'fa-solid fa-triangle-exclamation';
+                li.appendChild(icon);
+                li.appendChild(document.createTextNode(a));
+                ul.appendChild(li);
+            });
+            el.appendChild(ul);
+        }
+
+        if (card.readings && card.readings.length) {
+            var imperial = document.querySelector('.toggle-button').textContent === '°F/°C';
+            var box = document.createElement('div');
+            box.className = 'hub-card-readings';
+            card.readings.forEach(function (r) {
+                var item = document.createElement('div');
+                item.className = 'hub-reading';
+                var v = document.createElement('span');
+                v.className = 'hub-reading-value';
+                if (r.unit === 'C' && !isNaN(parseFloat(r.value))) {
+                    var c = parseFloat(r.value);
+                    v.classList.add('temperature');
+                    v.setAttribute('data-metric', c);
+                    v.setAttribute('data-unit', imperial ? 'F' : 'C');
+                    v.textContent = imperial ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
+                } else {
+                    v.textContent = r.value + (r.unit ? ' ' + r.unit : '');
+                }
+                var label = document.createElement('span');
+                label.className = 'hub-reading-label';
+                label.textContent = r.label;
+                item.appendChild(v);
+                item.appendChild(label);
+                box.appendChild(item);
+            });
+            el.appendChild(box);
+        }
+
+        if (card.url) {
+            var go = document.createElement('i');
+            go.className = 'fa-solid fa-chevron-right hub-card-go';
+            el.appendChild(go);
+        }
+        slot.appendChild(el);
+    }
+    renderCard(JSON.parse(document.getElementById('hub-card-data').textContent));
 </script>
 
 <script>

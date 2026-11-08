@@ -13,16 +13,18 @@ from importlib import import_module
 
 from django.core.cache import cache
 from django.db import close_old_connections
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
 from .modes import plugins
-from .plugins import INFO, STATUS_LEVELS, Shortcut, Status, Stay
+from .plugins import GUEST, INFO, STATUS_LEVELS, WARN, Card, Reading, Shortcut, Status, Stay
 
 logger = logging.getLogger(__name__)
 
 STATUS_TTL = 60
 SHORTCUTS_TTL = 60
 STAY_TTL = 60
+CARD_TTL = 60
 LAST_GOOD_TTL = 6 * 3600
 TIMEOUT = 6.0
 # Every homepage request waits on the stay hook, so give up on it sooner.
@@ -78,7 +80,34 @@ def _stay_value(result):
         return None
     if not isinstance(result, Stay):
         raise TypeError(f"stay hook returned {type(result).__name__}")
-    return {"guest": result.guest, "arrival": result.arrival, "checkout": result.checkout}
+    return {"guest": result.guest, "arrival": result.arrival,
+            "checkout": result.checkout, "owner": bool(result.owner)}
+
+
+def _card_value(result):
+    if result is None:
+        return None
+    if not isinstance(result, Card):
+        raise TypeError(f"card hook returned {type(result).__name__}")
+    url = None
+    if result.url_name:
+        try:
+            url = reverse(result.url_name)
+        except NoReverseMatch:
+            logger.warning("Card links to unknown URL name %r", result.url_name)
+    readings = []
+    for r in result.readings:
+        if not isinstance(r, Reading):
+            raise TypeError(f"card reading is {type(r).__name__}")
+        readings.append({"label": r.label, "value": r.value, "unit": r.unit})
+    return {
+        "title": result.title,
+        "detail": result.detail,
+        "readings": readings,
+        "alerts": [str(a) for a in result.alerts],
+        "url": url,
+        "level": result.level if result.level in STATUS_LEVELS else INFO,
+    }
 
 
 def _fresh_key(kind, plugin_id):
@@ -182,6 +211,28 @@ def home_data(mode, timeout=TIMEOUT):
                 })
     shortcuts.sort(key=lambda sc: (sc["order"], sc["title"]))
     return {"status": status, "shortcuts": shortcuts}
+
+
+def lodge_card(mode, timeout=STAY_TIMEOUT):
+    """The lodge card from the first app with a card hook, or None.
+
+    Guests get the header and readings only: alerts and the link are for
+    the owners.
+    """
+    spec = next((s for s in plugins() if s.card), None)
+    if spec is None:
+        return None
+    entry = _gather(
+        [("card", spec.id, spec.card, _card_value, CARD_TTL)], timeout
+    ).get(("card", spec.id))
+    card = entry["value"] if entry else None
+    if card is None:
+        return None
+    card = {**card, "stale": entry["stale"]}
+    if mode == GUEST:
+        card.update(alerts=[], url=None,
+                    level=INFO if card["level"] == WARN else card["level"])
+    return card
 
 
 def current_stay(timeout=STAY_TIMEOUT, now=None):
