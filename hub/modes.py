@@ -5,9 +5,31 @@ from django.urls import NoReverseMatch, reverse
 from .plugins import DASHBOARD, GUEST, OWNER, SECTIONS
 
 
+def current_stay(request):
+    """The stay in progress (see ``status.current_stay``), looked up once per request."""
+    if not hasattr(request, "_hub_stay"):
+        from . import status  # status imports this module
+
+        request._hub_stay = status.current_stay()
+    return request._hub_stay
+
+
 def stay_active(request) -> bool:
-    """Whether guests are currently staying. Wired up by the Stays app later."""
-    return False
+    """Whether guests are currently staying, as reported by an app's stay hook."""
+    return current_stay(request) is not None
+
+
+def welcome(stay):
+    """Template context for the guest welcome card."""
+    checkout = stay["checkout"]
+    return {"guest": stay["guest"], "checkout": _when(checkout) if checkout else ""}
+
+
+def _when(t):
+    # Shown in the stay's own timezone: the hub's TIME_ZONE is UTC.
+    hour = t.strftime("%I").lstrip("0")
+    minute = t.strftime(":%M") if t.minute else ""
+    return f"{t:%A}, {t:%b} {t.day} at {hour}{minute} {t:%p}"
 
 
 def resolve_mode(request) -> str:

@@ -13,7 +13,7 @@ from .plugins import API_VERSION, SECTIONS, PluginSpec
 ENTRY_POINT_GROUP = "blackdiamondhub.plugins"
 
 # Spec fields holding "module.attribute" paths that are resolved lazily.
-DOTTED_FIELDS = ("status", "shortcuts", "run_shortcut", "websocket_routes")
+DOTTED_FIELDS = ("status", "shortcuts", "run_shortcut", "websocket_routes", "stay")
 _DOTTED = re.compile(r"[A-Za-z_]\w*(\.[A-Za-z_]\w*)+")
 
 

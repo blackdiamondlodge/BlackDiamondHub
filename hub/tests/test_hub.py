@@ -1,5 +1,6 @@
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
@@ -9,9 +10,9 @@ from django.test import Client, SimpleTestCase, TestCase, override_settings
 from hub.loader import PluginError, load_plugins, validate
 from hub.modes import tiles_for_mode
 from hub.plugins import (
-    ALL_MODES, DASHBOARD, GUEST, ON, OWNER, OWNER_ONLY, PluginSpec, Shortcut, Status, Tile,
+    ALL_MODES, DASHBOARD, GUEST, ON, OWNER, OWNER_ONLY, PluginSpec, Shortcut, Status, Stay, Tile,
 )
-from hub.status import home_data
+from hub.status import current_stay, home_data
 
 
 def _tile(**kw):
@@ -80,6 +81,7 @@ class TileModeTests(SimpleTestCase):
 
 class HomepageRegistryTests(TestCase):
     def setUp(self):
+        cache.clear()
         patcher = patch("BlackDiamondHub.views.requests.get")
         mock_get = patcher.start()
         self.addCleanup(patcher.stop)
@@ -261,3 +263,61 @@ class ShortcutApiTests(TestCase):
     def test_loader_requires_shortcut_handler(self):
         with self.assertRaisesMessage(PluginError, "run_shortcut"):
             validate([PluginSpec(id="a", app="a", shortcuts="a.homepage.shortcuts")])
+
+def demo_stay():
+    if HOOK_STATE.get("stay_fails"):
+        raise RuntimeError("HA down")
+    return HOOK_STATE.get("stay")
+
+
+LODGE_TZ = timezone(timedelta(hours=-7))
+STAY_PLUGINS = (
+    *STATUS_PLUGINS,
+    PluginSpec(id="stays", app="stays", stay="hub.tests.test_hub.demo_stay"),
+)
+
+
+@override_settings(HUB_PLUGINS=STAY_PLUGINS)
+class StayModeTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        HOOK_STATE.clear()
+        patcher = patch("BlackDiamondHub.views.requests.get")
+        patcher.start().return_value = MagicMock(status_code=200, content=b"")
+        self.addCleanup(patcher.stop)
+        now = datetime.now(LODGE_TZ)
+        self.checkout = (now + timedelta(days=2)).replace(hour=11, minute=0, second=0, microsecond=0)
+        HOOK_STATE["stay"] = Stay("The Smiths", now - timedelta(days=1), self.checkout)
+
+    def test_reported_stay_puts_homepage_in_guest_mode_with_welcome(self):
+        response = self.client.get("/")
+        self.assertEqual(response.context["hub_mode"], GUEST)
+        self.assertContains(response, "Welcome, The Smiths")
+        c = self.checkout
+        self.assertContains(response, f"Checkout {c:%A}, {c:%b} {c.day} at 11 AM")
+        self.assertEqual(self.client.get("/hub/api/status/").json()["mode"], GUEST)
+
+    def test_no_stay_is_dashboard_without_welcome(self):
+        HOOK_STATE["stay"] = None
+        response = self.client.get("/")
+        self.assertEqual(response.context["hub_mode"], DASHBOARD)
+        self.assertNotContains(response, "hub-welcome\"")
+
+    def test_owner_mode_wins_and_skips_welcome(self):
+        self.client.force_login(User.objects.create_user("owner"))
+        response = self.client.get("/")
+        self.assertEqual(response.context["hub_mode"], OWNER)
+        self.assertNotContains(response, "Welcome, The Smiths")
+
+    def test_failed_hook_keeps_last_stay_until_checkout(self):
+        self.assertIsNotNone(current_stay())
+        cache.delete("hub:stay:stays")
+        HOOK_STATE["stay_fails"] = True
+        self.assertEqual(current_stay()["guest"], "The Smiths")
+        cache.delete("hub:stay:stays")
+        self.assertIsNone(current_stay(now=self.checkout + timedelta(minutes=1)))
+
+    def test_hook_returning_wrong_type_is_ignored(self):
+        HOOK_STATE["stay"] = "The Smiths"
+        self.assertIsNone(current_stay())
