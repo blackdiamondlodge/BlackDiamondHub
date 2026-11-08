@@ -19,7 +19,7 @@ def home_status(request):
     data = status.home_data(mode)
     for sc in data["shortcuts"]:
         sc["url"] = reverse("hub_shortcut", args=[sc["plugin"], sc["id"]])
-    return JsonResponse({"mode": mode, **data})
+    return JsonResponse({"mode": mode, "card": status.lodge_card(mode), **data})
 
 
 @never_cache

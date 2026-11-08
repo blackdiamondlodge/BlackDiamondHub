@@ -10,7 +10,8 @@ from django.test import Client, SimpleTestCase, TestCase, override_settings
 from hub.loader import PluginError, load_plugins, validate
 from hub.modes import tiles_for_mode
 from hub.plugins import (
-    ALL_MODES, DASHBOARD, GUEST, ON, OWNER, OWNER_ONLY, PluginSpec, Shortcut, Status, Stay, Tile,
+    ALL_MODES, DASHBOARD, GUEST, ON, OWNER, OWNER_ONLY, WARN, Card, PluginSpec, Reading, Shortcut,
+    Status, Stay, Tile,
 )
 from hub.status import current_stay, home_data
 
@@ -328,3 +329,77 @@ class StayModeTests(TestCase):
     def test_hook_returning_wrong_type_is_ignored(self):
         HOOK_STATE["stay"] = "The Smiths"
         self.assertIsNone(current_stay())
+
+    @override_settings(HUB_OWNER_VISIT_USER="lodge")
+    def test_owner_visit_signs_the_hub_in(self):
+        User.objects.create_user("lodge")
+        HOOK_STATE["stay"] = Stay("Owner visit", checkout=self.checkout, owner=True)
+        response = self.client.get("/")
+        self.assertEqual(response.context["hub_mode"], OWNER)
+        self.assertEqual(response.context["user"].username, "lodge")
+        self.assertEqual(self.client.get("/hub/api/status/").json()["mode"], OWNER)
+        # Not remembered: the hub is back to the dashboard once the visit ends.
+        cache.clear()
+        HOOK_STATE["stay"] = None
+        self.assertEqual(self.client.get("/").context["hub_mode"], DASHBOARD)
+
+    @override_settings(HUB_OWNER_VISIT_USER="lodge")
+    def test_guest_stay_or_missing_user_does_not_sign_in(self):
+        self.assertEqual(self.client.get("/").context["hub_mode"], GUEST)
+        HOOK_STATE["stay"] = Stay("Owner visit", checkout=self.checkout, owner=True)
+        cache.clear()
+        self.assertEqual(self.client.get("/").context["hub_mode"], GUEST)
+
+    def test_owner_visit_without_setting_is_guest_mode(self):
+        User.objects.create_user("lodge")
+        HOOK_STATE["stay"] = Stay("Owner visit", checkout=self.checkout, owner=True)
+        self.assertEqual(self.client.get("/").context["hub_mode"], GUEST)
+
+
+def demo_card():
+    return HOOK_STATE.get("card")
+
+
+CARD_PLUGINS = (
+    *STAY_PLUGINS,
+    PluginSpec(id="lodge", app="lodge", card="hub.tests.test_hub.demo_card"),
+)
+
+
+@override_settings(HUB_PLUGINS=CARD_PLUGINS)
+class LodgeCardTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        HOOK_STATE.clear()
+        patcher = patch("BlackDiamondHub.views.requests.get")
+        patcher.start().return_value = MagicMock(status_code=200, content=b"")
+        self.addCleanup(patcher.stop)
+        HOOK_STATE["card"] = Card(
+            "Vacation mode", "Next: The Smiths",
+            readings=(Reading("Inside", 14.5, "C"),),
+            alerts=("Fireplace off: didn't complete",),
+            url_name="wifi_qr", level=WARN,
+        )
+
+    def test_card_with_alerts_and_link_for_dashboard_and_owner(self):
+        card = self.client.get("/hub/api/status/").json()["card"]
+        self.assertEqual(card["title"], "Vacation mode")
+        self.assertEqual(card["readings"], [{"label": "Inside", "value": 14.5, "unit": "C"}])
+        self.assertEqual(card["alerts"], ["Fireplace off: didn't complete"])
+        self.assertEqual((card["url"], card["level"]), ("/wifi/", WARN))
+
+        response = self.client.get("/")
+        self.assertEqual(response.context["hub_card"]["title"], "Vacation mode")
+        self.assertContains(response, 'id="hub-card-data"')
+        self.assertNotContains(response, 'class="hub-welcome"')
+
+    def test_guests_get_no_alerts_or_link(self):
+        HOOK_STATE["stay"] = Stay("The Smiths")
+        card = self.client.get("/hub/api/status/").json()["card"]
+        self.assertEqual((card["alerts"], card["url"], card["level"]), ([], None, "info"))
+        self.assertEqual(card["readings"][0]["label"], "Inside")
+
+    def test_no_card_is_null(self):
+        HOOK_STATE["card"] = None
+        self.assertIsNone(self.client.get("/hub/api/status/").json()["card"])
