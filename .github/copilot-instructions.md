@@ -124,6 +124,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - `BlackDiamondHub/urls.py` — core URLs; hub app URLs are mounted automatically from their `PluginSpec`
 - `hub/plugins.py` — plugin contract (`PluginSpec`, `Tile`, modes, sections) that every hub app implements
 - `hub/loader.py` / `hub/modes.py` — plugin discovery/validation, websocket route collection and homepage mode (guest / dashboard / owner) + tile lookup
+- `hub/spotify_auth.py` — platform-owned Spotify social-auth hooks (`spotify_token` context processor, disconnect-pipeline steps) referenced from core settings
 - `bdh_sdk.ha` — shared Home Assistant client (`get_entity_states`, `get_history`, `call_service`, `ws_commands`…), in bdh-sdk so extracted apps can use it. Apps import it from `bdh_sdk.ha`, never from another app (`hub/ha_client.py` and `device_control.ha_client` are compatibility re-exports)
 - `tests/selenium_helpers.py` — Shared Selenium test utilities (login, Chrome options, network waits)
 - `.env` — Environment variables (HA_TOKEN, DB credentials, etc.)
