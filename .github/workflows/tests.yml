@@ -39,6 +39,8 @@ jobs:
           sudo apt-get install -y libzbar0
           pip install --upgrade pip
           pip install -r requirements.txt
+          # Apps installed into the Sun Peaks image (see Dockerfile).
+          pip install --require-hashes --no-deps -r sites/sunpeaks/apps.txt
 
     - name: Run Unit Tests
       env:
@@ -50,6 +52,7 @@ jobs:
         DB_USER: postgres
         DB_PASSWORD: postgres
       run: |
+        python manage.py hub_smoke
         python manage.py test --exclude-tag=selenium -v 2
 
   selenium-tests:
@@ -120,6 +123,7 @@ jobs:
       run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip install --require-hashes --no-deps -r sites/sunpeaks/apps.txt
 
     - name: Run Selenium Tests (with retry)
       uses: nick-fields/retry@v3
@@ -201,6 +205,8 @@ jobs:
         curl -fsS -H 'Host: localhost' http://localhost:8000/ | grep -q 'hub-sections'
         curl -fsS -H 'Host: localhost' -o /dev/null http://localhost:8000/accounts/login/
         curl -fsS -H 'Host: localhost' -o /dev/null http://localhost:8000/static/wifi/hub/icon.svg
+        # Site apps from sites/sunpeaks/apps.txt are installed in the image.
+        curl -fsS -H 'Host: localhost' http://localhost:8000/wifi/ | grep -q 'WiFi Networks'
         # DEBUG must be off in the image: unknown URLs give the plain 404 page.
         ! curl -sS -H 'Host: localhost' http://localhost:8000/no-such-page/ | grep -q 'URLconf'
         ls -l /tmp/bdh-backups
