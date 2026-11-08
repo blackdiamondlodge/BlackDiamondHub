@@ -26,3 +26,5 @@ bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-con
     --hash=sha256:4ad1cad01189616ae3c370f60934aef2f6e3838b5c6ab228bf4b86f58e539dac
 bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.0.0/bdh_app_cameras-1.0.0-py3-none-any.whl \
     --hash=sha256:50574555fee84a6a44ba82d90cc1a3e20fcab309b59d95e8ee5517eeb1f508f4
+bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.0.0/bdh_app_vacation_mode-1.0.0-py3-none-any.whl \
+    --hash=sha256:1e4895c885d6003211bc397d6b214d2a62362abbbfa2fc7b66a539708e616041

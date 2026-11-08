@@ -3,7 +3,7 @@ Test-only settings override: run the Django test suite against an in-memory
 SQLite database so tests don't require a live PostgreSQL server.
 
 Usage:
-    python manage.py test vacation_mode --settings=BlackDiamondHub.settings_test
+    python manage.py test hub --settings=BlackDiamondHub.settings_test
 """
 import os
 
