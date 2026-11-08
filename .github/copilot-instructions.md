@@ -13,7 +13,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **wifi** (`blackdiamondlodge/bdh-app-wifi`) — WiFi QR code generator with password display
 - **sunpeaks_webcams** (`bdh-app-sunpeaks-webcams`) — Sun Peaks resort webcam viewer
 - **lift_status** (`bdh-app-lift-status`) — Sun Peaks lift and trail status
-- **snow_report** (`bdh-app-snow-report`) — Snow/weather report display
+- **snow_report** (`bdh-app-snow-report`) — Mountain Conditions: seasonal snow/weather report + Open-Meteo forecast
 - **scenes** (`bdh-app-scenes`) — Home Assistant scene control (`BDH_SCENES_FILTER`, legacy `SCENE_FILTER`)
 - **radiant** (`bdh-app-radiant`) — Radiant heating / heat-pump plant dashboard
 - **device_control** (`bdh-app-device-control`) — Lights, blinds, fireplace and Gemstone Lights via Home Assistant (`BDH_DEVICE_CONTROL_GEMSTONE_EMAIL`/`_PASSWORD`, legacy `GEMSTONE_*`)
@@ -146,7 +146,7 @@ All pages extend `base.html`, which provides:
 A template block in the navbar between the brand and the right-side icon group. Pages that need unit-conversion toggles (or other page-specific navbar controls) fill this block:
 
 - **Landing page** (`index.html`): `°C/°F` button — client-side JS `toggleUnits()` converts temperature/elevation in-place via `data-metric` attributes
-- **Snow report** (`snow_report/snow_report.html`): `°C, m` / `°F, ft` buttons — server-side reload via `?units=metric` / `?units=imperial` query param
+- **Mountain Conditions** (`snow_report/snow_report.html`): `°C, m` / `°F, ft` buttons — server-side reload via `?units=metric` / `?units=imperial` query param
 - **All other pages**: Block is empty, no toggle shown
 
 Use the `.navbar-toggle-btn` class for toggle buttons in this block. When adding a new page that needs a unit toggle or similar control, fill `{% block navbar_extras %}` with the appropriate buttons — don't add inline toggles to the page body.
