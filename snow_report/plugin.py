@@ -4,6 +4,7 @@ spec = PluginSpec(
     id="snow_report",
     app="snow_report",
     urls="snow_report.urls",
+    status="snow_report.homepage.status",
     tiles=(
         Tile(
             title="Snow Report",

@@ -42,6 +42,10 @@ def validate(specs):
             if spec.prefix in prefixes:
                 raise PluginError(f"duplicate URL prefix {spec.prefix!r}")
             prefixes.add(spec.prefix)
+        if bool(spec.shortcuts) != bool(spec.run_shortcut):
+            raise PluginError(
+                f"plugin {spec.id!r} must set both shortcuts and run_shortcut"
+            )
         for tile in spec.tiles:
             if tile.section not in SECTIONS:
                 raise PluginError(

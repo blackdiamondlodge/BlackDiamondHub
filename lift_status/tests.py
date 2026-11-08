@@ -694,3 +694,15 @@ class LiftStatusZoomSeleniumTests(StaticLiveServerTestCase):
         reset_transform = img.value_of_css_property('transform')
         self.assertNotEqual(zoomed_transform, reset_transform,
                             "Transform should change after double-click reset")
+
+
+class HomepageHookTests(TestCase):
+    @patch("lift_status.homepage.get_lift_status")
+    def test_status_counts_open_lifts(self, mock_get):
+        mock_get.return_value = {"lifts": [
+            {"status": "open"}, {"status": "closed"}, {"status": "open"},
+        ]}
+        from lift_status.homepage import status
+        self.assertEqual(status().text, "2 of 3 lifts open")
+        mock_get.return_value = {"lifts": [{"status": "closed"}]}
+        self.assertEqual(status().text, "All lifts closed")

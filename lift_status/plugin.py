@@ -4,6 +4,7 @@ spec = PluginSpec(
     id="lift_status",
     app="lift_status",
     urls="lift_status.urls",
+    status="lift_status.homepage.status",
     tiles=(
         Tile(
             title="Lift Status",

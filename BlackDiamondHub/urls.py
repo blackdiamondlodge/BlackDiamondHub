@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', views.landing_page, name='landing_page'),
+    path('hub/api/', include('hub.urls')),
     path('auth/', include('social_django.urls', namespace='social')),
 ]
 

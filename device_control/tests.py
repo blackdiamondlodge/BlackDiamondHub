@@ -648,3 +648,31 @@ class DeviceControlShadesSliderTest(StaticLiveServerTestCase):
                 slider_rect['height'], 0,
                 "Slider has zero height — not visible"
             )
+
+
+class HomepageHookTests(TestCase):
+    STATES = [
+        {"entity_id": "climate.living", "state": "heat"},
+        {"entity_id": "climate.bedroom", "state": "off"},
+        {"entity_id": "climate.nest", "state": "heat"},
+    ]
+
+    def setUp(self):
+        registry = {"entities": {"climate.living": {}, "climate.bedroom": {}, "switch.living": {}}}
+        for target, value in [
+            ("device_control.homepage._napoleon_registry", registry),
+            ("device_control.homepage.get_all_states", self.STATES),
+        ]:
+            patcher = patch(target, return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_status_counts_fireplaces(self):
+        from device_control.homepage import status
+        self.assertEqual(status().text, "1 of 2 fireplaces on")
+
+    @patch("device_control.homepage.call_service", return_value=(True, None))
+    def test_fireplaces_off_only_touches_lit_fireplaces(self, mock_call):
+        from device_control.homepage import run_shortcut
+        run_shortcut("fireplaces_off")
+        mock_call.assert_called_once_with("climate", "turn_off", "climate.living")

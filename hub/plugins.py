@@ -45,12 +45,53 @@ class Tile:
     modes: frozenset = ALL_MODES
 
 
+# Status levels. "on" highlights something that is running (lights on, lifts
+# open), "warn" flags a problem the user may want to look at.
+INFO = "info"
+ON = "on"
+WARN = "warn"
+STATUS_LEVELS = frozenset({INFO, ON, WARN})
+
+
+@dataclass(frozen=True)
+class Status:
+    """A one-line summary shown on the app's homepage tile."""
+
+    text: str
+    level: str = INFO
+
+
+@dataclass(frozen=True)
+class Shortcut:
+    """A one-tap action shown in the homepage quick actions row.
+
+    Shortcuts are owner-only unless the app lists other modes explicitly,
+    because guest and dashboard modes don't require sign-in.
+    """
+
+    id: str
+    title: str
+    icon: str  # Font Awesome classes, e.g. "fa-solid fa-film"
+    order: int = 100
+    modes: frozenset = OWNER_ONLY
+
+
 @dataclass(frozen=True)
 class PluginSpec:
     """Describes one hub app.
 
     ``id`` is permanent: it names the URL prefix by default and will
     namespace the app's settings and data in future.
+
+    The hooks are dotted paths so this module stays importable before
+    Django is set up. They are resolved on first use:
+
+    - ``status``: ``() -> Status | None``. Called in a worker thread with a
+      timeout; return None when there is nothing worth showing.
+    - ``shortcuts``: ``() -> iterable of Shortcut``.
+    - ``run_shortcut``: ``(shortcut_id) -> str | None``. Runs a shortcut the
+      hub has already checked is offered in the caller's mode. Raise to
+      report failure; the optional return value is shown to the user.
     """
 
     id: str
@@ -58,6 +99,9 @@ class PluginSpec:
     urls: str | None = None  # URLconf module, mounted at url_prefix
     url_prefix: str | None = None  # defaults to "<id>/"
     tiles: tuple[Tile, ...] = field(default_factory=tuple)
+    status: str | None = None
+    shortcuts: str | None = None
+    run_shortcut: str | None = None
     api_version: int = API_VERSION
 
     @property

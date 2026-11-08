@@ -40,13 +40,19 @@ def convert_kph_to_mph(kph):
     return round(val * 0.621371) if val is not None else None
 
 # Main View
+SNOW_REPORT_URL = "https://www.sunpeaksresort.com/ski-ride/weather-conditions-cams/weather-snow-report"
+
+
+def fetch_weather_html():
+    response = requests.get(SNOW_REPORT_URL, timeout=15)
+    return response.content
+
+
 def snow_report(request):
     """Handles the snow report and allows unit switching via query parameter."""
     units = request.GET.get("units", "metric")  # Default to metric
 
-    url = "https://www.sunpeaksresort.com/ski-ride/weather-conditions-cams/weather-snow-report"
-    response = requests.get(url)
-    html_content = response.content
+    html_content = fetch_weather_html()
 
     weather_data = parse_weather_html(html_content, units)
 

@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 import requests
 from django.test import TestCase, tag
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
@@ -278,3 +279,18 @@ class SnowReportScrollHintTest(StaticLiveServerTestCase):
             lambda driver: 'hidden' in driver.find_element(By.ID, 'scroll-hint').get_attribute('class'),
             "Scroll hint should have 'hidden' class after scrolling to bottom"
         )
+
+class HomepageHookTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    @patch("snow_report.homepage.fetch_weather_html", return_value=b"")
+    @patch("snow_report.homepage.parse_weather_html")
+    def test_status_uses_first_snow_amount(self, mock_parse, _fetch):
+        mock_parse.return_value = {"today_description": "Sunny", "snow_conditions": [
+            {"period": "New Snow", "value": "N/A"}, {"period": "24 Hr", "value": "14"},
+        ]}
+        from snow_report.homepage import status
+        result = status()
+        self.assertEqual((result.text, result.level), ("14 cm in 24 hr", "on"))
