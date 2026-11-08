@@ -18,3 +18,9 @@ bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/r
     --hash=sha256:385958ff6d5ebacf3976ef070d41bc3ceafa9eb637786e4c33aa4f2d120a7897
 bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v1.0.0/bdh_app_snow_report-1.0.0-py3-none-any.whl \
     --hash=sha256:2cf6d8a11bc8014bf21379343df7e666dabb0ac2f6523f7378af2fd7f383d128
+bdh-app-scenes @ https://github.com/blackdiamondlodge/bdh-app-scenes/releases/download/v1.0.0/bdh_app_scenes-1.0.0-py3-none-any.whl \
+    --hash=sha256:eb3aa061c40309012ffd90a22c3a22d7b7d23570d6ba2ca0331f7b0ade14fe7a
+bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/download/v1.0.0/bdh_app_radiant-1.0.0-py3-none-any.whl \
+    --hash=sha256:83d3ecf521b8fcc51c6a26faa316c6776ca81ffa796e5eb6e20db80d775d43ab
+bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-control/releases/download/v1.0.0/bdh_app_device_control-1.0.0-py3-none-any.whl \
+    --hash=sha256:4ad1cad01189616ae3c370f60934aef2f6e3838b5c6ab228bf4b86f58e539dac

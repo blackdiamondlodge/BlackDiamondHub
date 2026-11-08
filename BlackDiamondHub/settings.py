@@ -73,11 +73,8 @@ HUB_PLUGINS = load_plugins([
     'inventory.plugin.spec',
     'feedback.plugin.spec',
     'sonos_control.plugin.spec',
-    'scenes.plugin.spec',
     'cameras.plugin.spec',
     'vacation_mode.plugin.spec',
-    'device_control.plugin.spec',
-    'radiant.plugin.spec',
 ])
 INSTALLED_APPS += [spec.app for spec in HUB_PLUGINS]
 
@@ -280,14 +277,6 @@ BDL_MODES_URL = os.environ.get('BDL_MODES_URL', '')
 BDL_MODES_API_KEY = os.environ.get('BDL_MODES_API_KEY', '')
 BDL_MODES_PREHEAT = os.environ.get('BDL_MODES_PREHEAT', 'false').lower() in ('1', 'true', 'yes')
 
-#####################################
-### Gemstone Lights Settings ###
-#####################################
-# Cloud credentials for Gemstone Lights (pygemstone / AWS Amplify).
-# Leave unset to hide the Gemstone controls' live data.
-GEMSTONE_EMAIL = os.environ.get('GEMSTONE_EMAIL', '')
-GEMSTONE_PASSWORD = os.environ.get('GEMSTONE_PASSWORD', '')
-
 ###########################
 ### go2rtc Camera Settings ###
 ###########################
@@ -310,11 +299,6 @@ for i in range(1, 10):
             'api_key': api_key,
             'name': name,
         })
-
-##############################
-### SCENE CONTROL SETTINGS ###
-##############################
-SCENE_FILTER = os.environ.get('SCENE_FILTER', '').split(',') if os.environ.get('SCENE_FILTER') else []
 
 ############################################
 ### Security headers (internal LAN app)  ###

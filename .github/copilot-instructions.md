@@ -10,7 +10,6 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 - **vacation_mode** — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices
 - **sonos_control** — Sonos speaker control with Spotify integration via OAuth (social-auth)
 - **cameras** — Live camera feeds via go2rtc + UniFi Protect Integration API
-- **scenes** — Home Assistant scene control
 - **feedback** — User feedback submission and admin review (django-tables2)
 
 Installed from their own repos via `sites/sunpeaks/apps.txt`:
@@ -19,6 +18,9 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **sunpeaks_webcams** (`bdh-app-sunpeaks-webcams`) — Sun Peaks resort webcam viewer
 - **lift_status** (`bdh-app-lift-status`) — Sun Peaks lift and trail status
 - **snow_report** (`bdh-app-snow-report`) — Snow/weather report display
+- **scenes** (`bdh-app-scenes`) — Home Assistant scene control (`BDH_SCENES_FILTER`, legacy `SCENE_FILTER`)
+- **radiant** (`bdh-app-radiant`) — Radiant heating / heat-pump plant dashboard
+- **device_control** (`bdh-app-device-control`) — Lights, blinds, fireplace and Gemstone Lights via Home Assistant (`BDH_DEVICE_CONTROL_GEMSTONE_EMAIL`/`_PASSWORD`, legacy `GEMSTONE_*`)
 
 ## Tech Stack
 
