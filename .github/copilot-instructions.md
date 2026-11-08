@@ -14,9 +14,8 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - **sunpeaks_webcams** (`bdh-app-sunpeaks-webcams`) — Sun Peaks resort webcam viewer
 - **lift_status** (`bdh-app-lift-status`) — Sun Peaks lift and trail status
 - **snow_report** (`bdh-app-snow-report`) — Mountain Conditions: seasonal snow/weather report + Open-Meteo forecast
-- **scenes** (`bdh-app-scenes`) — Home Assistant scene control (`BDH_SCENES_FILTER`, legacy `SCENE_FILTER`)
 - **radiant** (`bdh-app-radiant`) — Radiant heating / heat-pump plant dashboard
-- **device_control** (`bdh-app-device-control`) — Lights, blinds, fireplace and Gemstone Lights via Home Assistant (`BDH_DEVICE_CONTROL_GEMSTONE_EMAIL`/`_PASSWORD`, legacy `GEMSTONE_*`)
+- **device_control** (`bdh-app-device-control`) — the "Controls" tile: scenes (first tab and homepage quick actions), lights, blinds, fireplaces and Gemstone Lights via Home Assistant (`BDH_DEVICE_CONTROL_SCENES_FILTER`, legacy `BDH_SCENES_FILTER`/`SCENE_FILTER`; `BDH_DEVICE_CONTROL_GEMSTONE_EMAIL`/`_PASSWORD`, legacy `GEMSTONE_*`)
 - **cameras** (`bdh-app-cameras`) — Live camera feeds via go2rtc + UniFi Protect Integration API (`BDH_CAMERAS_GO2RTC_URL`, `BDH_CAMERAS_PROTECT_{HOST,API_KEY,NAME}_n`; legacy `GO2RTC_URL`, `UNIFI_PROTECT_*_n`)
 - **vacation_mode** (`bdh-app-vacation-mode`) — Automates switching between vacation and home modes via Home Assistant REST API (thermostats, water heater, hot tub, TVs, fridge/freezer eco modes). Includes post-action state verification since HA silently drops commands to offline devices (`BDH_VACATION_MODE_MODES_URL`/`_MODES_API_KEY`/`_PREHEAT`, legacy `BDL_MODES_*`)
 - **sonos_control** (`bdh-app-sonos-control`) — Sonos speaker control with Spotify integration (`BDH_SONOS_CONTROL_INTERFACE`, legacy `SONOS_INTERFACE`; Spotify OAuth/social-auth settings stay in core)
