@@ -28,6 +28,15 @@ RUN python -m venv /app/.venv && \
     pip install --upgrade pip && \
     pip install -r requirements.txt
 
+# Apps from their own repos, per site (sites/<site>/apps.txt, hashed wheels).
+ARG HUB_SITE=sunpeaks
+ENV HUB_SITE=${HUB_SITE}
+COPY sites/ /app/sites/
+RUN . /app/.venv/bin/activate && \
+    if grep -qvE '^[[:space:]]*(#|$)' "sites/${HUB_SITE}/apps.txt"; then \
+        pip install --require-hashes --no-deps -r "sites/${HUB_SITE}/apps.txt"; \
+    fi
+
 COPY . /app/
 
 # Collect static files for WhiteNoise. The key is only needed to import settings.
