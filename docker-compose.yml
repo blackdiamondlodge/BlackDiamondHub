@@ -38,6 +38,9 @@ services:
       HOMEASSISTANT_URL_2: ${HOMEASSISTANT_URL_2}
       HOMEASSISTANT_ACCESS_TOKEN_2: ${HOMEASSISTANT_ACCESS_TOKEN_2}
 
+      # Owner visits: hub acts as signed in as this non-staff user (blank = off)
+      HUB_OWNER_VISIT_USER: ${HUB_OWNER_VISIT_USER:-}
+
       # Napoleon fireplaces (Ayla cloud)
       NAPOLEON_EMAIL: ${NAPOLEON_EMAIL:-}
       NAPOLEON_PASSWORD: ${NAPOLEON_PASSWORD:-}
