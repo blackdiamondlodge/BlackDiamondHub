@@ -32,5 +32,5 @@ bdh-app-stays @ https://github.com/blackdiamondlodge/bdh-app-stays/releases/down
     --hash=sha256:f6c7a5422d135c80d6f7895187dab46b7938559680bfb9eacdfcd40bdfe75f58
 bdh-app-inventory @ https://github.com/blackdiamondlodge/bdh-app-inventory/releases/download/v1.0.0/bdh_app_inventory-1.0.0-py3-none-any.whl \
     --hash=sha256:ec8bf0ce59ec4f3e49528e107afa2adc1424b0f2b1c4061ed7276c7ef040b65c
-bdh-app-restaurants @ https://github.com/blackdiamondlodge/bdh-app-restaurants/releases/download/v1.1.4/bdh_app_restaurants-1.1.4-py3-none-any.whl \
-    --hash=sha256:abc5eb5cf33e99762986a24a7dec1dbe84e3d06db0cd753dedae3ef062d37be3
+bdh-app-restaurants @ https://github.com/blackdiamondlodge/bdh-app-restaurants/releases/download/v1.1.5/bdh_app_restaurants-1.1.5-py3-none-any.whl \
+    --hash=sha256:1d076459d6316f154f465aaa56380dd951129a867f98117c6537683716aec4b9
