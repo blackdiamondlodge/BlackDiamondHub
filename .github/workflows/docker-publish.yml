@@ -36,6 +36,8 @@ jobs:
         with:
           context: .
           push: true
+          # GHCR intermittently rejects pushes that include attestation manifests.
+          provenance: false
           build-args: HUB_SITE=sunpeaks
           # :latest is what Watchtower follows; :sha-<commit> allows pinning for rollback.
           # :sunpeaks is the per-site tag (other sites get their own build).
