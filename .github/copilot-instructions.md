@@ -132,10 +132,11 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 
 ## Base Template & Navbar (`templates/base.html`)
 
-`templates/base.html` is the public shell contract for hub apps: every app page does `{% extends 'base.html' %}` and fills its blocks (`content`, `navbar_extras`, `extra_head`, `body_class`). Keep those block names stable — apps in other repos depend on them. Core templates (`base.html`, `index.html`, `registration/login.html`) stay in the project `templates/` folder.
+`templates/base.html` is the public shell contract for hub apps: every app page does `{% extends 'base.html' %}` and fills its blocks (`content`, `navbar_title`, `navbar_extras`, `extra_head`, `body_class`). Keep those block names stable — apps in other repos depend on them. Core templates (`base.html`, `index.html`, `registration/login.html`) stay in the project `templates/` folder.
 
 All pages extend `base.html`, which provides:
-- **Navbar**: Bootstrap 5 `navbar-dark bg-dark fixed-top` with brand "Black Diamond Hub" on the left, icon buttons (feedback, notifications, login/logout) on the right
+- **Navbar**: Bootstrap 5 `navbar-dark bg-dark fixed-top`. Left: a round home button (`#home-button`, hidden on the homepage) and the lodge brand (monogram + "BLACK DIAMOND LODGE / SUN PEAKS · BC", also links home). Centre: the app title (`{% block navbar_title %}`, default `hub_nav_title` from `hub.context_processors.nav_title` = the app's tile title). Right: `navbar_extras`, then feedback/notifications/login icons
+- **Title bar only**: the app name and lodge brand appear in the navbar only. App pages must not render their own brand header or a visible page-level title; keep a `<h1 class="visually-hidden">` for accessibility. Section headings and sub-page titles (e.g. "Edit Item") are fine
 - **Touch targets**: All navbar buttons/links have 48×48px minimum tap targets for touchscreen use
 - **Navbar colour**: `.nav-link` elements inside the navbar have explicit `color: rgba(255,255,255,0.85)` because they sit outside a `.navbar-nav` wrapper — Bootstrap's `navbar-dark` rules don't reach them otherwise
 - **Content wrapper**: `<div class="container-fluid content-wrapper">` with `margin-top: 62px` to clear the fixed navbar
