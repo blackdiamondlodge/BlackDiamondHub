@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 
-from hub.context_processors import nav_title
+from hub.context_processors import nav_title, stay_key
 from hub.loader import PluginError, load_plugins, validate
 from hub.modes import tiles_for_mode
 from hub.plugins import (
@@ -102,6 +102,27 @@ class NavTitleTests(SimpleTestCase):
     def test_pages_outside_any_app_have_no_title(self):
         self.assertEqual(self.title("/"), "")
         self.assertEqual(self.title("/feedback/"), "")
+
+
+class StayKeyTests(SimpleTestCase):
+    def key(self, stay=None, error=None):
+        with patch("hub.status.current_stay", return_value=stay, side_effect=error):
+            return stay_key(RequestFactory().get("/"))["hub_stay_key"]()
+
+    def stay(self, guest="The Smiths", day=4):
+        return {"guest": guest, "arrival": datetime(2027, 1, day, 23, tzinfo=timezone.utc),
+                "checkout": None, "owner": False}
+
+    def test_no_stay_or_failed_lookup_gives_empty_key(self):
+        self.assertEqual(self.key(None), "")
+        self.assertEqual(self.key(error=RuntimeError("HA down")), "")
+
+    def test_key_is_stable_per_stay_and_differs_between_stays(self):
+        a = self.key(self.stay())
+        self.assertEqual(a, self.key(self.stay()))
+        self.assertNotIn("Smiths", a)
+        self.assertNotEqual(a, self.key(self.stay(guest="The Joneses")))
+        self.assertNotEqual(a, self.key(self.stay(day=11)))
 
 
 class HomepageRegistryTests(TestCase):

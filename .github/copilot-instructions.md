@@ -140,6 +140,7 @@ All pages extend `base.html`, which provides:
 - **Touch targets**: All navbar buttons/links have 48×48px minimum tap targets for touchscreen use
 - **Navbar colour**: `.nav-link` elements inside the navbar have explicit `color: rgba(255,255,255,0.85)` because they sit outside a `.navbar-nav` wrapper — Bootstrap's `navbar-dark` rules don't reach them otherwise
 - **Content wrapper**: `<div class="container-fluid content-wrapper">` with `margin-top: 62px` to clear the fixed navbar
+- **Stay key**: every template gets `hub_stay_key` (`hub.context_processors.stay_key`), an opaque hash of the stay in progress or `""`. It's a callable, so the stay is only looked up on pages that render it. Apps use it to reset per-stay browser data when new guests arrive (the restaurants shortlist does)
 
 ### `{% block navbar_extras %}`
 
