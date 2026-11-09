@@ -115,6 +115,7 @@ TEMPLATES = [
                 'django.template.context_processors.media',
                 'feedback.context_processors.unread_feedback_count',
                 'hub.spotify_auth.spotify_token',
+                'hub.context_processors.nav_title',
             ],
         },
     },

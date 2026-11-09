@@ -290,6 +290,24 @@
             color: #4a4a4a;
         }
 
+        /* ── Navbar brand: home button + lodge monogram, app title centred ── */
+        .navbar > .container-fluid { position: relative; }
+        .navhub-brand { display: flex; align-items: center; gap: .9rem; }
+        .navhub-home { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+                    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: #7cc4ff; font-size: 1.05rem;
+                    text-decoration: none; transition: background .2s, color .2s; }
+        .navhub-home:hover { background: rgba(255,255,255,.16); color: #fff; }
+        .navhub-lodge { display: flex; align-items: center; gap: .75rem; color: #e8eef5; text-decoration: none; }
+        .navhub-lodge:hover { color: #fff; }
+        .navhub-lodge img { width: 42px; height: auto; }
+        .navhub-lodge-name { display: block; letter-spacing: .28em; font-weight: 600; font-size: .9rem; line-height: 1.1; }
+        .navhub-lodge-sub { display: block; letter-spacing: .35em; font-size: .6rem; font-weight: 600; color: #7cc4ff; margin-top: .15rem; }
+        .navhub-title { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap;
+                        max-width: calc(100% - 520px); overflow: hidden; text-overflow: ellipsis;
+                     color: #e8eef5; font-weight: 300; letter-spacing: .14em; font-size: 1.45rem; text-transform: uppercase; }
+        @media (max-width: 900px) { .navhub-lodge-name, .navhub-lodge-sub { display: none; } .navhub-title { max-width: calc(100% - 300px); } }
+        @media (max-width: 520px) { .navhub-title { font-size: 1.05rem; letter-spacing: .1em; } }
+
         /* ── Navbar extras (unit-toggle buttons etc.) ── */
         .navbar-extras {
             display: flex;
@@ -336,9 +354,24 @@
     <nav class="navbar navbar-dark bg-dark fixed-top">
         <div class="container-fluid">
             <!-- Brand -->
-            <a class="navbar-brand" href="{% url 'landing_page' %}" id="home-button">
-                <i class="fas fa-house me-2"></i>Black Diamond Hub
-            </a>
+            {% url 'landing_page' as home_url %}
+            <div class="navhub-brand">
+                {% if request.path != home_url %}
+                <a class="navhub-home" href="{{ home_url }}" id="home-button" title="Home" aria-label="Home">
+                    <i class="fas fa-house"></i>
+                </a>
+                {% endif %}
+                <a class="navhub-lodge" href="{{ home_url }}">
+                    <img src="{% static 'hub/bdl-monogram-light.svg' %}" alt="">
+                    <span>
+                        <span class="navhub-lodge-name">BLACK DIAMOND LODGE</span>
+                        <span class="navhub-lodge-sub">SUN PEAKS · BC</span>
+                    </span>
+                </a>
+            </div>
+
+            <!-- Current app's title, centred -->
+            <div class="navhub-title">{% block navbar_title %}{{ hub_nav_title }}{% endblock %}</div>
 
             <!-- Page-specific navbar extras (unit toggles, etc.) -->
             {% block navbar_extras %}{% endblock %}
