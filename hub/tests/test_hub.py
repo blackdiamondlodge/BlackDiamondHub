@@ -5,8 +5,9 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.test import Client, SimpleTestCase, TestCase, override_settings
+from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 
+from hub.context_processors import nav_title
 from hub.loader import PluginError, load_plugins, validate
 from hub.modes import tiles_for_mode
 from hub.plugins import (
@@ -80,6 +81,29 @@ class TileModeTests(SimpleTestCase):
         self.assertNotIn("Ghost", self.titles(OWNER))
 
 
+class NavTitleTests(SimpleTestCase):
+    plugins = (
+        PluginSpec(id="wifi", app="wifi", urls="wifi.urls", tiles=(_tile(title="WiFi"),)),
+        PluginSpec(id="lodge", app="lodge", urls="lodge.urls", url_prefix="wifi/lodge/",
+                   tiles=(_tile(title="Lodge", url_name="no_such_url"),)),
+    )
+
+    def title(self, path):
+        with override_settings(HUB_PLUGINS=self.plugins):
+            return nav_title(RequestFactory().get(path))["hub_nav_title"]
+
+    def test_title_comes_from_the_app_that_owns_the_path(self):
+        self.assertEqual(self.title("/wifi/"), "WiFi")
+        self.assertEqual(self.title("/wifi/qr/extra/"), "WiFi")
+
+    def test_longest_matching_prefix_wins(self):
+        self.assertEqual(self.title("/wifi/lodge/"), "Lodge")
+
+    def test_pages_outside_any_app_have_no_title(self):
+        self.assertEqual(self.title("/"), "")
+        self.assertEqual(self.title("/feedback/"), "")
+
+
 class HomepageRegistryTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -98,6 +122,12 @@ class HomepageRegistryTests(TestCase):
         ]:
             self.assertContains(response, f'href="{href}"')
             self.assertContains(response, icon)
+
+    def test_home_button_shows_only_away_from_the_homepage(self):
+        self.assertNotContains(self.client.get("/"), 'id="home-button"')
+        response = self.client.get("/wifi/")
+        self.assertContains(response, 'id="home-button"')
+        self.assertContains(response, '<div class="navhub-title">WiFi</div>', html=False)
 
     def test_signed_in_user_gets_owner_mode(self):
         self.client.force_login(User.objects.create_user("owner"))
