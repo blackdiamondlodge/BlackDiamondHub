@@ -10,13 +10,13 @@
 # An app's third-party dependencies must be in the hub's requirements.txt.
 # Installed apps register through the "blackdiamondhub.plugins" entry point.
 
-bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.1.0/bdh_app_wifi-1.1.0-py3-none-any.whl \
+bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.1.1/bdh_app_wifi-1.1.1-py3-none-any.whl --hash=sha256:d0601c1d7d948842ab474817fff0cef935349627015924ad7359c35da556154b
     --hash=sha256:86eeff162cd2e29214e29c41793962acdcc2f1d33caf950f4796a756e3a20f7d
 bdh-app-sunpeaks-webcams @ https://github.com/blackdiamondlodge/bdh-app-sunpeaks-webcams/releases/download/v1.0.0/bdh_app_sunpeaks_webcams-1.0.0-py3-none-any.whl \
     --hash=sha256:4a1cb5074e7fecea9130b2d3e297f36fb1f7666aa0f2e8eb1983cca0792a69f5
-bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.0.0/bdh_app_lift_status-1.0.0-py3-none-any.whl \
+bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.0.1/bdh_app_lift_status-1.0.1-py3-none-any.whl --hash=sha256:67bc47867fd4de80fd1121fc4547bd0040bbdd8cba3609431e21750377058123
     --hash=sha256:385958ff6d5ebacf3976ef070d41bc3ceafa9eb637786e4c33aa4f2d120a7897
-bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.0.0/bdh_app_snow_report-2.0.0-py3-none-any.whl --hash=sha256:091721e55606c6dce203b4594c3aa880577c0b30b9366610fc2e775e2e59eb5f
+bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.0.1/bdh_app_snow_report-2.0.1-py3-none-any.whl --hash=sha256:3ca24b6f73ccf80247f19c89e6cfbef3f655e068fbe016decca4e7bcff714d7c
     --hash=sha256:2cf6d8a11bc8014bf21379343df7e666dabb0ac2f6523f7378af2fd7f383d128
 bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/download/v1.1.0/bdh_app_radiant-1.1.0-py3-none-any.whl --hash=sha256:e868d8720995ad20e25a745cd5b359700a500fc1f746fda992de10a549ae8cdf
     --hash=sha256:5750f038d902c6a2ca5144407a4d14c51d3286fa1214f82b3a5b8388efd4d187
@@ -24,7 +24,7 @@ bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-con
     --hash=sha256:63066b8ff43fa333df22132924ccfeff25021be164c508d6915009d416ddef88
 bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.1.1/bdh_app_cameras-1.1.1-py3-none-any.whl --hash=sha256:618865a8c953168a848f83af9b0e3cecb2641495fc7784c92632e8b6d8751bb2
     --hash=sha256:d9908c2a4d66696c6a2265abb1199832eeccdb129973816bec45ab2c323aa7da
-bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.0.0/bdh_app_vacation_mode-1.0.0-py3-none-any.whl \
+bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.0.1/bdh_app_vacation_mode-1.0.1-py3-none-any.whl --hash=sha256:9f8ddf852a667e9931f834e1acca2006d41eb99c77d0639beb87dfb5f1a6312e
     --hash=sha256:1e4895c885d6003211bc397d6b214d2a62362abbbfa2fc7b66a539708e616041
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v1.0.0/bdh_app_sonos_control-1.0.0-py3-none-any.whl \
     --hash=sha256:a461c4449e00f5e0896c1324adde34c2128ced9c80931db40f8a28c3d4231ad0
