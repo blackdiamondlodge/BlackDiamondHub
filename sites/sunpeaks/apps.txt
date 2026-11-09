@@ -16,7 +16,7 @@ bdh-app-sunpeaks-webcams @ https://github.com/blackdiamondlodge/bdh-app-sunpeaks
     --hash=sha256:4a1cb5074e7fecea9130b2d3e297f36fb1f7666aa0f2e8eb1983cca0792a69f5
 bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.0.1/bdh_app_lift_status-1.0.1-py3-none-any.whl --hash=sha256:67bc47867fd4de80fd1121fc4547bd0040bbdd8cba3609431e21750377058123
     --hash=sha256:385958ff6d5ebacf3976ef070d41bc3ceafa9eb637786e4c33aa4f2d120a7897
-bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.0.1/bdh_app_snow_report-2.0.1-py3-none-any.whl --hash=sha256:3ca24b6f73ccf80247f19c89e6cfbef3f655e068fbe016decca4e7bcff714d7c
+bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.1.0/bdh_app_snow_report-2.1.0-py3-none-any.whl --hash=sha256:449ea33d99f2eae76950301808b3e833a9252f3da387a73b8428011deda5f18e
     --hash=sha256:2cf6d8a11bc8014bf21379343df7e666dabb0ac2f6523f7378af2fd7f383d128
 bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/download/v1.1.0/bdh_app_radiant-1.1.0-py3-none-any.whl --hash=sha256:e868d8720995ad20e25a745cd5b359700a500fc1f746fda992de10a549ae8cdf
     --hash=sha256:5750f038d902c6a2ca5144407a4d14c51d3286fa1214f82b3a5b8388efd4d187
