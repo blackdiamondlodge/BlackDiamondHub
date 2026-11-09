@@ -66,6 +66,8 @@ services:
 
       # Sonos discovery interface (needed with host networking)
       SONOS_INTERFACE: ${SONOS_INTERFACE:-}
+      # Sonos night volume limit status (appdaemon-sonos-night)
+      BDH_SONOS_CONTROL_NIGHT_URL: ${BDH_SONOS_CONTROL_NIGHT_URL:-}
 
       # Gemstone Lights (AWS Amplify cloud)
       GEMSTONE_EMAIL: ${GEMSTONE_EMAIL}
