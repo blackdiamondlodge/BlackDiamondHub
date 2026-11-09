@@ -1,7 +1,33 @@
-"""Navbar context: the current app's title, shown centred in the top bar."""
+"""Template context shared by every page: navbar title and stay key."""
+import hashlib
+import logging
+
 from django.urls import NoReverseMatch, reverse
 
-from .modes import plugins
+from .modes import current_stay, plugins
+
+log = logging.getLogger(__name__)
+
+
+def stay_key(request):
+    """``hub_stay_key``: an opaque id for the stay in progress, "" when there is none.
+
+    Apps use it to reset per-stay browser data (e.g. the restaurants shortlist)
+    when new guests arrive. It's a callable so the stay is only looked up on
+    pages that render it.
+    """
+    def key():
+        try:
+            stay = current_stay(request)
+        except Exception:
+            log.exception("stay lookup failed")
+            return ""
+        if not stay:
+            return ""
+        arrival = stay["arrival"].isoformat() if stay["arrival"] else ""
+        return hashlib.sha256(f"{stay['guest']}|{arrival}".encode()).hexdigest()[:12]
+
+    return {"hub_stay_key": key}
 
 
 def _tile_url(tile):
