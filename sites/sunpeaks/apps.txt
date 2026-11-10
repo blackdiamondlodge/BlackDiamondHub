@@ -19,7 +19,7 @@ bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/r
 bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/download/v1.1.0/bdh_app_radiant-1.1.0-py3-none-any.whl --hash=sha256:e868d8720995ad20e25a745cd5b359700a500fc1f746fda992de10a549ae8cdf
 bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-control/releases/download/v1.2.1/bdh_app_device_control-1.2.1-py3-none-any.whl --hash=sha256:5c3882579807f354d3cf83a562c53632a68727d3e7e810c3279993f3515f4253
 bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.2.0/bdh_app_cameras-1.2.0-py3-none-any.whl --hash=sha256:b5daa600234fe8f4c831d317a515d825ed816c5f88d74fd88779f868443f4fc8
-bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.1.0/bdh_app_vacation_mode-1.1.0-py3-none-any.whl --hash=sha256:84b8053098609fe83ee9c9e13f791dd6e8e400f59bf73f81d6da1fce2c4c151a
+bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.1.1/bdh_app_vacation_mode-1.1.1-py3-none-any.whl --hash=sha256:ed6bf8f974204e8835dc61d50bcc8fd256fee7d12024389838ee16a71d3f4d72
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v2.2.0/bdh_app_sonos_control-2.2.0-py3-none-any.whl \
     --hash=sha256:2108edf99283829cb102769474d56afcb0f997269eb527e17c771a3dc7bb0740
 bdh-app-stays @ https://github.com/blackdiamondlodge/bdh-app-stays/releases/download/v1.1.1/bdh_app_stays-1.1.1-py3-none-any.whl --hash=sha256:ba9fa8d5b30be89061c10d7dc54df626c4110884bb0025351e49eb7eb608a1ed
