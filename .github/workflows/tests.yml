@@ -125,13 +125,9 @@ jobs:
           pip install -r requirements.txt
           pip install --require-hashes --no-deps -r sites/sunpeaks/apps.txt
 
-    - name: Run Selenium Tests (with retry)
-      uses: nick-fields/retry@v3
-      with:
-        timeout_minutes: 15
-        max_attempts: 2
-        command: |
-          python manage.py test --tag=selenium -v 2
+    - name: Run Selenium Tests
+      timeout-minutes: 15
+      run: python manage.py test --tag=selenium -v 2
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
         ALLOWED_HOSTS: localhost

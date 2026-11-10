@@ -4,7 +4,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from django.contrib.auth.models import User
 from django.test import TestCase, Client, tag
 from django.urls import reverse
-from tests.selenium_helpers import SeleniumTestCase, login_via_browser, wait_for_network_idle
+from feedback.models import Feedback
+from tests.selenium_helpers import (
+    SeleniumTestCase, click_until, login_via_browser, type_into, wait_for_paint,
+)
 
 class LandingPageLiveTests(TestCase):
     def setUp(self):
@@ -104,87 +107,64 @@ class LandingPageNoScrollTest(SeleniumTestCase):
 
 @tag('selenium')
 class WeatherUnitToggleTest(SeleniumTestCase):
+    TOGGLE = (By.CLASS_NAME, 'toggle-button')
+
     def setUp(self):
         super().setUp()
-        # Reset browser state between tests
         self.browser.get('about:blank')
         self.browser.delete_all_cookies()
+        self.browser.get(self.live_server_url)
+        WebDriverWait(self.browser, 20).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'temperature'))
+        )
+        wait_for_paint(self.browser)
+
+    def _set(self, cls, metric, text):
+        """Give the first reading of class ``cls`` a known metric value."""
+        self.browser.execute_script(
+            'var e = document.querySelector("." + arguments[0]);'
+            'e.setAttribute("data-metric", arguments[1]);'
+            'e.textContent = arguments[2];',
+            cls, metric, text,
+        )
+
+    def _toggle(self, unit):
+        """Click the unit toggle until it reports ``unit`` (C or F)."""
+        click_until(
+            self.browser, self.TOGGLE,
+            lambda d: d.find_element(*self.TOGGLE).get_attribute('data-unit') == unit,
+        )
+
+    def _text(self, cls):
+        return self.browser.find_element(By.CLASS_NAME, cls).text
 
     def test_temperature_non_number(self):
-        self.browser.get(self.live_server_url)
-        
-        toggle_button = WebDriverWait(self.browser, 20).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, 'toggle-button'))
-        )
-        WebDriverWait(self.browser, 20).until(
-            EC.element_to_be_clickable((By.CLASS_NAME, 'toggle-button'))
-        )        
-        
-        self.browser.execute_script('''
-            document.querySelector(".temperature").setAttribute("data-metric", "N/A");
-            document.querySelector(".temperature").textContent = "N/A°C";
-        ''')
-        
-        #self.browser.save_screenshot('screenshot.png')
-        
-        toggle_button.click()
-        
-        temperature_text = self.browser.find_element(By.CLASS_NAME, "temperature").text
-        self.assertEqual(temperature_text, "N/A°C")
-        toggle_button.click()
-        temperature_text = self.browser.find_element(By.CLASS_NAME, "temperature").text
-        self.assertEqual(temperature_text, "N/A°C")
+        self._set('temperature', 'N/A', 'N/A°C')
+        self._toggle('F')
+        self.assertEqual(self._text('temperature'), 'N/A°C')
+        self._toggle('C')
+        self.assertEqual(self._text('temperature'), 'N/A°C')
 
     def test_temperature_missing(self):
-        self.browser.get(self.live_server_url)
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, 'temperature'))
-        )
-        self.browser.execute_script('''
-            document.querySelector(".temperature").setAttribute("data-metric", "");
-            document.querySelector(".temperature").textContent = "°C";
-        ''')
-        toggle_button = self.browser.find_element(By.CLASS_NAME, "toggle-button")
-        toggle_button.click()
-        temperature_text = self.browser.find_element(By.CLASS_NAME, "temperature").text
-        self.assertEqual(temperature_text, "°C")
-        toggle_button.click()
-        temperature_text = self.browser.find_element(By.CLASS_NAME, "temperature").text
-        self.assertEqual(temperature_text, "°C")
+        self._set('temperature', '', '°C')
+        self._toggle('F')
+        self.assertEqual(self._text('temperature'), '°C')
+        self._toggle('C')
+        self.assertEqual(self._text('temperature'), '°C')
 
     def test_temperature_conversion_c_to_f(self):
-        self.browser.get(self.live_server_url)
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, 'temperature'))
-        )
-        self.browser.execute_script('''
-            document.querySelector(".temperature").setAttribute("data-metric", "25");
-            document.querySelector(".temperature").textContent = "25°C";
-        ''')
-        toggle_button = self.browser.find_element(By.CLASS_NAME, "toggle-button")
-        toggle_button.click()
-        temperature_text = self.browser.find_element(By.CLASS_NAME, "temperature").text
-        self.assertEqual(temperature_text, "77°F")  # 25°C -> 77°F
-        toggle_button.click()
-        temperature_text = self.browser.find_element(By.CLASS_NAME, "temperature").text
-        self.assertEqual(temperature_text, "25°C")
+        self._set('temperature', '25', '25°C')
+        self._toggle('F')
+        self.assertEqual(self._text('temperature'), '77°F')  # 25°C -> 77°F
+        self._toggle('C')
+        self.assertEqual(self._text('temperature'), '25°C')
 
     def test_elevation_conversion_m_to_ft(self):
-        self.browser.get(self.live_server_url)
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, 'elevation'))
-        )
-        self.browser.execute_script('''
-            document.querySelector(".elevation").setAttribute("data-metric", "1000");
-            document.querySelector(".elevation").textContent = "1000 m";
-        ''')
-        toggle_button = self.browser.find_element(By.CLASS_NAME, "toggle-button")
-        toggle_button.click()
-        elevation_text = self.browser.find_element(By.CLASS_NAME, "elevation").text
-        self.assertEqual(elevation_text, "3281 ft")  # 1000 meters -> 3281 feet
-        toggle_button.click()
-        elevation_text = self.browser.find_element(By.CLASS_NAME, "elevation").text
-        self.assertEqual(elevation_text, "1000 m")
+        self._set('elevation', '1000', '1000 m')
+        self._toggle('F')
+        self.assertEqual(self._text('elevation'), '3281 ft')  # 1000 meters -> 3281 feet
+        self._toggle('C')
+        self.assertEqual(self._text('elevation'), '1000 m')
 
 @tag('selenium')
 class NavbarLoginButtonTest(SeleniumTestCase):
@@ -199,7 +179,7 @@ class NavbarLoginButtonTest(SeleniumTestCase):
         text colour which is near-black on pages that don't override it.
         """
         self.browser.get(self.live_server_url)
-        login_btn = WebDriverWait(self.browser, 10).until(
+        login_btn = WebDriverWait(self.browser, 20).until(
             EC.visibility_of_element_located((By.ID, 'login-button'))
         )
         self.assertTrue(login_btn.is_displayed())
@@ -222,81 +202,47 @@ class NavbarLoginButtonTest(SeleniumTestCase):
 
 @tag('selenium')
 class FeedbackModalTest(SeleniumTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        # Create a test user
-        cls.test_user = User.objects.create_user(username='testuser', password='testpassword', is_staff=True)
+    BADGE = (By.CSS_SELECTOR, '#user-menu-button .badge')
 
     def setUp(self):
         super().setUp()
-        # Reset browser state between tests
+        # Per test: TransactionTestCase flushes the database after each one.
+        User.objects.create_user(username='testuser', password='testpassword', is_staff=True)
         self.browser.get('about:blank')
         self.browser.delete_all_cookies()
 
     def test_feedback_modal_submission_and_unread_count(self):
-        # Log in using shared helper
-        login_via_browser(self.browser, self.live_server_url)
+        browser = self.browser
+        wait = WebDriverWait(browser, 20)
+        login_via_browser(browser, self.live_server_url)
+        # No feedback yet, so the server renders no unread badge.
+        self.assertFalse(browser.find_elements(*self.BADGE))
 
-        # Wait for the login to complete and redirect to the home page
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "feedback-button"))
-        )
-        
-        # Capture the current unread message count
-        try:
-            unread_count_element = self.browser.find_element(By.CLASS_NAME, "badge")
-            initial_unread_count = int(unread_count_element.text)
-        except Exception:
-            initial_unread_count = 0
-
-        # Open the feedback modal
-        feedback_button = WebDriverWait(self.browser, 20).until(
-            EC.element_to_be_clickable((By.CLASS_NAME, "feedback-button"))
-        )
-        feedback_button.click()
-
-        # Wait for the modal to be visible
-        WebDriverWait(self.browser, 20).until(
-            EC.visibility_of_element_located((By.ID, "feedback-modal"))
-        )
-
-        # Wait for the form elements to be interactive
-        message_input = WebDriverWait(self.browser, 20).until(
-            EC.element_to_be_clickable((By.ID, "message"))
-        )
-
-        message_input.send_keys("This is a test feedback message.")
-
-        # Submit the feedback form via JavaScript to ensure the submit event fires
-        self.browser.execute_script("""
-            var form = document.getElementById('feedback-form');
-            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        browser.execute_script("""
+            window.__fb = {opening: false, shown: false, sent: false};
+            var modal = document.getElementById('feedback-modal');
+            modal.addEventListener('show.bs.modal', function () { window.__fb.opening = true; });
+            modal.addEventListener('shown.bs.modal', function () { window.__fb.shown = true; });
+            document.getElementById('feedback-form').addEventListener(
+                'submit', function () { window.__fb.sent = true; });
         """)
+        click_until(browser, (By.ID, 'feedback-button'),
+                    lambda d: d.execute_script('return window.__fb.opening'))
+        wait.until(lambda d: d.execute_script('return window.__fb.shown'))
 
-        # Wait for network requests to complete
-        wait_for_network_idle(self.browser)
+        message = 'This is a test feedback message.'
+        type_into(browser, (By.ID, 'message'), message)
+        click_until(browser, (By.CSS_SELECTOR, '#feedback-form .fb-send'),
+                    lambda d: d.execute_script('return window.__fb.sent'))
 
-        # Wait for the success message to be visible
-        WebDriverWait(self.browser, 30).until(
-            EC.visibility_of_element_located((By.ID, "feedback-success"))
-        )
+        wait.until(EC.visibility_of_element_located((By.ID, 'feedback-success')))
+        self.assertIn('Thank you for your feedback!',
+                      browser.find_element(By.ID, 'feedback-success').text)
+        feedback = Feedback.objects.get()
+        self.assertEqual(feedback.message, message)
+        self.assertFalse(feedback.is_read)
 
-        # Check that the success message is displayed
-        success_message = self.browser.find_element(By.ID, "feedback-success").text
-        self.assertIn("Thank you for your feedback!", success_message)
-
-        # Wait for the modal to close after a delay (JS has 2s setTimeout)
-        WebDriverWait(self.browser, 30).until(
-            EC.invisibility_of_element((By.ID, "feedback-modal"))
-        )
-
-        # Check if the unread message count increased
-        WebDriverWait(self.browser, 30).until(
-            EC.text_to_be_present_in_element((By.CLASS_NAME, "badge"), str(initial_unread_count + 1))
-        )
-
-        # Verify the unread count increased by 1
-        new_unread_count_element = self.browser.find_element(By.CLASS_NAME, "badge")
-        new_unread_count = int(new_unread_count_element.text)
-        self.assertEqual(new_unread_count, initial_unread_count + 1)
+        # The modal closes itself 2s after a successful send.
+        wait.until(EC.invisibility_of_element_located((By.ID, 'feedback-modal')))
+        # A successful send refreshes the badge without waiting for the poll.
+        wait.until(lambda d: [b.text for b in d.find_elements(*self.BADGE)] == ['1'])
