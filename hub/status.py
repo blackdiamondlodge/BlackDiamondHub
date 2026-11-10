@@ -3,6 +3,10 @@
 Hooks are called in a shared thread pool with a deadline, so one slow or
 broken app can't hold up the homepage. Results are cached; when a hook fails
 or times out the last good result is served marked ``stale``.
+
+The homepage also serves the last good result straight away while a slow
+hook refreshes in the background (marked ``refreshing``), so returning to it
+after a while in another app doesn't wait on every hook.
 """
 import inspect
 import logging
@@ -30,6 +34,8 @@ LAST_GOOD_TTL = 6 * 3600
 TIMEOUT = 6.0
 # Every homepage request waits on the stay hook, so give up on it sooner.
 STAY_TIMEOUT = 3.0
+# How long the homepage waits for a hook before serving its last good result.
+REFRESH_GRACE = 0.3
 
 _SLUG = re.compile(r"[-a-zA-Z0-9_]+")
 
@@ -119,6 +125,10 @@ def _last_key(kind, plugin_id, mode=None):
     return _fresh_key(kind, plugin_id, mode) + ":last"
 
 
+def _failed_key(kind, plugin_id, mode=None):
+    return _fresh_key(kind, plugin_id, mode) + ":failed"
+
+
 def _takes_mode(path):
     """True when the hook at ``path`` accepts a ``mode`` argument."""
     try:
@@ -131,9 +141,15 @@ def _run_hook(kind, plugin_id, path, convert, ttl, mode=None):
     try:
         hook = _resolve(path)
         value = convert(hook(mode=mode) if mode else hook())
+    except Exception:
+        # Remembered so a background refresh that fails still shows as stale.
+        cache.set(_failed_key(kind, plugin_id, mode), True, LAST_GOOD_TTL)
+        raise
+    else:
         entry = {"value": value, "updated": time.time()}
         cache.set(_fresh_key(kind, plugin_id, mode), entry, ttl)
         cache.set(_last_key(kind, plugin_id, mode), entry, LAST_GOOD_TTL)
+        cache.delete(_failed_key(kind, plugin_id, mode))
         return entry
     finally:
         close_old_connections()
@@ -150,12 +166,16 @@ def _submit(kind, plugin_id, path, convert, ttl, mode=None):
     return future
 
 
-def _gather(jobs, timeout):
+def _gather(jobs, timeout, grace=None):
     """Run (kind, plugin_id, path, convert, ttl[, mode]) jobs; return {(kind, id): entry}.
 
     A job with a mode calls its hook with ``mode=`` and is cached per mode.
     Entries are ``{"value", "updated", "stale"}``. Jobs with no fresh result
     and no last good result are left out.
+
+    With ``grace``, a hook still running after ``grace`` seconds is served
+    from its last good result (if any) marked ``refreshing`` and finishes in
+    the background; only hooks with no last good result wait for ``timeout``.
     """
     results, pending, modes = {}, {}, {}
     for kind, plugin_id, path, convert, ttl, *rest in jobs:
@@ -167,8 +187,20 @@ def _gather(jobs, timeout):
         else:
             pending[(kind, plugin_id)] = _submit(kind, plugin_id, path, convert, ttl, mode)
 
+    started = time.monotonic()
+    if pending and grace is not None:
+        wait(pending.values(), timeout=grace)
+        for (kind, plugin_id), future in list(pending.items()):
+            if future.done():
+                continue
+            mode = modes[(kind, plugin_id)]
+            last = cache.get(_last_key(kind, plugin_id, mode))
+            if last is not None:
+                stale = cache.get(_failed_key(kind, plugin_id, mode)) is not None
+                results[(kind, plugin_id)] = {**last, "stale": stale, "refreshing": True}
+                del pending[(kind, plugin_id)]
     if pending:
-        wait(pending.values(), timeout=timeout)
+        wait(pending.values(), timeout=max(0, timeout - (time.monotonic() - started)))
     for (kind, plugin_id), future in pending.items():
         if future.done() and future.exception() is None:
             results[(kind, plugin_id)] = {**future.result(), "stale": False}
@@ -180,6 +212,8 @@ def _gather(jobs, timeout):
         last = cache.get(_last_key(kind, plugin_id, modes[(kind, plugin_id)]))
         if last is not None:
             results[(kind, plugin_id)] = {**last, "stale": True}
+        if grace is not None and not future.done():
+            results.setdefault((kind, plugin_id), {"value": None, "missing": True})["refreshing"] = True
     return results
 
 
@@ -192,7 +226,11 @@ def _offered(shortcuts, mode):
 
 
 def home_data(mode, timeout=TIMEOUT):
-    """Status lines and shortcuts for the homepage in ``mode``."""
+    """Status lines and shortcuts for the homepage in ``mode``.
+
+    ``refreshing`` is true when some hook is still running in the background,
+    so asking again in a few seconds will get newer results.
+    """
     specs = plugins()
     jobs = [
         ("status", s.id, s.status, _status_value, STATUS_TTL,
@@ -202,11 +240,15 @@ def home_data(mode, timeout=TIMEOUT):
         ("shortcuts", s.id, s.shortcuts, _shortcuts_value, SHORTCUTS_TTL)
         for s in specs if s.shortcuts
     ]
-    results = _gather(jobs, timeout)
+    results = _gather(jobs, timeout, grace=REFRESH_GRACE)
 
     status = {}
     shortcuts = []
+    refreshing = False
     for (kind, plugin_id), entry in results.items():
+        refreshing = refreshing or entry.get("refreshing", False)
+        if entry.get("missing"):
+            continue
         if kind == "status":
             if entry["value"] is not None:
                 status[plugin_id] = {
@@ -224,7 +266,7 @@ def home_data(mode, timeout=TIMEOUT):
                     "order": sc["order"],
                 })
     shortcuts.sort(key=lambda sc: (sc["order"], sc["title"]))
-    return {"status": status, "shortcuts": shortcuts}
+    return {"status": status, "shortcuts": shortcuts, "refreshing": refreshing}
 
 
 def lodge_card(mode, timeout=STAY_TIMEOUT):

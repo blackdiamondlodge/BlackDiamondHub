@@ -10,6 +10,7 @@ from social_core.backends.spotify import SpotifyOAuth2
 from hub.modes import current_stay, resolve_mode, tiles_for_mode, welcome
 from hub.plugins import GUEST
 from hub.status import lodge_card
+from hub.views import PAGE_TIMEOUT, home_data
 
 def landing_page(request):
     url = 'https://www.sunpeaksresort.com/bike-hike/weather-webcams/weather'  # Replace with the URL you want to fetch
@@ -61,6 +62,8 @@ def landing_page(request):
         'hub_mode': mode,
         'hub_sections': tiles_for_mode(mode),
         'hub_card': card,
+        # Status lines and quick actions, so they show without waiting on a poll.
+        'hub_home': home_data(mode, timeout=PAGE_TIMEOUT),
         # Without a card app, guests still get the plain welcome line.
         'hub_welcome': welcome(current_stay(request)) if mode == GUEST and not card else None,
     }

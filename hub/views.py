@@ -12,14 +12,24 @@ from .modes import resolve_mode
 logger = logging.getLogger(__name__)
 
 
+# The homepage itself only waits this long for hooks with nothing cached yet;
+# its first poll fills in the rest.
+PAGE_TIMEOUT = 1.0
+
+
+def home_data(mode, timeout=status.TIMEOUT):
+    """``status.home_data`` plus each shortcut's URL."""
+    data = status.home_data(mode, timeout=timeout)
+    for sc in data["shortcuts"]:
+        sc["url"] = reverse("hub_shortcut", args=[sc["plugin"], sc["id"]])
+    return data
+
+
 @never_cache
 @require_GET
 def home_status(request):
     mode = resolve_mode(request)
-    data = status.home_data(mode)
-    for sc in data["shortcuts"]:
-        sc["url"] = reverse("hub_shortcut", args=[sc["plugin"], sc["id"]])
-    return JsonResponse({"mode": mode, "card": status.lodge_card(mode), **data})
+    return JsonResponse({"mode": mode, "card": status.lodge_card(mode), **home_data(mode)})
 
 
 @never_cache
