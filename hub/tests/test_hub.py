@@ -204,6 +204,15 @@ def slow_status():
     return Status("late")
 
 
+def gated_status():
+    gate = HOOK_STATE.get("gate")
+    if gate:
+        gate.wait(5)
+    if HOOK_STATE.get("gate_fails"):
+        raise RuntimeError("HA down")
+    return Status(HOOK_STATE.get("text", "first"))
+
+
 def mode_status(mode):
     return Status(f"{mode} view")
 
@@ -283,8 +292,63 @@ class HomeStatusTests(TestCase):
                 data = home_data(DASHBOARD, timeout=0.2)
             self.assertLess(time.monotonic() - started, 2)
             self.assertNotIn("slow", data["status"])
+            self.assertTrue(data["refreshing"])
         finally:
             HOOK_STATE["release"].set()
+
+    def _wait_for_refresh(self, plugin):
+        """Let the background refresh finish and land in the cache."""
+        HOOK_STATE["gate"].set()
+        deadline = time.monotonic() + 5
+        while cache.get(f"hub:status:{plugin}") is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+
+    def test_slow_hook_serves_last_good_value_while_it_refreshes(self):
+        plugins = (_spec("gated", status="hub.tests.test_hub.gated_status"),)
+        with override_settings(HUB_PLUGINS=plugins):
+            self.assertFalse(home_data(DASHBOARD)["refreshing"])
+            cache.delete("hub:status:gated")  # expired
+            HOOK_STATE.update(gate=threading.Event(), text="second")
+            started = time.monotonic()
+            data = home_data(DASHBOARD)
+            self.assertLess(time.monotonic() - started, 2)
+            self.assertEqual(data["status"]["gated"]["text"], "first")
+            self.assertFalse(data["status"]["gated"]["stale"])
+            self.assertTrue(data["refreshing"])
+
+            self._wait_for_refresh("gated")
+            data = home_data(DASHBOARD)
+            self.assertEqual(data["status"]["gated"]["text"], "second")
+            self.assertFalse(data["refreshing"])
+
+    def test_failed_background_refresh_marks_last_good_value_stale(self):
+        plugins = (_spec("gated", status="hub.tests.test_hub.gated_status"),)
+        with override_settings(HUB_PLUGINS=plugins):
+            home_data(DASHBOARD)
+            cache.delete("hub:status:gated")
+            HOOK_STATE.update(gate=threading.Event(), gate_fails=True)
+            home_data(DASHBOARD)
+            HOOK_STATE["gate"].set()
+            deadline = time.monotonic() + 5
+            while cache.get("hub:status:gated:failed") is None and time.monotonic() < deadline:
+                time.sleep(0.02)
+            HOOK_STATE["gate"] = threading.Event()  # the retry is slow too
+            try:
+                gated = home_data(DASHBOARD)["status"]["gated"]
+                self.assertEqual(gated["text"], "first")
+                self.assertTrue(gated["stale"])
+            finally:
+                HOOK_STATE["gate"].set()
+
+    @patch("BlackDiamondHub.views.requests.get")
+    def test_homepage_arrives_with_status_and_shortcuts(self, get):
+        get.return_value = MagicMock(status_code=200, content=b"")
+        response = self.client.get("/")
+        data = response.context["hub_home"]
+        self.assertEqual(data["status"]["lights"]["text"], "3 lights on")
+        self.assertEqual([(s["id"], s["url"]) for s in data["shortcuts"]],
+                         [("movie", "/hub/api/shortcut/lights/movie/")])
+        self.assertContains(response, 'id="hub-home-data"')
 
 
 @override_settings(HUB_PLUGINS=STATUS_PLUGINS)
