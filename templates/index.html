@@ -27,9 +27,15 @@
         border-bottom: 1px solid var(--line);
     }
 
-    .hub-clock { font-size: 26px; font-weight: 600; color: var(--fg); white-space: nowrap; }
-    .hub-clock small { font-size: 15px; color: var(--mut); margin-left: 2px; }
-    .hub-date { font-size: 17px; color: var(--mut); margin: 0 14px 0 6px; white-space: nowrap; }
+    .hub-dt { display: flex; align-items: baseline; gap: 10px; margin-right: 8px; white-space: nowrap; }
+    .hub-clock { font-size: 24px; font-weight: 600; color: var(--fg); }
+    .hub-clock small { font-size: 13px; font-weight: 600; color: var(--mut); margin-left: 3px; letter-spacing: .05em; }
+    .hub-date { font-size: 17px; color: var(--mut); }
+    .hub-dot { color: #5d6e82; }
+    .unit-seg { display: inline-flex; padding: 3px; border-radius: 999px; cursor: pointer;
+                background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); }
+    .unit-seg span { color: var(--mut); font-weight: 600; font-size: 14px; padding: 6px 13px; border-radius: 999px; transition: background .2s, color .2s; }
+    .unit-seg[data-unit="C"] .u-c, .unit-seg[data-unit="F"] .u-f { background: var(--acc); color: #0c1622; }
 
     body.hub-home .content-wrapper {
         display: flex;
@@ -156,16 +162,22 @@
         .hub-card-main { flex-basis: 100%; }
         .hub-card-main h1 { font-size: 24px; }
         .hub-card-alerts li { white-space: normal; }
-        .hub-date { display: none; }
+        .hub-date, .hub-dot { display: none; }
     }
 </style>
 {% endblock %}
 
 {% block navbar_extras %}
 <div class="navbar-extras">
-    <span class="hub-clock" id="hub-clock"></span>
-    <span class="hub-date" id="hub-date"></span>
-    <button class="navbar-toggle-btn toggle-button" onclick="toggleUnits()">°C/°F</button>
+    <div class="hub-dt">
+        <span class="hub-date" id="hub-date"></span>
+        <span class="hub-dot">&middot;</span>
+        <span class="hub-clock" id="hub-clock"></span>
+    </div>
+    <button type="button" class="unit-seg toggle-button" data-unit="C" onclick="toggleUnits()"
+            aria-label="Switch between Celsius and Fahrenheit">
+        <span class="u-c">°C</span><span class="u-f">°F</span>
+    </button>
 </div>
 {% endblock %}
 
@@ -351,7 +363,7 @@
         }
 
         if (card.readings && card.readings.length) {
-            var imperial = document.querySelector('.toggle-button').textContent === '°F/°C';
+            var imperial = document.querySelector('.toggle-button').dataset.unit === 'F';
             var box = document.createElement('div');
             box.className = 'hub-card-readings';
             card.readings.forEach(function (r) {
@@ -411,7 +423,7 @@
 
     function toggleUnits() {
         var toggleButton = document.querySelector('.toggle-button');
-        var toImperial = toggleButton.textContent === '°C/°F';
+        var toImperial = toggleButton.dataset.unit === 'C';
 
         document.querySelectorAll('.elevation').forEach(function (el) {
             var m = parseFloat(el.getAttribute('data-metric'));
@@ -425,7 +437,7 @@
             el.textContent = toImperial ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
             el.setAttribute('data-unit', toImperial ? 'F' : 'C');
         });
-        toggleButton.textContent = toImperial ? '°F/°C' : '°C/°F';
+        toggleButton.dataset.unit = toImperial ? 'F' : 'C';
     }
 </script>
 {% endblock %}
