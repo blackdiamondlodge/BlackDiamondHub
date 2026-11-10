@@ -1,8 +1,0 @@
-{% load django_tables2 %}
-
-
-<div id="total-message-count" style="display:none;">{{ table.paginator.count }}</div>
-<div id="current-page" style="display:none;">{{ table.page.number }}</div>
-<div id="messages-per-page" style="display:none;">{{ table.paginator.per_page }}</div>
-
-{% render_table table %}

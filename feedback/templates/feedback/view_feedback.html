@@ -1,404 +1,375 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% load django_tables2 %}
+{% block navbar_title %}Feedback{% endblock %}
 
-{% block title %}View Feedback{% endblock %}
+{% block body_class %}fbx-page{% endblock %}
+
+{% block extra_head %}
+<style>
+    body.fbx-page {
+        background: radial-gradient(1200px 600px at 15% -10%, #1b2d4a 0%, transparent 60%), linear-gradient(180deg, #121c2c, #0d1420);
+        background-attachment: fixed; min-height: 100vh;
+    }
+    .fbx {
+        --card: #18243a; --card2: #1d2b45; --line: #26354f; --fg: #eef3fa; --mut: #8fa3bd;
+        --dim: #6f86a3; --acc: #5ba4e6; --acc2: #7cc4ff; --red: #ff9a9a;
+        display: grid; grid-template-columns: minmax(340px, 460px) 1fr; gap: 20px;
+        height: calc(100vh - 62px - 40px); padding: 20px 8px 0; color: var(--fg);
+    }
+    .fbx-pane {
+        background: var(--card); border: 1px solid var(--line); border-radius: 22px;
+        display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+    }
+    .fbx-lh { display: flex; align-items: center; gap: 8px; padding: 14px 14px 12px; border-bottom: 1px solid var(--line); }
+    .fbx-chip {
+        height: 40px; padding: 0 16px; border-radius: 999px; font-size: 14.5px; font-weight: 600;
+        color: var(--mut); background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); cursor: pointer;
+    }
+    .fbx-chip.on { background: var(--acc); color: #0c1622; border-color: transparent; }
+    .fbx-chip .c { opacity: .75; margin-left: 5px; }
+    .fbx-tools { margin-left: auto; display: flex; gap: 6px; }
+    .fbx-ib {
+        width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+        background: rgba(255,255,255,.05); border: 0; color: var(--mut); cursor: pointer; font-size: 16px;
+    }
+    .fbx-ib:hover, .fbx-ib.on { color: var(--acc2); background: rgba(91,164,230,.14); }
+    .fbx-ib:disabled { opacity: .35; cursor: default; background: rgba(255,255,255,.05); color: var(--mut); }
+    .fbx-list, .fbx-det { scrollbar-color: #2b3d5c transparent; scrollbar-width: thin; }
+    .fbx-list { flex: 1; overflow-y: auto; }
+    .fbx-day { padding: 14px 18px 6px; font-size: 12px; letter-spacing: .14em; color: var(--dim); font-weight: 600; text-transform: uppercase; }
+    .fbx-it {
+        display: grid; grid-template-columns: 12px 1fr auto; gap: 12px; padding: 15px 18px; width: 100%;
+        border: 0; border-bottom: 1px solid rgba(255,255,255,.05); background: none; color: inherit;
+        text-align: left; align-items: start; cursor: pointer;
+    }
+    .fbx-it:hover { background: rgba(255,255,255,.03); }
+    .fbx-it.sel { background: var(--card2); box-shadow: inset 3px 0 0 var(--acc); }
+    .fbx-ud { width: 9px; height: 9px; border-radius: 50%; background: var(--acc2); margin-top: 8px; }
+    .fbx-it.read .fbx-ud { background: transparent; }
+    .fbx-it .ck { display: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--dim); margin-top: 2px; place-items: center; font-size: 12px; color: #0c1622; }
+    .fbx.selecting .fbx-it { grid-template-columns: 22px 1fr auto; }
+    .fbx.selecting .fbx-it .ck { display: grid; }
+    .fbx.selecting .fbx-it .fbx-ud { display: none; }
+    .fbx-it.picked .ck { background: var(--acc); border-color: var(--acc); }
+    .fbx-it > span { display: block; }
+    .fbx-it .m { font-size: 15.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+    .fbx-it.read .m { color: var(--mut); }
+    .fbx-it:not(.read) .m { font-weight: 600; }
+    .fbx-tag {
+        display: inline-flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 12.5px; color: var(--mut);
+        background: rgba(255,255,255,.05); padding: 3px 10px 3px 4px; border-radius: 999px;
+    }
+    .fbx-tag img { width: 18px; height: 18px; border-radius: 5px; }
+    .fbx-tag i { width: 18px; text-align: center; color: var(--acc2); font-size: 11px; }
+    .fbx-tm { font-size: 13px; color: var(--dim); white-space: nowrap; margin-top: 2px; }
+    .fbx-bar { display: none; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); background: rgba(13,20,32,.5); }
+    .fbx.selecting .fbx-bar { display: flex; }
+    .fbx-bar .n { color: var(--mut); font-size: 14px; margin-right: auto; padding-left: 6px; }
+    .fbx-ab {
+        height: 44px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px;
+        font-weight: 600; font-size: 14.5px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+        color: var(--fg); cursor: pointer; white-space: nowrap;
+    }
+    .fbx-ab:hover { background: rgba(255,255,255,.12); }
+    .fbx-ab:disabled { opacity: .4; cursor: default; }
+    .fbx-ab.del { color: var(--red); border-color: rgba(229,83,83,.35); background: rgba(229,83,83,.08); }
+    .fbx-ab.del.arm { background: #e55353; color: #fff; border-color: transparent; }
+    .fbx-ab i { font-size: 14px; }
+    .fbx-det { padding: 28px 32px; overflow-y: auto; }
+    .fbx-dh { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .fbx-dh .ic { width: 50px; height: 50px; border-radius: 15px; display: grid; place-items: center; background: rgba(91,164,230,.14); color: var(--acc2); font-size: 20px; flex: none; }
+    .fbx-dh h2 { margin: 0; font-size: 21px; font-weight: 600; }
+    .fbx-dh p { margin: 2px 0 0; color: var(--mut); font-size: 14.5px; }
+    .fbx-acts { margin-left: auto; display: flex; gap: 10px; }
+    .fbx-back { display: none; }
+    .fbx-msg { margin-top: 26px; font-size: 20px; line-height: 1.55; background: var(--card2); border-radius: 18px; padding: 24px 26px; white-space: pre-wrap; word-break: break-word; }
+    .fbx-meta { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .fbx-meta span { font-size: 14px; color: var(--mut); background: rgba(255,255,255,.05); padding: 7px 13px; border-radius: 999px; }
+    .fbx-meta i { color: var(--acc2); margin-right: 6px; }
+    .fbx-empty { margin: auto; text-align: center; color: var(--mut); padding: 40px 20px; }
+    .fbx-empty .big { width: 76px; height: 76px; border-radius: 24px; margin: 0 auto 16px; display: grid; place-items: center; font-size: 30px; color: var(--acc2); background: rgba(91,164,230,.12); }
+    .fbx-empty h3 { color: var(--fg); font-size: 20px; font-weight: 600; margin: 0 0 6px; }
+    .fbx-empty p { margin: 0; font-size: 15px; }
+    .fbx-empty button { margin-top: 16px; }
+    @media (max-width: 860px) {
+        .fbx { grid-template-columns: 1fr; padding: 12px 0 0; height: calc(100vh - 62px - 24px); }
+        .fbx-det-pane { display: none; }
+        .fbx.show-detail .fbx-det-pane { display: flex; }
+        .fbx.show-detail .fbx-list-pane { display: none; }
+        .fbx-back { display: grid; }
+        .fbx-det { padding: 20px; }
+        .fbx-acts { margin-left: 0; width: 100%; }
+        .fbx-msg { font-size: 18px; padding: 20px; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<style>
-    html, body {
-        background-color: #000000; /* Black background for the entire page */
-        color: #ffffff; /* White text color by default */
-        margin: 0;
-        padding: 0;
-        height: 100%;
-    }
-    
-    .container {
-        margin-top: 10px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: #ffffff; /* White text for luxury theme */
-    }
-    
-    h1 {
-        text-align: center;
-        margin-bottom: 30px;
-        width: 100%;
-        color: #ffffff; /* White heading text */
-        font-weight: bold;
-    }
-    
-    .table {
-        background-color: #1a1a1a; /* Dark gray for table background to differentiate from the black page */
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
-        min-width: 800px;
-        width: 100%;
-        color: #ffffff; /* White text in the table */
-    }
-    
-    .table thead th {
-        background-color: #ffffff;
-        color: #000000; /* Black text for the table headers */
-        font-weight: bold;
-        text-align: center;
-    }
-    
-    .table tbody tr {
-        transition: background-color 0.2s ease-in-out;
-    }
-    
-    .table tbody tr:hover {
-        background-color: #333333; /* Darker shade on hover */
-        color: #ffffff; /* Ensure text stays white on hover */
-        cursor: pointer;
-    }
-
-    .table th, .table td {
-        text-align: center; /* Center-align both headers and cells */
-        vertical-align: middle; /* Ensure the content is vertically aligned in the middle */
-        padding: 10px; /* Add padding to ensure proper spacing */
-    }
-    
-    
-    .icon-delete {
-        color: #ffffff; /* White by default */
-        cursor: pointer;
-        transition: color 0.3s ease; /* Smooth transition for hover effect */
-    }
-    
-    .icon-delete:hover {
-        color: #ff0000; /* Red on hover */
-    }
-    
-    .icon-read {
-        color: #ffffff;
-    }
-    
-    .icon-unread {
-        /*yellow color for unread icon*/
-        color: #ffff00;
-    }
-
-    .unread-message {
-        font-weight: bold;
-    }
-    
-    .modal-content {
-        background-color: #1a1a1a; /* Dark gray background for modal content */
-        color: #ffffff; /* White text */
-        border-radius: 8px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); /* Shadow for depth */
-        padding: 20px; /* Add padding for spacing */
-    }
-    
-    .modal-header {
-        border-bottom: 1px solid #333333; /* Subtle line between header and body */
-        background-color: #000000; /* Black background for the header */
-        color: #ffffff; /* Ensure the text is white */
-    }
-    
-    .modal-title {
-        font-weight: bold;
-        font-size: 20px; /* Slightly larger font for the title */
-        color: #ffffff; /* Ensure the title text is white */
-    }
-    
-    .close {
-        color: #ffffff;
-        opacity: 1;
-        font-size: 24px; /* Larger close button */
-    }
-    
-    .close:hover {
-        color: #cccccc; /* Slightly lighter on hover */
-    }
-    
-    .modal-body p {
-        margin-bottom: 10px;
-    }
-    
-    .modal-footer {
-        border-top: 1px solid #333333; /* Subtle line between body and footer */
-        background-color: #000000; /* Match footer background with header */
-        text-align: right; /* Align button to the right */
-    }
-    
-    hr {
-        border-top: 1px solid #555555; /* Subtle separator line */
-        margin: 20px 0; /* Spacing around the separator */
-    }
-    
-    /* Pagination Styling */
-    .pagination {
-        margin-top: 20px;
-        text-align: center;
-        color: #ffffff;
-    }
-    
-    .pagination a, .pagination span {
-        color: #ffffff;
-        margin: 0 5px; /* Reduce the margin to avoid overlap */
-        text-decoration: none;
-        background-color: #333333; /* Darker background for the buttons */
-        padding: 8px 12px; /* Adjust padding to make the buttons smaller */
-        border-radius: 5px; /* Rounded corners for the buttons */
-        display: inline-block; /* Ensure proper spacing */
-        min-width: 40px; /* Ensure buttons have a minimum width */
-    }
-    
-    .pagination a:hover {
-        color: #ffffff; /* Text color stays white on hover */
-        background-color: #555555; /* Slightly lighter background on hover */
-    }
-    
-    .pagination .current {
-        font-weight: bold;
-        color: #ffffff;
-        background-color: #555555; /* Slightly lighter background for the active page */
-        border: 1px solid #ffffff; /* Add a border to the active page button */
-    }
-    
-    .pagination .previous, .pagination .next {
-        padding: 6px 10px; /* Smaller padding for next/previous buttons */
-        min-width: auto; /* Allow the width to adjust based on content */
-        font-size: 14px; /* Smaller font size */
-    }
-    
-</style>
-
-<div class="container">
-    <h1>Feedback Messages</h1>
-
-    <div id="message-count" class="message-count">
-        <!-- This will be populated by JavaScript -->
-    </div>
-
-    <form id="bulk-actions-form" method="POST" action="{% url 'bulk_feedback_action' %}">
-        {% csrf_token %}
-        <div class="bulk-actions mb-3">
-            <button type="button" class="btn btn-danger" id="bulk-delete-btn">Delete</button>
-            <button type="button" class="btn btn-secondary" id="bulk-mark-read-btn">Mark as Read</button>
-            <button type="button" class="btn btn-warning" id="bulk-mark-unread-btn">Mark as Unread</button>
+<h1 class="visually-hidden">Feedback inbox</h1>
+<div class="fbx" id="fbx">
+    <section class="fbx-pane fbx-list-pane" aria-label="Messages">
+        <div class="fbx-lh">
+            <button type="button" class="fbx-chip" data-filter="unread">Unread<span class="c" id="count-unread"></span></button>
+            <button type="button" class="fbx-chip" data-filter="all">All<span class="c" id="count-all"></span></button>
+            <div class="fbx-tools">
+                <button type="button" class="fbx-ib" id="mark-all-read" title="Mark all as read"><i class="fas fa-check-double"></i></button>
+                <button type="button" class="fbx-ib" id="select-toggle" title="Select messages"><i class="far fa-square-check"></i></button>
+            </div>
         </div>
-        <div id="feedback-table-container">
-            {% include "feedback/partials/feedback_table.html" %}
+        <div class="fbx-list" id="fbx-list"></div>
+        <div class="fbx-bar">
+            <span class="n" id="picked-count">0 selected</span>
+            <button type="button" class="fbx-ib" data-bulk="mark_read" title="Mark read"><i class="fas fa-envelope-open"></i></button>
+            <button type="button" class="fbx-ib" data-bulk="mark_unread" title="Mark unread"><i class="fas fa-envelope"></i></button>
+            <button type="button" class="fbx-ab del" data-bulk="delete"><i class="fas fa-trash"></i><span>Delete</span></button>
         </div>
-        {% if not table.page.object_list %}
-            <p>No messages</p>
-        {% endif %}            
-    </form>
+    </section>
+    <section class="fbx-pane fbx-det-pane" aria-label="Message" id="fbx-detail"></section>
 </div>
-
-<!-- Modal -->
-<div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> <!-- Center the modal vertically -->
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="feedbackModalLabel">Feedback Message</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong>Date:</strong> <span id="feedbackDate"></span></p>
-                <p><strong>From:</strong> <span id="feedbackName"></span></p>
-                <p><strong>Email:</strong> <span id="feedbackEmail"></span></p>
-                <p><strong>From Page:</strong> <span id="feedbackPageUrl"></span></p>
-                <hr> <!-- Add a separator line for better visual structure -->
-                <p><strong>Message:</strong></p>
-                <p id="feedbackMessage"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
+{{ items|json_script:"fbx-data" }}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const modal = new bootstrap.Modal(document.getElementById('feedbackModal'));
-        const feedbackDate = document.getElementById('feedbackDate');
-        const feedbackName = document.getElementById('feedbackName');
-        const feedbackEmail = document.getElementById('feedbackEmail');
-        const feedbackPageUrl = document.getElementById('feedbackPageUrl');
-        const feedbackMessage = document.getElementById('feedbackMessage');
-        
-        // Function to convert ISO date string to local time string
-        function convertToLocalTime(isoDateString) {
-            const date = new Date(isoDateString);
-            return date.toLocaleString();  // This converts to the local time zone
-        }
-    
-        // Function to update the message count based on the current state of the table
-        function updateMessageCount() {
-            const totalMessages = parseInt(document.querySelector('#total-message-count').textContent, 10);
-            const messagesPerPage = {{ table.paginator.per_page }};
-            const currentPage = {{ table.page.number }};
-            const firstMessage = (currentPage - 1) * messagesPerPage + 1;
-            const lastMessage = Math.min(currentPage * messagesPerPage, totalMessages);
+(function () {
+    const listUrl = '{% url "feedback_list" %}';
+    const bulkUrl = '{% url "bulk_feedback_action" %}';
+    const csrf = '{{ csrf_token }}';
+    const root = document.getElementById('fbx');
+    const listEl = document.getElementById('fbx-list');
+    const detailEl = document.getElementById('fbx-detail');
 
-            // Display the range and total count
-            const messageCountDiv = document.getElementById('message-count');
-            if (messageCountDiv) {
-                messageCountDiv.textContent = `Showing ${firstMessage}-${lastMessage} of ${totalMessages} messages`;
-            } else {
-                console.error('Message count element not found');
-            }
+    let items = JSON.parse(document.getElementById('fbx-data').textContent);
+    let filter = items.some(i => !i.is_read) ? 'unread' : 'all';
+    let selectedId = null;
+    let keepId = null;      // stays in the Unread list after being opened
+    let selecting = false;
+    let picked = new Set();
+
+    function el(tag, cls, text) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text != null) e.textContent = text;
+        return e;
+    }
+    function icon(cls) { const i = el('i'); i.className = cls; return i; }
+    function dayKey(d) { return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }
+    function dayLabel(d) {
+        const today = new Date();
+        const yest = new Date(); yest.setDate(today.getDate() - 1);
+        if (dayKey(d) === dayKey(today)) return 'Today';
+        if (dayKey(d) === dayKey(yest)) return 'Yesterday';
+        const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+        if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+        return d.toLocaleDateString(undefined, opts);
+    }
+    function timeLabel(d) { return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); }
+    function pageTag(page) {
+        const t = el('span', 'fbx-tag');
+        if (page.icon) {
+            const img = el('img'); img.src = page.icon; img.alt = ''; t.appendChild(img);
+        } else {
+            t.appendChild(icon(page.title === 'Home' ? 'fas fa-house' : 'fas fa-link'));
         }
-    
-        // Function to handle showing the modal with feedback details
-        function showFeedbackModal(row) {
-            const feedbackId = row.dataset.feedbackId;
-    
-            // Mark as read using the bulk action
-            handleBulkAction('mark_read', [feedbackId]);
-    
-            feedbackDate.textContent = convertToLocalTime(row.dataset.feedbackDate);
-            feedbackName.textContent = row.dataset.feedbackName;
-            feedbackEmail.textContent = row.dataset.feedbackEmail;
-            feedbackPageUrl.textContent = row.dataset.feedbackPageUrl;
-            feedbackMessage.textContent = row.dataset.feedbackMessage;
-            modal.show();
+        t.appendChild(document.createTextNode(page.title));
+        return t;
+    }
+    function unreadCount() { return items.filter(i => !i.is_read).length; }
+    function visible() {
+        return filter === 'all' ? items : items.filter(i => !i.is_read || i.id === keepId);
+    }
+
+    function emptyState(big, title, text, action) {
+        const box = el('div', 'fbx-empty');
+        const b = el('div', 'big'); b.appendChild(icon(big)); box.appendChild(b);
+        box.appendChild(el('h3', '', title));
+        box.appendChild(el('p', '', text));
+        if (action) box.appendChild(action);
+        return box;
+    }
+
+    function renderList() {
+        const unread = unreadCount();
+        document.getElementById('count-unread').textContent = unread;
+        document.getElementById('count-all').textContent = items.length;
+        document.querySelectorAll('.fbx-chip').forEach(c => c.classList.toggle('on', c.dataset.filter === filter));
+        document.getElementById('mark-all-read').disabled = unread === 0;
+        document.getElementById('select-toggle').disabled = items.length === 0;
+        root.classList.toggle('selecting', selecting);
+        document.getElementById('select-toggle').classList.toggle('on', selecting);
+        document.getElementById('picked-count').textContent = picked.size + ' selected';
+        root.querySelectorAll('[data-bulk]').forEach(b => { b.disabled = picked.size === 0; });
+
+        listEl.replaceChildren();
+        const shown = visible();
+        if (!items.length) {
+            listEl.appendChild(emptyState('fas fa-inbox', 'Inbox zero', 'No feedback yet.'));
+            return;
         }
-    
-        function handleBulkAction(action, specificFeedbackIds = null) {
-            let feedbackIds;
-    
-            if (specificFeedbackIds) {
-                // If specific feedback IDs are provided, use them
-                feedbackIds = specificFeedbackIds;
-            } else {
-                // Otherwise, get the list of selected checkboxes, excluding the header checkbox
-                feedbackIds = Array.from(document.querySelectorAll('tbody input[type="checkbox"]:checked')).map(cb => cb.value);
-            }
-    
-            if (feedbackIds.length === 0) {
-                alert('No feedback selected.');
-                return;
-            }
-    
-            fetch('{% url "bulk_feedback_action" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: JSON.stringify({
-                    'feedback_ids': feedbackIds,
-                    'action': action
-                })
-            })
-            .then(response => response.json())
+        if (!shown.length) {
+            const all = el('button', 'fbx-ab', 'Show all messages');
+            all.type = 'button';
+            all.addEventListener('click', () => { filter = 'all'; render(); });
+            listEl.appendChild(emptyState('fas fa-check', 'All caught up', 'No unread feedback.', all));
+            return;
+        }
+        let lastDay = null;
+        shown.forEach(item => {
+            const d = new Date(item.submitted_at);
+            const key = dayKey(d);
+            if (key !== lastDay) { listEl.appendChild(el('div', 'fbx-day', dayLabel(d))); lastDay = key; }
+            const row = el('button', 'fbx-it');
+            row.type = 'button';
+            row.dataset.id = item.id;
+            if (item.is_read) row.classList.add('read');
+            if (!selecting && item.id === selectedId) row.classList.add('sel');
+            if (picked.has(item.id)) row.classList.add('picked');
+            const lead = el('span');
+            lead.appendChild(el('span', 'fbx-ud'));
+            const ck = el('span', 'ck'); ck.appendChild(icon('fas fa-check')); lead.appendChild(ck);
+            const body = el('span');
+            body.appendChild(el('span', 'm', item.message));
+            body.appendChild(pageTag(item.page));
+            row.append(lead, body, el('span', 'fbx-tm', timeLabel(d)));
+            row.addEventListener('click', () => onRow(item.id));
+            listEl.appendChild(row);
+        });
+    }
+
+    function renderDetail() {
+        detailEl.replaceChildren();
+        const item = items.find(i => i.id === selectedId);
+        if (!item) {
+            root.classList.remove('show-detail');
+            detailEl.appendChild(items.length
+                ? emptyState('far fa-comment-dots', 'Select a message', 'Pick a message on the left to read it.')
+                : emptyState('fas fa-mountain-sun', 'Nothing here', 'Guest feedback will show up here.'));
+            return;
+        }
+        const d = new Date(item.submitted_at);
+        const wrap = el('div', 'fbx-det');
+        const head = el('div', 'fbx-dh');
+        const back = el('button', 'fbx-ib fbx-back'); back.type = 'button'; back.title = 'Back';
+        back.appendChild(icon('fas fa-arrow-left'));
+        back.addEventListener('click', () => { root.classList.remove('show-detail'); selectedId = null; keepId = null; render(); });
+        const ic = el('div', 'ic'); ic.appendChild(icon('fas fa-comment-dots'));
+        const when = el('div');
+        const rel = dayLabel(d);
+        when.appendChild(el('h2', '', (rel === 'Today' || rel === 'Yesterday' ? rel : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + ' at ' + timeLabel(d)));
+        when.appendChild(el('p', '', d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })));
+        const acts = el('div', 'fbx-acts');
+        const toggle = el('button', 'fbx-ab'); toggle.type = 'button'; toggle.id = 'detail-toggle-read';
+        toggle.append(icon(item.is_read ? 'fas fa-envelope' : 'fas fa-envelope-open'), document.createTextNode(item.is_read ? 'Mark unread' : 'Mark read'));
+        toggle.addEventListener('click', () => {
+            act(item.is_read ? 'mark_unread' : 'mark_read', [item.id]);
+        });
+        const del = el('button', 'fbx-ab del'); del.type = 'button'; del.id = 'detail-delete';
+        const delText = el('span', '', 'Delete');
+        del.append(icon('fas fa-trash'), delText);
+        armDelete(del, delText, () => act('delete', [item.id]));
+        acts.append(toggle, del);
+        head.append(back, ic, when, acts);
+        wrap.appendChild(head);
+        wrap.appendChild(el('div', 'fbx-msg', item.message));
+        const meta = el('div', 'fbx-meta');
+        const from = el('span'); from.append(icon('fas fa-location-dot'), document.createTextNode('Sent from ' + item.page.title));
+        meta.appendChild(from);
+        if (item.stay) {
+            const stay = el('span'); stay.append(icon('fas fa-suitcase-rolling'), document.createTextNode('During ' + item.stay));
+            meta.appendChild(stay);
+        }
+        wrap.appendChild(meta);
+        detailEl.appendChild(wrap);
+    }
+
+    // Two taps to delete: the first arms the button for a few seconds.
+    function armDelete(btn, label, run) {
+        let timer = null;
+        btn.addEventListener('click', () => {
+            if (btn.classList.contains('arm')) { clearTimeout(timer); run(); return; }
+            btn.classList.add('arm');
+            label.textContent = 'Tap again to delete';
+            timer = setTimeout(() => { btn.classList.remove('arm'); label.textContent = 'Delete'; }, 3500);
+        });
+    }
+
+    function render() { renderList(); renderDetail(); }
+
+    function onRow(id) {
+        if (selecting) {
+            picked.has(id) ? picked.delete(id) : picked.add(id);
+            renderList();
+            return;
+        }
+        selectedId = id;
+        keepId = id;
+        root.classList.add('show-detail');
+        const item = items.find(i => i.id === id);
+        if (item && !item.is_read) { act('mark_read', [id]); } else { render(); }
+    }
+
+    function syncBadge() {
+        if (window.hubSetUnreadFeedback) window.hubSetUnreadFeedback(unreadCount());
+    }
+
+    function act(action, ids) {
+        // Optimistic update; the next refresh corrects anything that failed.
+        if (action === 'delete') {
+            items = items.filter(i => !ids.includes(i.id));
+            if (ids.includes(selectedId)) { selectedId = null; keepId = null; }
+            ids.forEach(id => picked.delete(id));
+        } else {
+            items.forEach(i => { if (ids.includes(i.id)) i.is_read = action === 'mark_read'; });
+        }
+        render();
+        syncBadge();
+        return fetch(bulkUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ feedback_ids: ids, action: action }),
+        }).then(r => { if (!r.ok) throw new Error(r.status); })
+          .catch(err => { console.error('feedback action failed', err); refresh(); });
+    }
+
+    function refresh() {
+        return fetch(listUrl, { headers: { 'Accept': 'application/json' } })
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(data => {
-                if (data.success) {
-                    // Uncheck all checkboxes after bulk action
-                    document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-                        checkbox.checked = false;
-                    });
-                    
-                    // If marking as read/unread, update the row immediately without changing order
-                    if (action === 'mark_read' || action === 'mark_unread') {
-                        feedbackIds.forEach(id => {
-                            const row = document.querySelector(`tr[data-feedback-id="${id}"]`);
-                            if (action === 'mark_read') {
-                                row.classList.remove('unread-message');
-                                const icon = row.querySelector('.icon-unread');
-                                if (icon) {
-                                    icon.classList.replace('fa-envelope', 'fa-envelope-open');
-                                    icon.classList.replace('icon-unread', 'icon-read');
-                                }
-                            } else if (action === 'mark_unread') {
-                                row.classList.add('unread-message');
-                                const icon = row.querySelector('.icon-read');
-                                if (icon) {
-                                    icon.classList.replace('fa-envelope-open', 'fa-envelope');
-                                    icon.classList.replace('icon-read', 'icon-unread');
-                                }
-                            }
-                        });
-                    } else {
-                        // Refresh the table after other bulk actions
-                        location.reload();
-                    }
-                } else {
-                    alert('Action failed.');
-                }
+                items = data.items;
+                const ids = new Set(items.map(i => i.id));
+                if (!ids.has(selectedId)) { selectedId = null; keepId = null; }
+                picked = new Set([...picked].filter(id => ids.has(id)));
+                render();
+                syncBadge();
+                root.dataset.refreshed = 'true';
             })
-            .catch(error => console.error('Error:', error));
-        }
+            .catch(err => console.error('feedback refresh failed', err));
+    }
 
-        function refreshTable() {
-            const currentPage = parseInt(document.querySelector('#current-page').textContent, 10);
-            fetch(`{% url "refresh_feedback_table" %}?page=${currentPage}`)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('feedback-table-container').innerHTML = html;
-                    addEventListenersToTableRows();  // Reattach event listeners to new rows
-
-                    updateMessageCount();
-
-                    document.getElementById('feedback-table-container').setAttribute('data-refreshed', 'true');                    
-                })
-                .catch(error => console.error('Error refreshing table:', error));
-        }        
-    
-        // Add event listeners to the table rows
-        function addEventListenersToTableRows() {
-            document.querySelectorAll('tbody tr').forEach(row => {
-                // Convert the date for the table display
-                const dateCell = row.querySelector('.feedback-date');
-                const isoDate = row.dataset.feedbackDate;
-                dateCell.textContent = convertToLocalTime(isoDate);
-    
-                row.addEventListener('click', function (e) {
-                    if (e.target.type === 'checkbox') {
-                        e.stopPropagation(); // Prevent modal from opening when clicking on checkbox
-                        return;
-                    }
-                    if (e.target.classList.contains('icon-delete')) {
-                        e.stopPropagation(); // Prevent row click event
-                        const feedbackId = e.target.dataset.feedbackId;
-                        handleBulkAction('delete', [feedbackId]);
-                    } else {
-                        showFeedbackModal(row);
-                    }
-                });
-            });
-        }
-    
-        // Initialize event listeners for table rows
-        addEventListenersToTableRows();
-    
-        // Bulk action buttons
-        document.getElementById('bulk-delete-btn').addEventListener('click', function () {
-            handleBulkAction('delete');
-        });
-    
-        document.getElementById('bulk-mark-read-btn').addEventListener('click', function () {
-            handleBulkAction('mark_read');
-        });
-    
-        document.getElementById('bulk-mark-unread-btn').addEventListener('click', function () {
-            handleBulkAction('mark_unread');
-        });
-    
-        // Select all checkboxes
-        document.getElementById('select-all').addEventListener('change', function () {
-            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-        });
-
-        setInterval(refreshTable, 15000);
-    
-        // Update message count
-        updateMessageCount();
+    document.querySelectorAll('.fbx-chip').forEach(c => c.addEventListener('click', () => {
+        filter = c.dataset.filter;
+        keepId = selectedId;
+        render();
+    }));
+    document.getElementById('mark-all-read').addEventListener('click', () => {
+        const ids = items.filter(i => !i.is_read).map(i => i.id);
+        if (ids.length) act('mark_read', ids);
     });
-    
-</script>    
+    document.getElementById('select-toggle').addEventListener('click', () => {
+        selecting = !selecting;
+        picked.clear();
+        render();
+    });
+    root.querySelectorAll('[data-bulk]').forEach(b => {
+        const run = () => {
+            const ids = [...picked];
+            if (!ids.length) return;
+            act(b.dataset.bulk, ids).then(() => { picked.clear(); selecting = false; render(); });
+        };
+        if (b.dataset.bulk === 'delete') armDelete(b, b.querySelector('span'), run);
+        else b.addEventListener('click', run);
+    });
 
+    render();
+    setInterval(() => { if (!document.hidden) refresh(); }, 20000);
+})();
+</script>
 {% endblock %}
