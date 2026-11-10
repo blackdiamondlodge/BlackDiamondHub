@@ -392,15 +392,48 @@
             color: #212529;
             border-color: rgba(255, 255, 255, 0.85);
         }
+
+        /* ── Phones: one-row title bar ──
+           App pages: home button, full app title, then Feedback + lock (guests) or the avatar (owners,
+           whose menu gets "Send feedback"). Page controls (navbar_extras) drop into a frosted row
+           under the bar that scrolls sideways. The homepage keeps its monogram, clock and °C/°F. */
+        .hub-menu-fb { display: none !important; }
+        @media (max-width: 600px) {
+            .navbar > .container-fluid { flex-wrap: nowrap; gap: 10px; padding: 0 12px; }
+            .navhub-brand { flex: 0 0 auto; gap: 10px; }
+            .navbar:not(.is-home) .navhub-lodge { display: none; }
+            .navhub-title {
+                position: static; transform: none; max-width: none; flex: 1 1 auto; min-width: 0;
+                text-align: left; font-size: 1.02rem; letter-spacing: .06em; font-weight: 500;
+            }
+            .navbar.is-home .navhub-title { display: none; }
+            .navbar.is-owner .feedback-button { display: none; }
+            .hub-menu-fb { display: flex !important; }
+            .hub-ava { padding: 0; gap: 0; background: none; border: 0; }
+            .hub-ava:hover, .hub-ava[aria-expanded="true"] { background: none; }
+            .hub-ava .hub-ini { width: 40px; height: 40px; }
+            .hub-ava .fa-chevron-down { display: none; }
+
+            .navbar:not(.is-home) .navbar-extras {
+                position: fixed; left: 0; right: 0; top: 62px; z-index: 1020; height: 56px;
+                margin: 0; padding: 8px 12px; gap: 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+                background: linear-gradient(180deg, rgba(17, 25, 38, .92), rgba(17, 25, 38, .82));
+                backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+                border-bottom: 1px solid rgba(255, 255, 255, .08);
+            }
+            .navbar:not(.is-home) .navbar-extras::-webkit-scrollbar { display: none; }
+            .navbar:not(.is-home) .navbar-extras > * { flex: 0 0 auto; }
+            body:has(.navbar:not(.is-home) .navbar-extras) .content-wrapper { margin-top: 118px; }
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
     <!-- ── Navbar ── -->
-    <nav class="navbar navbar-dark bg-dark fixed-top">
+    {% url 'landing_page' as home_url %}
+    <nav class="navbar navbar-dark bg-dark fixed-top{% if request.path == home_url %} is-home{% endif %}{% if user.is_authenticated %} is-owner{% endif %}">
         <div class="container-fluid">
             <!-- Brand -->
-            {% url 'landing_page' as home_url %}
             <div class="navhub-brand">
                 {% if request.path != home_url %}
                 <a class="navhub-home" href="{{ home_url }}" id="home-button" title="Home" aria-label="Home">
@@ -448,6 +481,11 @@
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div class="hub-menu" id="user-menu" role="menu" hidden>
+                            <!-- Phones only: the Feedback pill is hidden there to make room -->
+                            <button type="button" class="hub-menu-fb" role="menuitem"
+                                    data-bs-toggle="modal" data-bs-target="#feedback-modal">
+                                <i class="fas fa-comment-dots"></i>Send feedback
+                            </button>
                             {% if user.is_staff %}
                                 <a href="{% url 'view_feedback' %}" role="menuitem" id="inbox-link">
                                     <i class="fas fa-inbox"></i>Feedback inbox
@@ -565,6 +603,7 @@
             e.stopPropagation();
             setOpen(menu.hidden);
         });
+        menu.querySelector('.hub-menu-fb').addEventListener('click', function () { setOpen(false); });
         document.addEventListener('click', function (e) {
             if (!menu.hidden && !menu.contains(e.target)) setOpen(false);
         });
