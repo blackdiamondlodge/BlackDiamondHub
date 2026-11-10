@@ -16,8 +16,8 @@ bdh-app-sunpeaks-webcams @ https://github.com/blackdiamondlodge/bdh-app-sunpeaks
 bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.1.0/bdh_app_lift_status-1.1.0-py3-none-any.whl \
     --hash=sha256:02d05cd293b23b182a1144abbb64470ce7779a3f7a2830129134e5499ee000bf
 bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.1.2/bdh_app_snow_report-2.1.2-py3-none-any.whl --hash=sha256:7bfb6cb9aaff30c05afb74329dd7065aabd1834dbf42d257142c96a1193720b1
-bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/download/v1.1.1/bdh_app_radiant-1.1.1-py3-none-any.whl --hash=sha256:403e985128d42ed333d70be4e816720a52b443ecc6f6152981e555639c5a172f
-bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-control/releases/download/v1.2.1/bdh_app_device_control-1.2.1-py3-none-any.whl --hash=sha256:5c3882579807f354d3cf83a562c53632a68727d3e7e810c3279993f3515f4253
+bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/download/v1.2.0/bdh_app_radiant-1.2.0-py3-none-any.whl --hash=sha256:09fca19fe1b1057dc5848cf1d9d6d7d3adad65fe872879ac8d3157bbf354d702
+bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-control/releases/download/v1.3.0/bdh_app_device_control-1.3.0-py3-none-any.whl --hash=sha256:56a1f0316719eef11d8561171ba202dd97bb43b377aa31e7d87a3aff84f4dbaa
 bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.2.0/bdh_app_cameras-1.2.0-py3-none-any.whl --hash=sha256:b5daa600234fe8f4c831d317a515d825ed816c5f88d74fd88779f868443f4fc8
 bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.1.1/bdh_app_vacation_mode-1.1.1-py3-none-any.whl --hash=sha256:ed6bf8f974204e8835dc61d50bcc8fd256fee7d12024389838ee16a71d3f4d72
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v2.2.0/bdh_app_sonos_control-2.2.0-py3-none-any.whl \
@@ -25,4 +25,4 @@ bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-contr
 bdh-app-stays @ https://github.com/blackdiamondlodge/bdh-app-stays/releases/download/v1.1.1/bdh_app_stays-1.1.1-py3-none-any.whl --hash=sha256:ba9fa8d5b30be89061c10d7dc54df626c4110884bb0025351e49eb7eb608a1ed
 bdh-app-inventory @ https://github.com/blackdiamondlodge/bdh-app-inventory/releases/download/v1.0.0/bdh_app_inventory-1.0.0-py3-none-any.whl \
     --hash=sha256:ec8bf0ce59ec4f3e49528e107afa2adc1424b0f2b1c4061ed7276c7ef040b65c
-bdh-app-restaurants @ https://github.com/blackdiamondlodge/bdh-app-restaurants/releases/download/v1.1.10/bdh_app_restaurants-1.1.10-py3-none-any.whl --hash=sha256:5ec5cc3a5fd9a3c63a01a742d8b9dac7b14e3ccbfea60d6ebb19dd6f5709df14
+bdh-app-restaurants @ https://github.com/blackdiamondlodge/bdh-app-restaurants/releases/download/v1.2.0/bdh_app_restaurants-1.2.0-py3-none-any.whl --hash=sha256:659484f2429b0250a7c4099c59337401e0c0c581e284d66bb176bc111397de52
