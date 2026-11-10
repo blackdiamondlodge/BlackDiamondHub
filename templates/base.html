@@ -70,28 +70,57 @@
             font-size: 1.35rem;
         }
 
-        /* Notification badge inside navbar */
-        .notification-icon {
-            position: relative;
-            color: rgba(255, 255, 255, 0.85);
-            text-decoration: none;
+        /* Signed-in avatar pill + menu */
+        .hub-user { position: relative; margin-left: 4px; }
+        .hub-ava {
+            height: 44px; min-width: 48px; border-radius: 999px; position: relative;
+            display: inline-flex; align-items: center; gap: 9px; padding: 0 14px 0 5px;
+            background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12);
+            color: #e8eef5; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s;
         }
-
-        .notification-icon:hover {
-            color: #fff;
+        .hub-ava:hover, .hub-ava[aria-expanded="true"] { background: rgba(255, 255, 255, .14); }
+        .hub-ava .hub-ini {
+            width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+            background: linear-gradient(135deg, #7cc4ff, #5ba4e6); color: #0c1622; font-weight: 700;
         }
-
-        .notification-icon .badge {
-            position: absolute;
-            top: 2px;
-            right: 0;
-            padding: 3px 6px;
-            border-radius: 50%;
-            background-color: #dc3545;
-            color: white;
-            font-size: 0.65rem;
-            line-height: 1;
+        .hub-ava .fa-chevron-down { font-size: 11px; color: #8fa3bd; transition: transform .2s; }
+        .hub-ava[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+        .hub-ava .badge {
+            position: absolute; right: -6px; top: -6px; min-width: 20px; height: 20px; padding: 0 6px;
+            border-radius: 999px; background: #5ba4e6; color: #0c1622;
+            font: 700 11.5px/20px "Segoe UI", system-ui, sans-serif; text-align: center;
+            box-shadow: 0 0 0 3px #121c2c;
         }
+        .hub-menu {
+            position: absolute; right: 0; top: calc(100% + 10px); width: 260px; padding: 8px; z-index: 1060;
+            border-radius: 18px; background: linear-gradient(180deg, rgba(29, 43, 69, .97), rgba(18, 28, 44, .98));
+            border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        }
+        .hub-menu[hidden] { display: none; }
+        .hub-menu a, .hub-menu button {
+            display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 0 14px;
+            border: 0; border-radius: 12px; background: none; color: #eef3fa; font-size: 15.5px;
+            text-decoration: none; text-align: left; cursor: pointer;
+        }
+        .hub-menu a:hover, .hub-menu button:hover, .hub-menu a:focus-visible, .hub-menu button:focus-visible {
+            background: rgba(255, 255, 255, .07); outline: none;
+        }
+        .hub-menu i { width: 20px; text-align: center; color: #7cc4ff; }
+        .hub-menu .fb-n {
+            margin-left: auto; background: #5ba4e6; color: #0c1622; border-radius: 999px;
+            padding: 1px 9px; font-weight: 700; font-size: 12.5px;
+        }
+        .hub-menu .fb-n:empty { display: none; }
+        .hub-menu hr { border: 0; border-top: 1px solid #26354f; margin: 6px 4px; opacity: 1; }
+        @media (max-width: 520px) { .hub-ava .hub-name { display: none; } }
+        body.theme-night .feedback-button i, body.theme-night .hub-menu i { color: #ffc489; }
+        body.theme-night .hub-ava .hub-ini { background: linear-gradient(135deg, #ffc489, #f2a65a); }
+        body.theme-night .hub-ava .badge, body.theme-night .hub-menu .fb-n { background: #f2a65a; }
+        body.theme-night .hub-ava .fa-chevron-down { color: #a28f74; }
+        body.theme-night .hub-menu { background: linear-gradient(180deg, rgba(35, 27, 19, .97), rgba(18, 14, 10, .98)); }
+        body.theme-night .hub-menu a, body.theme-night .hub-menu button { color: #f3e3cc; }
+        body.theme-night .hub-menu hr { border-top-color: #3a2f22; }
 
         /* Feedback: labelled glass pill so guests know what it is */
         .feedback-button {
@@ -406,28 +435,35 @@
                 </button>
 
                 {% if user.is_authenticated %}
-                    <!-- Notifications (staff only) -->
-                    <a href="{% url 'view_feedback' %}"
-                       class="nav-link nav-ghost notification-icon"
-                       title="Feedback Inbox">
-                        <i class="fas fa-envelope"></i>
-                        {% if unread_feedback_count > 0 %}
-                            <span class="badge">{{ unread_feedback_count }}</span>
-                        {% endif %}
-                    </a>
-
-                    <!-- Logout -->
-                    <form method="post"
-                          action="{% url 'logout' %}?next={{ request.path }}"
-                          class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="nav-link nav-ghost"
-                                id="logout-button"
-                                title="Logout">
-                            <i class="fas fa-right-from-bracket"></i>
+                    {% firstof user.first_name user.username as hub_user_name %}
+                    <div class="hub-user" id="hub-user">
+                        <button type="button" class="hub-ava" id="user-menu-button"
+                                aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu"
+                                title="{{ hub_user_name }}">
+                            <span class="hub-ini">{{ hub_user_name|first|upper }}</span>
+                            {% if user.is_staff and unread_feedback_count > 0 %}
+                                <span class="badge" title="Unread feedback">{{ unread_feedback_count }}</span>
+                            {% endif %}
+                            <span class="hub-name">{{ hub_user_name }}</span>
+                            <i class="fas fa-chevron-down"></i>
                         </button>
-                    </form>
+                        <div class="hub-menu" id="user-menu" role="menu" hidden>
+                            {% if user.is_staff %}
+                                <a href="{% url 'view_feedback' %}" role="menuitem" id="inbox-link">
+                                    <i class="fas fa-inbox"></i>Feedback inbox
+                                    <span class="fb-n">{% if unread_feedback_count > 0 %}{{ unread_feedback_count }}{% endif %}</span>
+                                </a>
+                                <a href="{% url 'admin:index' %}" role="menuitem"><i class="fas fa-gear"></i>Admin</a>
+                                <hr>
+                            {% endif %}
+                            <form method="post" action="{% url 'logout' %}?next={{ request.path }}">
+                                {% csrf_token %}
+                                <button type="submit" id="logout-button" role="menuitem">
+                                    <i class="fas fa-arrow-right-from-bracket"></i>Sign out
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 {% else %}
                     <!-- Login -->
                     <a href="{% url 'login' %}?next={{ request.path }}"
@@ -515,15 +551,27 @@
         feedbackModalElement.addEventListener('shown.bs.modal', function () {
             document.getElementById('message').focus();
         });
-
-        // Hide the mail icon on feedback page
-        if (window.location.href.indexOf('feedback') > -1) {
-            const notificationIcon = document.querySelector('.notification-icon');
-            if (notificationIcon) {
-                notificationIcon.style.display = 'none';
-            }
-        }
     });
+
+    (function () {
+        const btn = document.getElementById('user-menu-button');
+        const menu = document.getElementById('user-menu');
+        if (!btn || !menu) return;
+        function setOpen(open) {
+            menu.hidden = !open;
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            setOpen(menu.hidden);
+        });
+        document.addEventListener('click', function (e) {
+            if (!menu.hidden && !menu.contains(e.target)) setOpen(false);
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !menu.hidden) { setOpen(false); btn.focus(); }
+        });
+    })();
 
     document.getElementById('feedback-form').addEventListener('submit', function(event) {
         event.preventDefault();
@@ -552,30 +600,31 @@
     });
 
     {% if user.is_authenticated and user.is_staff %}
+    function setUnreadFeedbackCount(n) {
+        const ava = document.getElementById('user-menu-button');
+        if (!ava) return;
+        let badge = ava.querySelector('.badge');
+        if (n > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'badge';
+                badge.title = 'Unread feedback';
+                ava.insertBefore(badge, ava.querySelector('.hub-name'));
+            }
+            badge.textContent = n;
+        } else if (badge) {
+            badge.remove();
+        }
+        const menuCount = document.querySelector('#user-menu .fb-n');
+        if (menuCount) menuCount.textContent = n > 0 ? n : '';
+    }
+    window.hubSetUnreadFeedback = setUnreadFeedbackCount;
+
     document.addEventListener('DOMContentLoaded', function () {
         function updateUnreadFeedbackCount() {
             fetch('{% url "get_unread_feedback_count" %}')
                 .then(response => response.json())
-                .then(data => {
-                    const notificationIcon = document.querySelector('.notification-icon');
-                    if (!notificationIcon) return;
-                    const badge = notificationIcon.querySelector('.badge');
-
-                    if (data.unread_feedback_count > 0) {
-                        if (!badge) {
-                            const newBadge = document.createElement('span');
-                            newBadge.className = 'badge';
-                            newBadge.textContent = data.unread_feedback_count;
-                            notificationIcon.appendChild(newBadge);
-                        } else {
-                            badge.textContent = data.unread_feedback_count;
-                        }
-                    } else {
-                        if (badge) {
-                            badge.remove();
-                        }
-                    }
-                })
+                .then(data => setUnreadFeedbackCount(data.unread_feedback_count))
                 .catch(error => console.error('Error fetching unread feedback count:', error));
         }
 

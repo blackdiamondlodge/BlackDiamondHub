@@ -1,120 +1,156 @@
+import json
+from unittest import mock
+
+from django.contrib.auth.models import User
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.template.loader import render_to_string
+from django.test import RequestFactory, TestCase, tag
+from django.urls import reverse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from django.test import TestCase, tag
-from django.urls import reverse
-from .models import Feedback
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from datetime import timedelta
-from django.utils import timezone
-from tests.selenium_helpers import get_chrome_options
+from selenium.webdriver.support.ui import WebDriverWait
+
+from tests.selenium_helpers import get_chrome_options, login_via_browser
+
+from . import views
+from .models import Feedback
 
 
-class FeedbackViewTests(TestCase):
+class FeedbackAccessTests(TestCase):
+    """The inbox and its APIs are for staff only."""
+
     def setUp(self):
-        # Create some sample feedback messages
-        self.feedback1 = Feedback.objects.create(name='User1', email='user1@example.com', message='Test message 1', is_read=False)
-        self.feedback2 = Feedback.objects.create(name='User2', email='user2@example.com', message='Test message 2', is_read=True)
+        self.fb = Feedback.objects.create(message='Secret note', is_read=False)
+        self.guest = User.objects.create_user('guest', password='pw')
 
-    def test_feedback_page_loads(self):
-        """Test that the feedback page loads correctly."""
-        response = self.client.get(reverse('view_feedback'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Feedback Messages")
-        self.assertContains(response, self.feedback1.name)
-        self.assertContains(response, self.feedback2.name)
+    def _bulk(self, action='delete'):
+        return self.client.post(reverse('bulk_feedback_action'),
+                                json.dumps({'feedback_ids': [self.fb.id], 'action': action}),
+                                content_type='application/json')
 
-    def test_no_messages(self):
-        """Test that the page shows 'No messages' when there are no feedbacks."""
-        Feedback.objects.all().delete()
-        response = self.client.get(reverse('view_feedback'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "No messages")
+    def test_anonymous_is_sent_to_login(self):
+        r = self.client.get(reverse('view_feedback'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(reverse('login'), r['Location'])
+        self.assertEqual(self.client.get(reverse('feedback_list')).status_code, 403)
+        self.assertEqual(self._bulk().status_code, 403)
+        self.assertTrue(Feedback.objects.filter(id=self.fb.id).exists())
 
-    def test_pagination(self):
-        """Test that pagination works and shows correct number of items per page."""
-        
-        """remove any existing messages"""
-        Feedback.objects.all().delete()
-        response = self.client.get(reverse('view_feedback'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "No messages")        
-        
-        # Create additional feedback messages
-        for i in range(30):
-            Feedback.objects.create(name=f'User{i+3}', email=f'user{i+3}@example.com', message=f'Test message {i+3}', is_read=False)
+    def test_non_staff_user_is_refused(self):
+        self.client.force_login(self.guest)
+        self.assertEqual(self.client.get(reverse('view_feedback')).status_code, 302)
+        self.assertEqual(self.client.get(reverse('feedback_list')).status_code, 403)
+        self.assertEqual(self._bulk('mark_read').status_code, 403)
+        self.fb.refresh_from_db()
+        self.assertFalse(self.fb.is_read)
 
-        response = self.client.get(reverse('view_feedback'))
-        self.assertEqual(response.status_code, 200)
+    def _navbar(self, user):
+        request = RequestFactory().get('/wifi/')
+        request.user = user
+        request.session = {}
+        return render_to_string('base.html', request=request)
 
-        # Verify that 20 items are on the first page
-        table = response.context['table']
-        self.assertEqual(len(table.page), 20)
-        
-        # Check if the pagination information is correct
-        paginator = table.paginator
-        self.assertEqual(paginator.num_pages, 2)  # There should be 2 pages
-        self.assertEqual(table.page.number, 1)  # We should be on the first page
+    def test_avatar_menu_offers_inbox_to_staff_only(self):
+        html = self._navbar(self.guest)
+        self.assertIn('id="user-menu-button"', html)
+        self.assertIn('id="logout-button"', html)
+        self.assertNotIn('id="inbox-link"', html)
+        self.assertNotIn('class="badge"', html)
+        staff = User.objects.create_user('owner', password='pw', is_staff=True, first_name='Stephen')
+        html = self._navbar(staff)
+        self.assertIn('id="inbox-link"', html)
+        self.assertIn('<span class="hub-ini">S</span>', html)
+        self.assertIn('>1</span>', html)
 
-        # Now request the second page
-        response = self.client.get(reverse('view_feedback') + '?page=2')
-        self.assertEqual(response.status_code, 200)
-        
-        table = response.context['table']
-        self.assertEqual(len(table.page), 10)  # There should be 10 items on the second page
-        
-        paginator = table.paginator
-        self.assertEqual(paginator.num_pages, 2)  # Still 2 pages
-        self.assertEqual(table.page.number, 2)  # Now we should be on the second page
-    
-    def test_bulk_delete(self):
-        """Test bulk delete action."""
-        response = self.client.post(reverse('bulk_feedback_action'), {
-            'feedback_ids': [self.feedback1.id, self.feedback2.id],
-            'action': 'delete'
-        }, content_type='application/json')
+    def test_unread_count_hidden_from_non_staff(self):
+        r = self.client.get(reverse('get_unread_feedback_count'))
+        self.assertEqual(r.json()['unread_feedback_count'], 0)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(Feedback.objects.count(), 0)
 
-    def test_mark_read(self):
-        """Test bulk mark as read action."""
-        response = self.client.post(reverse('bulk_feedback_action'), {
-            'feedback_ids': [self.feedback1.id],
-            'action': 'mark_read'
-        }, content_type='application/json')
+class FeedbackInboxTests(TestCase):
+    def setUp(self):
+        self.staff = User.objects.create_user('owner', password='pw', is_staff=True)
+        self.client.force_login(self.staff)
+        self.old = Feedback.objects.create(message='Older message', is_read=True, page_url='http://hub/')
+        self.new = Feedback.objects.create(message='Newer message', page_url='http://hub/nowhere/',
+                                           stay='the Henderson stay')
 
-        self.assertEqual(response.status_code, 200)
-        self.feedback1.refresh_from_db()
-        self.assertTrue(self.feedback1.is_read)
-        
-    def test_mark_unread(self):
-        """Test bulk mark as unread action."""
-        response = self.client.post(reverse('bulk_feedback_action'), {
-            'feedback_ids': [self.feedback2.id],
-            'action': 'mark_unread'
-        }, content_type='application/json')
+    def test_inbox_page_embeds_messages(self):
+        r = self.client.get(reverse('view_feedback'))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'id="fbx-data"')
+        self.assertContains(r, 'Newer message')
 
-        self.assertEqual(response.status_code, 200)
-        self.feedback2.refresh_from_db()
-        self.assertFalse(self.feedback2.is_read)
+    def test_list_is_newest_first_with_page_and_stay(self):
+        items = self.client.get(reverse('feedback_list')).json()['items']
+        self.assertEqual([i['id'] for i in items], [self.new.id, self.old.id])
+        self.assertEqual(items[0]['stay'], 'the Henderson stay')
+        self.assertFalse(items[0]['is_read'])
+        self.assertEqual(items[1]['page']['title'], 'Home')
+        self.assertEqual(items[0]['page']['title'], '/nowhere/')
 
-    def test_modal_data(self):
-        """Test that modal opens with correct feedback data."""
-        response = self.client.get(reverse('view_feedback'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.feedback1.message)
-        self.assertContains(response, self.feedback2.message)
+    def test_page_uses_app_tile_title(self):
+        page = views._page('http://hub/feedback/')
+        self.assertEqual(page['title'], '/feedback/')  # feedback has no tile
+        with mock.patch.object(views, 'plugins') as plugins:
+            spec = mock.Mock(urls='x.urls', prefix='wifi/',
+                             tiles=[mock.Mock(title='WiFi', icon='')])
+            plugins.return_value = [spec]
+            self.assertEqual(views._page('http://hub/wifi/qr/')['title'], 'WiFi')
 
-        # Simulate clicking on a feedback message (would typically involve JS testing)
-        feedback_row = self.feedback1
-        self.assertEqual(feedback_row.name, 'User1')
-        self.assertEqual(feedback_row.message, 'Test message 1')
+    def test_bulk_actions(self):
+        url = reverse('bulk_feedback_action')
+
+        def post(action, ids):
+            return self.client.post(url, json.dumps({'feedback_ids': ids, 'action': action}),
+                                    content_type='application/json')
+
+        self.assertEqual(post('mark_read', [self.new.id]).status_code, 200)
+        self.new.refresh_from_db()
+        self.assertTrue(self.new.is_read)
+        post('mark_unread', [self.new.id, self.old.id])
+        self.assertEqual(Feedback.objects.filter(is_read=False).count(), 2)
+        self.assertEqual(post('explode', [self.new.id]).status_code, 400)
+        self.assertEqual(post('delete', []).status_code, 400)
+        post('delete', [self.old.id])
+        self.assertEqual(list(Feedback.objects.values_list('id', flat=True)), [self.new.id])
+
+    def test_bulk_action_requires_post(self):
+        self.assertEqual(self.client.get(reverse('bulk_feedback_action')).status_code, 405)
+
+
+class SubmitFeedbackTests(TestCase):
+    def _submit(self, **data):
+        return self.client.post(reverse('submit_feedback'), {'page_url': 'http://hub/', **data})
+
+    @mock.patch.object(views, 'current_stay', return_value={'guest': 'Henderson', 'owner': False})
+    def test_records_guest_stay(self, _):
+        self.assertTrue(self._submit(message=' Hot tub is cold ').json()['success'])
+        fb = Feedback.objects.get()
+        self.assertEqual(fb.message, 'Hot tub is cold')
+        self.assertEqual(fb.stay, 'the Henderson stay')
+        self.assertEqual(fb.page_url, 'http://hub/')
+
+    @mock.patch.object(views, 'current_stay', return_value={'guest': 'Stephen', 'owner': True})
+    def test_records_owner_visit(self, _):
+        self._submit(message='hi')
+        self.assertEqual(Feedback.objects.get().stay, 'an owner visit')
+
+    @mock.patch.object(views, 'current_stay', side_effect=RuntimeError('stays down'))
+    def test_stay_lookup_failure_still_saves(self, _):
+        self._submit(message='hi')
+        self.assertEqual(Feedback.objects.get().stay, '')
+
+    @mock.patch.object(views, 'current_stay', return_value=None)
+    def test_rejects_empty_message_and_get(self, _):
+        self.assertEqual(self._submit(message='   ').status_code, 400)
+        self.assertEqual(self.client.get(reverse('submit_feedback')).status_code, 405)
+        self.assertFalse(Feedback.objects.exists())
 
 
 @tag('selenium')
-class FeedbackSeleniumTest(StaticLiveServerTestCase):
+class FeedbackInboxSeleniumTest(StaticLiveServerTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -128,268 +164,36 @@ class FeedbackSeleniumTest(StaticLiveServerTestCase):
         super().tearDownClass()
 
     def setUp(self):
-        # Reset browser state between tests
+        User.objects.create_user(username='testuser', password='testpassword', is_staff=True)
+        self.first = Feedback.objects.create(message='The hot tub cover is stuck', page_url='/')
+        self.second = Feedback.objects.create(message='Webcam is frozen', page_url='/', is_read=True)
         self.browser.get('about:blank')
         self.browser.delete_all_cookies()
-
-        # Create some feedback messages
-        for i in range(25):
-            Feedback.objects.create(name=f'User {i}', email=f'user{i}@example.com', message=f'Message {i}', page_url='/feedback/?page=1')
-
-    def test_message_count_display(self):
+        login_via_browser(self.browser, self.live_server_url)
         self.browser.get(self.live_server_url + reverse('view_feedback'))
-        # Wait for the message count element to load
-        message_count_element = WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.ID, 'message-count'))
-        )
-        # Assert that the message count is displayed correctly
-        self.assertEqual(message_count_element.text, "Showing 1-20 of 25 messages")
-        
-    def test_message_count_live_update(self):
-        #test for live updates of the message count
-        self.browser.get(self.live_server_url + reverse('view_feedback'))
-        
-        #create a new feedback message
-        Feedback.objects.create(name=f'User 25', email=f'user25@example.com', message=f'Message 25', page_url='/feedback/?page=1')
-        
-        # Clear the `data-refreshed` attribute before starting the test
-        self.browser.execute_script("document.getElementById('feedback-table-container').removeAttribute('data-refreshed');")
+        self.wait = WebDriverWait(self.browser, 20)
 
-        # Wait until the interval has fired and the table has been refreshed
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#feedback-table-container[data-refreshed='true']"))
-        )
-        
-        message_count_element = self.browser.find_element(By.ID, 'message-count')
-        
-        # Assert that the message count is displayed correctly
-        self.assertEqual(message_count_element.text, "Showing 1-20 of 26 messages")
+    def _row(self, fb):
+        return self.wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, f'.fbx-it[data-id="{fb.id}"]')))
 
-    def test_modal_display(self):
-        Feedback.objects.create(name=f'User 50', email=f'user50@example.com', message=f'Message 50', page_url='/feedback/?page=1')
-      
-        self.browser.get(self.live_server_url + reverse('view_feedback'))
-        
-        # Wait until the table is loaded
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )        
+    def test_opening_a_message_marks_it_read(self):
+        # Starts on the Unread filter, so only the unread message is listed.
+        self.assertEqual(len(self.browser.find_elements(By.CSS_SELECTOR, '.fbx-it')), 1)
+        self._row(self.first).click()
+        self.wait.until(EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, '.fbx-msg'), 'The hot tub cover is stuck'))
+        self.wait.until(lambda d: Feedback.objects.get(id=self.first.id).is_read)
+        self.assertEqual(self.browser.find_element(By.ID, 'count-unread').text, '0')
 
-        # Find the first feedback row and click it to open the modal
-        first_feedback_row = self.browser.find_element(By.CSS_SELECTOR, 'tbody tr')
-        first_feedback_row.click()
-        
-        # Wait for the modal to be visible
-        WebDriverWait(self.browser, 20).until(
-            EC.visibility_of_element_located((By.ID, 'feedbackModal'))
-        )
-
-        # Check if the modal is displayed
-        modal = self.browser.find_element(By.ID, 'feedbackModal')
-        self.assertTrue(modal.is_displayed())
-
-        #check that the various fields are being displayed correctly
-        #name
-        name = modal.find_element(By.ID, 'feedbackName').text
-        self.assertEqual(name, 'User 50')
-        
-        #email
-        email = modal.find_element(By.ID, 'feedbackEmail').text
-        self.assertEqual(email, 'user50@example.com')
-        
-        #url
-        url = modal.find_element(By.ID, 'feedbackPageUrl').text
-        self.assertTrue(url.endswith('/feedback/?page=1'))
-        
-        #message
-        message = modal.find_element(By.ID, 'feedbackMessage').text
-        self.assertEqual(message, 'Message 50')
-
-    def test_table_background_color(self):
-        """Test that the table background color is black."""
-        self.browser.get(self.live_server_url + reverse('view_feedback'))
-        
-        # Wait until the table is loaded
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )
-        
-        # Find the table element
-        table = self.browser.find_element(By.CSS_SELECTOR, '.table')
-        
-        # Get the background color of the table
-        background_color = table.value_of_css_property('background-color')
-        
-        # Assert that the background color is dark grey (rgba(26, 26, 26, 1))
-        self.assertEqual(background_color, 'rgba(26, 26, 26, 1)')
-
-@tag('selenium')
-class FeedbackPaginationTest(StaticLiveServerTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.browser = webdriver.Chrome(options=get_chrome_options())
-        cls.browser.set_window_size(1920, 1080)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.quit()
-        super().tearDownClass()
-
-    def setUp(self):
-        # Reset browser state between tests
-        self.browser.get('about:blank')
-        self.browser.delete_all_cookies()
-
-        # Create multiple feedback entries to populate the table
-        for i in range(25):
-            Feedback.objects.create(
-                name=f'Test User {i}',
-                email=f'test{i}@example.com',
-                message=f'This is test message {i}',
-                submitted_at=timezone.now() - timedelta(minutes=i)
-            )
-            
-    def test_pagination_and_refresh(self):
-        # Navigate to the feedback view page
-        self.browser.get(f'{self.live_server_url}/feedback/')
-        
-        # Wait until the table is loaded
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )
-
-        # Capture the initial state of the table
-        initial_rows = self.browser.find_elements(By.CSS_SELECTOR, '#feedback-table-container tbody tr')
-        initial_data = [row.text for row in initial_rows]
-
-        # Clear the `data-refreshed` attribute before starting the test
-        self.browser.execute_script("document.getElementById('feedback-table-container').removeAttribute('data-refreshed');")
-
-        # Wait until the interval has fired and the table has been refreshed
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#feedback-table-container[data-refreshed='true']"))
-        )
-
-        # Capture the state of the table after refresh
-        refreshed_rows = self.browser.find_elements(By.CSS_SELECTOR, '#feedback-table-container tbody tr')
-        refreshed_data = [row.text for row in refreshed_rows]
-
-        # Verify that the data in the table remains the same after refresh
-        self.assertEqual(initial_data, refreshed_data)
-
-    def test_pagination_order(self):
-        # Navigate to the feedback view page
-        self.browser.get(f'{self.live_server_url}/feedback/')
-        
-        # Wait until the table is loaded
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )
-
-        # Capture the timestamps from the table and verify they're in descending order
-        rows = self.browser.find_elements(By.CSS_SELECTOR, '#feedback-table-container tbody tr')
-        timestamps = [row.find_element(By.CSS_SELECTOR, 'td:nth-child(4)').text for row in rows]
-        
-        # Convert the timestamps to datetime objects if needed, and sort them in descending order
-        # For simplicity, assume timestamps are already in a sortable format
-        
-        self.assertEqual(timestamps, sorted(timestamps, reverse=True))
-    
-    def test_refresh_after_adding_feedback(self):
-        # Navigate to the feedback view page
-        self.browser.get(f'{self.live_server_url}/feedback/')
-        
-        # Wait until the table is loaded
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )
-        
-        # Add a new feedback entry
-        Feedback.objects.create(
-            name='New Test User',
-            email='newtestuser@example.com',
-            message='This is a new test message',
-            submitted_at=timezone.now()
-        )
-
-        # Clear the `data-refreshed` attribute before starting the test
-        self.browser.execute_script("document.getElementById('feedback-table-container').removeAttribute('data-refreshed');")
-
-        # Wait until the interval has fired and the table has been refreshed
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#feedback-table-container[data-refreshed='true']"))
-        )
-        
-        # Capture the table data after refresh
-        refreshed_rows = self.browser.find_elements(By.CSS_SELECTOR, '#feedback-table-container tbody tr')
-        refreshed_data = [row.text for row in refreshed_rows]
-
-        # Verify the new feedback is in the table
-        self.assertTrue(any('New Test User' in row for row in refreshed_data))
-    
-    def test_refresh_after_deleting_feedback(self):
-        # Navigate to the feedback view page
-        self.browser.get(f'{self.live_server_url}/feedback/')
-        
-        # Wait until the table is loaded
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )
-        
-        # Delete the latest feedback entry
-        latest_feedback = Feedback.objects.first()
-        latest_feedback.delete()
-
-        # Clear the `data-refreshed` attribute before starting the test
-        self.browser.execute_script("document.getElementById('feedback-table-container').removeAttribute('data-refreshed');")
-
-        # Wait until the interval has fired and the table has been refreshed
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#feedback-table-container[data-refreshed='true']"))
-        )
-        
-        # Capture the table data after refresh
-        refreshed_rows = self.browser.find_elements(By.CSS_SELECTOR, '#feedback-table-container tbody tr')
-        refreshed_data = [row.text for row in refreshed_rows]
-
-        # Verify the deleted feedback is no longer in the table
-        self.assertFalse(any(latest_feedback.message in row for row in refreshed_data))
-            
-    def test_pagination_second_page_after_refresh(self):
-        # Navigate to the feedback view page
-        self.browser.get(f'{self.live_server_url}/feedback/')
-        
-        # Wait until the table is loaded
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )
-        
-        #click on the next page button
-        next_button = self.browser.find_element(By.CSS_SELECTOR, '.page-item.next a')
-        next_button.click()
-        
-        #wait for the table to load
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#feedback-table-container tbody tr'))
-        )
-
-        # Capture the initial state of the table
-        initial_rows = self.browser.find_elements(By.CSS_SELECTOR, '#feedback-table-container tbody tr')
-        initial_data = [row.text for row in initial_rows]
-
-        # Clear the `data-refreshed` attribute before starting the test
-        self.browser.execute_script("document.getElementById('feedback-table-container').removeAttribute('data-refreshed');")
-
-        # Wait until the interval has fired and the table has been refreshed
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#feedback-table-container[data-refreshed='true']"))
-        )
-
-        # Capture the state of the table after refresh
-        refreshed_rows = self.browser.find_elements(By.CSS_SELECTOR, '#feedback-table-container tbody tr')
-        refreshed_data = [row.text for row in refreshed_rows]
-        
-        # Verify that the data in the table remains the same after refresh
-        self.assertEqual(initial_data, refreshed_data)
+    def test_delete_needs_two_taps(self):
+        self.browser.find_element(By.CSS_SELECTOR, '.fbx-chip[data-filter="all"]').click()
+        self._row(self.second).click()
+        delete = self.wait.until(EC.element_to_be_clickable((By.ID, 'detail-delete')))
+        delete.click()
+        self.assertIn('Tap again', delete.text)
+        self.assertTrue(Feedback.objects.filter(id=self.second.id).exists())
+        delete.click()
+        self.wait.until(lambda d: not Feedback.objects.filter(id=self.second.id).exists())
+        self.wait.until(EC.invisibility_of_element_located(
+            (By.CSS_SELECTOR, f'.fbx-it[data-id="{self.second.id}"]')))
