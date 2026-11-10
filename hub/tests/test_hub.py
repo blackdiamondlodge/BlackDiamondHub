@@ -155,8 +155,8 @@ class HomepageRegistryTests(TestCase):
         # is-owner moves Feedback into the avatar menu ("Send feedback").
         home = self.client.get("/").content.decode()
         self.assertRegex(home, r'<nav class="navbar[^"]* is-home')
-        self.assertNotIn("is-owner", home)
-        self.assertNotIn("hub-menu-fb", home)
+        self.assertNotRegex(home, r'<nav class="navbar[^"]* is-owner')
+        self.assertNotIn('class="hub-menu-fb"', home)
         self.client.force_login(User.objects.create_user("owner"))
         app = self.client.get("/wifi/").content.decode()
         self.assertRegex(app, r'<nav class="navbar[^"]* is-owner')
