@@ -24,7 +24,7 @@ bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-con
     --hash=sha256:63066b8ff43fa333df22132924ccfeff25021be164c508d6915009d416ddef88
 bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.1.2/bdh_app_cameras-1.1.2-py3-none-any.whl --hash=sha256:7fd031b707cae69347f0b7da40ebd6de4f7f85d74af0b0d6f5a39e31f3046d23
     --hash=sha256:d9908c2a4d66696c6a2265abb1199832eeccdb129973816bec45ab2c323aa7da
-bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.1.0/bdh_app_vacation_mode-1.1.0-py3-none-any.whl --hash=sha256:84b8053098609fe83ee9c9e13f791dd6e8e400f59bf73f81d6da1fce2c4c151a
+bdh-app-vacation-mode @ https://github.com/blackdiamondlodge/bdh-app-vacation-mode/releases/download/v1.1.1/bdh_app_vacation_mode-1.1.1-py3-none-any.whl --hash=sha256:ed6bf8f974204e8835dc61d50bcc8fd256fee7d12024389838ee16a71d3f4d72
     --hash=sha256:1e4895c885d6003211bc397d6b214d2a62362abbbfa2fc7b66a539708e616041
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v2.2.0/bdh_app_sonos_control-2.2.0-py3-none-any.whl \
     --hash=sha256:2108edf99283829cb102769474d56afcb0f997269eb527e17c771a3dc7bb0740
