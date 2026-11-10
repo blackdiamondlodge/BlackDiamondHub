@@ -1,12 +1,10 @@
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.contrib.auth.models import User
 from django.test import TestCase, Client, tag
 from django.urls import reverse
-from tests.selenium_helpers import get_chrome_options, login_via_browser, wait_for_network_idle
+from tests.selenium_helpers import SeleniumTestCase, login_via_browser, wait_for_network_idle
 
 class LandingPageLiveTests(TestCase):
     def setUp(self):
@@ -54,13 +52,12 @@ class LandingPageLiveTests(TestCase):
                     self.fail(f"Temperature value is not a valid number: {temp}")
 
 @tag('selenium')
-class LandingPageNoScrollTest(StaticLiveServerTestCase):
+class LandingPageNoScrollTest(SeleniumTestCase):
     """Ensure the landing page fits within the viewport on a 1920×1080 display."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.browser = webdriver.Chrome(options=get_chrome_options())
         # Use CDP to set exact viewport dimensions (1920×1080)
         # set_window_size sets the outer window, not the viewport
         cls.browser.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {
@@ -69,11 +66,6 @@ class LandingPageNoScrollTest(StaticLiveServerTestCase):
             'deviceScaleFactor': 1,
             'mobile': False,
         })
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.quit()
-        super().tearDownClass()
 
     def test_no_vertical_scroll_on_1080p(self):
         """The landing page should not scroll vertically on a 1920×1080 display."""
@@ -111,19 +103,9 @@ class LandingPageNoScrollTest(StaticLiveServerTestCase):
 
 
 @tag('selenium')
-class WeatherUnitToggleTest(StaticLiveServerTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.browser = webdriver.Chrome(options=get_chrome_options())
-        cls.browser.set_window_size(1920, 1080)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.quit()
-        super().tearDownClass()
-
+class WeatherUnitToggleTest(SeleniumTestCase):
     def setUp(self):
+        super().setUp()
         # Reset browser state between tests
         self.browser.get('about:blank')
         self.browser.delete_all_cookies()
@@ -205,19 +187,8 @@ class WeatherUnitToggleTest(StaticLiveServerTestCase):
         self.assertEqual(elevation_text, "1000 m")
 
 @tag('selenium')
-class NavbarLoginButtonTest(StaticLiveServerTestCase):
+class NavbarLoginButtonTest(SeleniumTestCase):
     """Test that the login button is visible to unauthenticated users."""
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.browser = webdriver.Chrome(options=get_chrome_options())
-        cls.browser.set_window_size(1920, 1080)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.quit()
-        super().tearDownClass()
 
     def test_login_button_visible_when_not_authenticated(self):
         """Login icon should be visible in the navbar for anonymous visitors.
@@ -250,22 +221,15 @@ class NavbarLoginButtonTest(StaticLiveServerTestCase):
 
 
 @tag('selenium')
-class FeedbackModalTest(StaticLiveServerTestCase):
+class FeedbackModalTest(SeleniumTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.browser = webdriver.Chrome(options=get_chrome_options())
-        cls.browser.set_window_size(1920, 1080)
-        
         # Create a test user
         cls.test_user = User.objects.create_user(username='testuser', password='testpassword', is_staff=True)
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.quit()
-        super().tearDownClass()
-
     def setUp(self):
+        super().setUp()
         # Reset browser state between tests
         self.browser.get('about:blank')
         self.browser.delete_all_cookies()

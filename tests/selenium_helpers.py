@@ -5,7 +5,13 @@ Provides reusable utilities for Selenium-based tests including:
 - Browser login helper with proper WebDriverWait
 - Network idle wait for AJAX-heavy pages
 - Common Chrome options setup
+- SeleniumTestCase base class that dumps browser state when a test fails
 """
+
+import json
+
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from selenium import webdriver
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -14,13 +20,95 @@ from selenium.webdriver.chrome.options import Options
 
 
 def get_chrome_options():
-    """Return standard headless Chrome options used across all Selenium tests."""
+    """Return standard headless Chrome options used across all Selenium tests.
+
+    Google Chrome pulls field-trial configs, component updates and other
+    background downloads at runtime, so its behaviour can change between CI
+    runs with no version change. These flags (the ones Puppeteer and
+    Playwright use) keep the browser the same from run to run.
+    """
     options = Options()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
+    options.add_argument('--disable-background-networking')
+    options.add_argument('--disable-component-update')
+    options.add_argument('--disable-field-trial-config')
+    options.add_argument('--disable-default-apps')
+    options.add_argument('--disable-sync')
+    options.add_argument('--no-first-run')
+    options.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
     return options
+
+
+_STATE_JS = """
+    function box(e) {
+        var cs = getComputedStyle(e), r = e.getBoundingClientRect();
+        return {display: cs.display, visibility: cs.visibility, opacity: cs.opacity,
+                rect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]};
+    }
+    var ids = {};
+    document.querySelectorAll('[id]').forEach(function (e) {
+        if (e.offsetParent !== null || getComputedStyle(e).position === 'fixed') ids[e.id] = box(e);
+    });
+    return {
+        url: location.href,
+        readyState: document.readyState,
+        bodyClass: document.body ? document.body.className : null,
+        visibleIds: ids,
+        requests: performance.getEntriesByType('resource').slice(-30).map(function (r) {
+            return r.name.replace(location.origin, '') + ' ' + Math.round(r.duration) + 'ms ' + (r.responseStatus || '');
+        }),
+    };
+"""
+
+
+def dump_browser_state(driver, label=''):
+    """Print the browser console, page state and recent requests."""
+    print(f'\n===== browser state after failure: {label}')
+    try:
+        for entry in driver.get_log('browser'):
+            print(f"console {entry.get('level')}: {entry.get('message')}")
+    except Exception as exc:
+        print(f'(no console log: {exc})')
+    try:
+        print(json.dumps(driver.execute_script(_STATE_JS), indent=1))
+    except Exception as exc:
+        print(f'(no page state: {exc})')
+    print('===== end browser state')
+
+
+class SeleniumTestCase(StaticLiveServerTestCase):
+    """Live-server test with one shared 1920x1080 headless Chrome per class.
+
+    When a test fails, the browser console and page state are printed so a
+    CI-only failure can be diagnosed from the log instead of re-run.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.browser = webdriver.Chrome(options=get_chrome_options())
+        cls.browser.set_window_size(1920, 1080)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.browser.quit()
+        super().tearDownClass()
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(self._dump_if_failed)
+
+    def _dump_if_failed(self):
+        # Python 3.11+ reports a test's errors to the result as they happen,
+        # so they are already visible when cleanups run.
+        result = getattr(getattr(self, '_outcome', None), 'result', None)
+        if result is None:
+            return
+        if any(test is self for test, _ in result.errors + result.failures):
+            dump_browser_state(self.browser, self.id())
 
 
 def login_via_browser(driver, live_server_url, username="testuser", password="testpassword"):

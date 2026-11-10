@@ -2,16 +2,14 @@ import json
 from unittest import mock
 
 from django.contrib.auth.models import User
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.template.loader import render_to_string
 from django.test import RequestFactory, TestCase, tag
 from django.urls import reverse
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from tests.selenium_helpers import get_chrome_options, login_via_browser
+from tests.selenium_helpers import SeleniumTestCase, login_via_browser
 
 from . import views
 from .models import Feedback
@@ -150,20 +148,10 @@ class SubmitFeedbackTests(TestCase):
 
 
 @tag('selenium')
-class FeedbackInboxSeleniumTest(StaticLiveServerTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.browser = webdriver.Chrome(options=get_chrome_options())
-        cls.browser.set_window_size(1920, 1080)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.quit()
-        super().tearDownClass()
+class FeedbackInboxSeleniumTest(SeleniumTestCase):
 
     def setUp(self):
+        super().setUp()
         User.objects.create_user(username='testuser', password='testpassword', is_staff=True)
         self.first = Feedback.objects.create(message='The hot tub cover is stuck', page_url='/')
         self.second = Feedback.objects.create(message='Webcam is frozen', page_url='/', is_read=True)
