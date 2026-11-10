@@ -298,14 +298,10 @@ class FeedbackModalTest(StaticLiveServerTestCase):
         )
 
         # Wait for the form elements to be interactive
-        name_input = WebDriverWait(self.browser, 20).until(
-            EC.element_to_be_clickable((By.ID, "name"))
+        message_input = WebDriverWait(self.browser, 20).until(
+            EC.element_to_be_clickable((By.ID, "message"))
         )
-        email_input = self.browser.find_element(By.ID, "email")
-        message_input = self.browser.find_element(By.ID, "message")
 
-        name_input.send_keys("Test User")
-        email_input.send_keys("testuser@example.com")
         message_input.send_keys("This is a test feedback message.")
 
         # Submit the feedback form via JavaScript to ensure the submit event fires
