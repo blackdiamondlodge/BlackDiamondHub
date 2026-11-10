@@ -5,11 +5,12 @@ from django.contrib.auth.models import User
 from django.template.loader import render_to_string
 from django.test import RequestFactory, TestCase, tag
 from django.urls import reverse
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from tests.selenium_helpers import SeleniumTestCase, login_via_browser
+from tests.selenium_helpers import SeleniumTestCase, click_until, login_via_browser, wait_for_paint
 
 from . import views
 from .models import Feedback
@@ -160,28 +161,53 @@ class FeedbackInboxSeleniumTest(SeleniumTestCase):
         login_via_browser(self.browser, self.live_server_url)
         self.browser.get(self.live_server_url + reverse('view_feedback'))
         self.wait = WebDriverWait(self.browser, 20)
+        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.fbx-chip.on')))
+        wait_for_paint(self.browser)
 
     def _row(self, fb):
-        return self.wait.until(EC.element_to_be_clickable(
-            (By.CSS_SELECTOR, f'.fbx-it[data-id="{fb.id}"]')))
+        return (By.CSS_SELECTOR, f'.fbx-it[data-id="{fb.id}"]')
+
+    def _open(self, fb):
+        """Open a message and wait for it to show in the reading pane."""
+        click_until(self.browser, self._row(fb), EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, '.fbx-msg'), fb.message))
 
     def test_opening_a_message_marks_it_read(self):
         # Starts on the Unread filter, so only the unread message is listed.
+        self.assertEqual(
+            self.browser.find_element(By.CSS_SELECTOR, '.fbx-chip.on').get_attribute('data-filter'),
+            'unread')
         self.assertEqual(len(self.browser.find_elements(By.CSS_SELECTOR, '.fbx-it')), 1)
-        self._row(self.first).click()
-        self.wait.until(EC.text_to_be_present_in_element(
-            (By.CSS_SELECTOR, '.fbx-msg'), 'The hot tub cover is stuck'))
+        self._open(self.first)
         self.wait.until(lambda d: Feedback.objects.get(id=self.first.id).is_read)
-        self.assertEqual(self.browser.find_element(By.ID, 'count-unread').text, '0')
+        self.wait.until(lambda d: d.find_element(By.ID, 'count-unread').text == '0')
 
     def test_delete_needs_two_taps(self):
-        self.browser.find_element(By.CSS_SELECTOR, '.fbx-chip[data-filter="all"]').click()
-        self._row(self.second).click()
-        delete = self.wait.until(EC.element_to_be_clickable((By.ID, 'detail-delete')))
-        delete.click()
-        self.assertIn('Tap again', delete.text)
+        all_chip = (By.CSS_SELECTOR, '.fbx-chip[data-filter="all"]')
+        click_until(self.browser, all_chip,
+                    lambda d: 'on' in d.find_element(*all_chip).get_attribute('class').split())
+        self._open(self.second)
+
+        delete = (By.ID, 'detail-delete')
+        row = self._row(self.second)
+
+        def armed(d):
+            return 'arm' in d.find_element(*delete).get_attribute('class').split()
+
+        click_until(self.browser, delete, armed)
+        self.assertIn('Tap again', self.browser.find_element(*delete).text)
         self.assertTrue(Feedback.objects.filter(id=self.second.id).exists())
-        delete.click()
+
+        # The inbox re-renders every 20s, which disarms the button, so re-arm
+        # before the second tap if that happened in between.
+        for attempt in range(3):
+            if not armed(self.browser):
+                click_until(self.browser, delete, armed)
+            self.browser.find_element(*delete).click()
+            try:
+                WebDriverWait(self.browser, 3).until(lambda d: not d.find_elements(*row))
+                break
+            except TimeoutException:
+                if attempt == 2:
+                    raise
         self.wait.until(lambda d: not Feedback.objects.filter(id=self.second.id).exists())
-        self.wait.until(EC.invisibility_of_element_located(
-            (By.CSS_SELECTOR, f'.fbx-it[data-id="{self.second.id}"]')))

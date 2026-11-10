@@ -6,12 +6,22 @@ Provides reusable utilities for Selenium-based tests including:
 - Network idle wait for AJAX-heavy pages
 - Common Chrome options setup
 - SeleniumTestCase base class that dumps browser state when a test fails
+- wait_for_paint / click_until / type_into for input that Chrome may drop
+
+Why the last group exists: WebDriver reports a click or keystroke as sent
+even when the page never receives it. The main cause, Chrome's password
+manager taking focus after login, is switched off in get_chrome_options();
+these helpers also confirm every interaction had its effect and repeat it
+if not, so a test fails on a real bug rather than on lost input.
 """
 
 import json
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from selenium import webdriver
+from selenium.common.exceptions import (
+    NoSuchElementException, StaleElementReferenceException, TimeoutException,
+)
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -38,6 +48,16 @@ def get_chrome_options():
     options.add_argument('--disable-default-apps')
     options.add_argument('--disable-sync')
     options.add_argument('--no-first-run')
+    # After the tests log in, Chrome's password manager can open a "Save
+    # password?" bubble or a leaked-password warning ("testpassword" is in
+    # breach lists). Either takes focus from the page, and the clicks and
+    # keystrokes that follow are silently lost.
+    options.add_argument('--disable-features=PasswordLeakDetection,PasswordManagerOnboarding')
+    options.add_experimental_option('prefs', {
+        'credentials_enable_service': False,
+        'profile.password_manager_enabled': False,
+        'profile.password_manager_leak_detection': False,
+    })
     options.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
     return options
 
@@ -111,13 +131,94 @@ class SeleniumTestCase(StaticLiveServerTestCase):
             dump_browser_state(self.browser, self.id())
 
 
+def wait_for_paint(driver, timeout=20):
+    """Wait until the page has loaded and painted at least one frame.
+
+    Call after a navigation and before the first click or keystroke.
+    """
+    WebDriverWait(driver, timeout).until(
+        lambda d: d.execute_script('return document.readyState') == 'complete'
+    )
+    driver.set_script_timeout(timeout)
+    driver.execute_async_script(
+        'var done = arguments[arguments.length - 1];'
+        'requestAnimationFrame(function () { requestAnimationFrame(function () { done(true); }); });'
+    )
+
+
+def click_until(driver, locator, done, attempts=3, settle=3, timeout=20):
+    """Click the element at ``locator`` until ``done(driver)`` is truthy.
+
+    The element is looked up again before every click, so a re-render
+    between attempts doesn't leave a stale reference. Only use this where
+    ``done`` turns true as soon as the click lands; a slow server reply
+    could otherwise trigger a second click.
+
+    Returns the value ``done`` returned.
+    """
+    for attempt in range(attempts):
+        WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator)).click()
+        try:
+            return WebDriverWait(driver, settle).until(done)
+        except TimeoutException:
+            # A poll can block on a page load until after the deadline, so
+            # look once more before clicking again.
+            try:
+                value = done(driver)
+            except (NoSuchElementException, StaleElementReferenceException):
+                value = None
+            if value:
+                return value
+            if attempt == attempts - 1:
+                raise
+
+
+def type_into(driver, locator, text, attempts=3, timeout=20):
+    """Replace the value of the input at ``locator`` with ``text`` and check it stuck."""
+    def typed(d):
+        return d.find_element(*locator).get_attribute('value') == text
+
+    for attempt in range(attempts):
+        field = WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator))
+        field.click()
+        field.clear()
+        field.send_keys(text)
+        try:
+            WebDriverWait(driver, 2).until(typed)
+            return
+        except TimeoutException:
+            if attempt == attempts - 1:
+                raise
+
+
+def _submit_login(driver, username, password):
+    """Fill in and submit the login form on the current page."""
+    wait_for_paint(driver)
+    type_into(driver, (By.ID, 'id_username'), username)
+    type_into(driver, (By.ID, 'id_password'), password)
+    # Note the form's submit so a click that is still navigating isn't repeated.
+    driver.execute_script(
+        "document.getElementById('login-submit').form.addEventListener("
+        "'submit', function () { window.__loginSubmitted = true; });"
+    )
+    click_until(
+        driver, (By.ID, 'login-submit'),
+        lambda d: '/accounts/login/' not in d.current_url
+        or d.execute_script('return window.__loginSubmitted === true'),
+        settle=10,
+    )
+    # The login page shares base.html elements (e.g. feedback-button) with the
+    # destination, so wait for the redirect to avoid grabbing stale elements.
+    WebDriverWait(driver, 30).until(lambda d: '/accounts/login/' not in d.current_url)
+    wait_for_paint(driver)
+
+
 def login_via_browser(driver, live_server_url, username="testuser", password="testpassword"):
     """
     Log in via the Django login page using Selenium.
 
-    Uses WebDriverWait for all element interactions to avoid race conditions.
-    Waits for the login to complete by checking for the feedback-button element
-    on the redirected page.
+    Every keystroke and the submit click are confirmed, and the helper
+    returns once the redirected page has painted.
 
     Args:
         driver: Selenium WebDriver instance.
@@ -126,23 +227,7 @@ def login_via_browser(driver, live_server_url, username="testuser", password="te
         password: Password to log in with (default: "testpassword").
     """
     driver.get(f'{live_server_url}/accounts/login/')
-
-    username_input = WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.ID, "id_username"))
-    )
-    password_input = driver.find_element(By.ID, "id_password")
-
-    username_input.send_keys(username)
-    password_input.send_keys(password)
-
-    login_button = driver.find_element(By.ID, 'login-submit')
-    login_button.click()
-
-    # The login page shares base.html elements (e.g. feedback-button) with the
-    # destination, so wait for the redirect to avoid grabbing stale elements.
-    WebDriverWait(driver, 20).until(
-        lambda d: '/accounts/login/' not in d.current_url
-    )
+    _submit_login(driver, username, password)
 
 
 def login_from_page(driver, live_server_url, username="testuser", password="testpassword"):
@@ -160,33 +245,12 @@ def login_from_page(driver, live_server_url, username="testuser", password="test
         username: Username to log in with (default: "testuser").
         password: Password to log in with (default: "testpassword").
     """
-    # If we're already on the login page (e.g. redirected by @login_required),
-    # skip clicking the navbar login button — just fill in credentials directly.
     if '/accounts/login/' not in driver.current_url:
-        login_button = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.ID, 'login-button'))
-        )
-        login_button.click()
-
-    # Wait for login page to load
-    username_input = WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.ID, "id_username"))
-    )
-    password_input = driver.find_element(By.ID, "id_password")
-
-    username_input.send_keys(username)
-    password_input.send_keys(password)
-
-    # Wait for submit button to be clickable before clicking
-    login_button = WebDriverWait(driver, 20).until(
-        EC.element_to_be_clickable((By.ID, 'login-submit'))
-    )
-    login_button.click()
-
-    # Wait for navigation away from the login page
-    WebDriverWait(driver, 20).until(
-        lambda d: '/accounts/login/' not in d.current_url
-    )
+        wait_for_paint(driver)
+        click_until(driver, (By.ID, 'login-button'),
+                    lambda d: '/accounts/login/' in d.current_url, settle=10)
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'id_username')))
+    _submit_login(driver, username, password)
 
 
 def wait_for_network_idle(driver, timeout=10):
