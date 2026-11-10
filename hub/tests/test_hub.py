@@ -150,6 +150,19 @@ class HomepageRegistryTests(TestCase):
         self.assertContains(response, 'id="home-button"')
         self.assertContains(response, '<div class="navhub-title">WiFi</div>', html=False)
 
+    def test_navbar_flags_drive_the_phone_layout(self):
+        # base.html's phone CSS keys off these: is-home keeps the monogram and inline extras,
+        # is-owner moves Feedback into the avatar menu ("Send feedback").
+        home = self.client.get("/").content.decode()
+        self.assertRegex(home, r'<nav class="navbar[^"]* is-home')
+        self.assertNotIn("is-owner", home)
+        self.assertNotIn("hub-menu-fb", home)
+        self.client.force_login(User.objects.create_user("owner"))
+        app = self.client.get("/wifi/").content.decode()
+        self.assertRegex(app, r'<nav class="navbar[^"]* is-owner')
+        self.assertNotRegex(app, r'<nav class="navbar[^"]* is-home')
+        self.assertIn('class="hub-menu-fb"', app)
+
     def test_signed_in_user_gets_owner_mode(self):
         self.client.force_login(User.objects.create_user("owner"))
         response = self.client.get("/")
