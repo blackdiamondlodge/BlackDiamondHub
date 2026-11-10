@@ -93,23 +93,43 @@
             line-height: 1;
         }
 
-        /* Feedback button in navbar — styled as nav link */
+        /* Feedback: labelled glass pill so guests know what it is */
         .feedback-button {
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 1.35rem;
-            cursor: pointer;
-            min-width: 48px;
-            min-height: 48px;
+            height: 44px;
+            border-radius: 999px;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            padding: 8px 14px;
+            gap: 8px;
+            padding: 0 18px;
+            margin-left: 6px;
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .14);
+            color: #e8eef5;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s;
         }
 
-        .feedback-button:hover {
-            color: #fff;
+        .feedback-button i { color: #7cc4ff; font-size: 1rem; }
+        .feedback-button:hover { background: rgba(255, 255, 255, .16); }
+
+        /* Staff-only controls (login, inbox, logout): deliberately quiet */
+        .navbar .nav-link.nav-ghost {
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0;
+            background: none;
+            border: 0;
+            color: #6f8196;
+            cursor: pointer;
+        }
+
+        .navbar .nav-link.nav-ghost i { font-size: 1.05rem; }
+        .navbar .nav-link.nav-ghost:hover { color: #e8eef5; }
+        @media (max-width: 520px) {
+            .feedback-button { width: 44px; padding: 0; justify-content: center; }
+            .feedback-button span { display: none; }
         }
 
         /* Content area below fixed navbar */
@@ -385,13 +405,13 @@
                         data-bs-toggle="modal"
                         data-bs-target="#feedback-modal"
                         title="Give Feedback">
-                    <i class="fas fa-comment-dots"></i>
+                    <i class="fas fa-comment-dots"></i><span>Feedback</span>
                 </button>
 
                 {% if user.is_authenticated %}
                     <!-- Notifications (staff only) -->
                     <a href="{% url 'view_feedback' %}"
-                       class="nav-link notification-icon"
+                       class="nav-link nav-ghost notification-icon"
                        title="Feedback Inbox">
                         <i class="fas fa-envelope"></i>
                         {% if unread_feedback_count > 0 %}
@@ -405,20 +425,19 @@
                           class="d-inline">
                         {% csrf_token %}
                         <button type="submit"
-                                class="nav-link"
+                                class="nav-link nav-ghost"
                                 id="logout-button"
-                                title="Logout"
-                                style="background:none;border:none;color:rgba(255,255,255,0.85);cursor:pointer;">
+                                title="Logout">
                             <i class="fas fa-right-from-bracket"></i>
                         </button>
                     </form>
                 {% else %}
                     <!-- Login -->
                     <a href="{% url 'login' %}?next={{ request.path }}"
-                       class="nav-link"
+                       class="nav-link nav-ghost"
                        id="login-button"
-                       title="Login">
-                        <i class="fas fa-right-to-bracket"></i>
+                       title="Staff login">
+                        <i class="fas fa-lock"></i>
                     </a>
                 {% endif %}
             </div>
