@@ -172,6 +172,7 @@
 {% block content %}
 <div id="hub-card-slot"></div>
 {{ hub_card|json_script:"hub-card-data" }}
+{{ hub_home|json_script:"hub-home-data" }}
 {% if hub_welcome %}
 <section class="hub-welcome" aria-label="Welcome">
     <h1>Welcome{% if hub_welcome.guest %}, {{ hub_welcome.guest }}{% endif %}</h1>
@@ -215,6 +216,8 @@
         var STATUS_URL = "{% url 'hub_status' %}";
         var HUB_MODE = "{{ hub_mode }}";
         var POLL_MS = 60000;
+        // When the server is still refreshing a slow hook, ask again soon.
+        var REFRESH_MS = 3000;
         var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
         var quick = document.getElementById('hub-quick');
 
@@ -282,22 +285,33 @@
             quick.hidden = shortcuts.length === 0;
         }
 
+        var timer = null;
+        function schedule(ms) {
+            clearTimeout(timer);
+            timer = setTimeout(refresh, ms);
+        }
+
+        function apply(d) {
+            applyStatus(d.status || {});
+            renderShortcuts(d.shortcuts || []);
+            schedule(d.refreshing ? REFRESH_MS : POLL_MS);
+        }
+
         function refresh() {
             fetch(STATUS_URL, { credentials: 'same-origin' })
                 .then(function (r) { return r.ok ? r.json() : null; })
                 .then(function (d) {
-                    if (!d) return;
+                    if (!d) { schedule(POLL_MS); return; }
                     // A stay started or ended: the tiles and welcome card differ by mode.
                     if (d.mode && d.mode !== HUB_MODE) { window.location.reload(); return; }
-                    applyStatus(d.status || {});
-                    renderShortcuts(d.shortcuts || []);
+                    apply(d);
                     if ('card' in d) renderCard(d.card);
                 })
-                .catch(function () {});
+                .catch(function () { schedule(POLL_MS); });
         }
 
-        refresh();
-        setInterval(refresh, POLL_MS);
+        // The page arrives with status and shortcuts; polling keeps them current.
+        apply(JSON.parse(document.getElementById('hub-home-data').textContent));
     })();
 
     // The lodge card: rendered from the page's JSON, then on every poll.
