@@ -1,79 +1,140 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Login — Black Diamond Hub{% endblock %}
+{% block title %}Owner sign in — Black Diamond Hub{% endblock %}
 
-{% block content %}
+{% block body_class %}hub-login{% endblock %}
+
+{% block extra_head %}
 <style>
+    body.hub-login {
+        --bg: #0d1420; --bg2: #121c2c; --line: #26354f;
+        --top: rgba(29, 43, 69, .8); --bot: rgba(18, 28, 44, .88);
+        --fg: #eef3fa; --mut: #8fa3bd; --dim: #6f86a3;
+        --acc: #5ba4e6; --acc2: #7cc4ff; --glow: rgba(91, 164, 230, .35);
+        --ridge1: #16233a; --ridge2: #101a2b; --snow: #2c3f5e;
+        background: radial-gradient(1200px 600px at 15% -10%, #1b2d4a 0%, transparent 60%),
+                    linear-gradient(180deg, var(--bg2), var(--bg));
+        color: var(--fg);
+        font-family: "Segoe UI", Inter, system-ui, sans-serif;
+    }
+    body.hub-login.theme-night {
+        --bg: #0b0907; --bg2: #120e0a; --line: #30261b;
+        --top: rgba(35, 27, 19, .82); --bot: rgba(18, 14, 10, .9);
+        --fg: #f3e3cc; --mut: #a28f74; --dim: #8a785f;
+        --acc: #f2a65a; --acc2: #ffc489; --glow: rgba(242, 166, 90, .3);
+        --ridge1: #21180f; --ridge2: #17110b; --snow: #3a2c1d;
+        background: radial-gradient(1200px 600px at 85% -10%, #2a1c10 0%, transparent 60%),
+                    linear-gradient(180deg, var(--bg2), var(--bg));
+    }
+    body.hub-login .navbar.bg-dark {
+        background: var(--bg2) !important;
+        border-bottom: 1px solid var(--line);
+    }
+    body.hub-login .content-wrapper { padding: 0; }
+
     .login-wrapper {
+        position: relative;
+        overflow: hidden;
         display: flex;
         justify-content: center;
         align-items: center;
         min-height: calc(100vh - 62px);
-        background-color: #000000;
     }
-
+    .login-ridge {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        width: 100%; height: 42%; max-height: 360px; pointer-events: none;
+    }
     .login-card {
-        background-color: #ffffff;
-        padding: 40px;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-        width: 100%;
-        max-width: 400px;
-        margin: 20px;
-    }
-
-    .login-card h2 {
-        margin-bottom: 24px;
-        color: #000000;
+        position: relative; z-index: 1;
+        width: 100%; max-width: 420px; margin: 20px;
+        padding: 38px 36px 30px;
+        background: linear-gradient(180deg, var(--top), var(--bot));
+        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+        border: 1px solid rgba(255, 255, 255, .12); border-radius: 26px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .08);
         text-align: center;
     }
-
-    .login-card .form-label {
-        font-weight: 600;
-        color: #333333;
+    .login-mono { width: 64px; height: 64px; margin: 0 auto 14px; display: block; }
+    .login-card h2 { color: var(--fg); font-size: 26px; font-weight: 600; margin: 0 0 4px; }
+    .login-sub { color: var(--mut); font-size: 15px; margin: 0 0 26px; }
+    .login-err {
+        background: rgba(229, 83, 83, .12); border: 1px solid rgba(229, 83, 83, .4);
+        color: #ffb3b3; border-radius: 12px; padding: 10px 12px;
+        font-size: 15px; margin-bottom: 16px; text-align: left;
     }
-
+    .login-field { position: relative; margin-bottom: 14px; text-align: left; }
+    .login-field i { position: absolute; left: 16px; top: 18px; color: var(--dim); pointer-events: none; }
     .login-card .form-control {
-        padding: 12px;
-        font-size: 16px;
-        border-radius: 6px;
+        background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+        border-radius: 14px; color: var(--fg); padding: 14px 14px 14px 44px; font-size: 16px;
     }
-
-    .login-card .btn {
-        min-height: 48px;
-        font-size: 16px;
-        font-weight: 600;
+    .login-card .form-control::placeholder { color: var(--dim); }
+    .login-card .form-control:focus {
+        background: rgba(255, 255, 255, .08); border-color: var(--acc);
+        box-shadow: 0 0 0 4px var(--glow); color: var(--fg);
     }
+    #login-submit {
+        width: 100%; min-height: 50px; margin-top: 10px;
+        border: 0; border-radius: 999px; font-size: 17px; font-weight: 600; color: #0c1622;
+        background: linear-gradient(135deg, var(--acc2), var(--acc));
+        box-shadow: 0 10px 24px var(--glow);
+    }
+    #login-submit:hover, #login-submit:focus { filter: brightness(1.08); }
+    .login-back {
+        display: inline-flex; align-items: center; gap: 8px; min-height: 48px;
+        margin-top: 8px; color: var(--mut); text-decoration: none; font-size: 15px;
+    }
+    .login-back:hover { color: var(--fg); }
 
     /* Hide navbar login button — we're already on the login page */
     #login-button {
         display: none;
     }
 </style>
+{% endblock %}
 
+{% block content %}
 <div class="login-wrapper">
+    <svg class="login-ridge" viewBox="0 0 1600 380" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <path d="M0 300 L180 190 L300 250 L470 110 L620 230 L760 160 L900 260 L1080 90 L1230 210 L1380 150 L1600 260 L1600 380 L0 380Z" fill="var(--ridge1)"/>
+        <path d="M0 340 L220 250 L380 310 L560 220 L760 320 L980 230 L1180 300 L1400 240 L1600 310 L1600 380 L0 380Z" fill="var(--ridge2)"/>
+        <path d="M1080 90 L1040 135 L1065 128 L1080 145 L1100 125 L1120 132Z M470 110 L440 145 L462 138 L478 152 L492 134Z" fill="var(--snow)"/>
+    </svg>
     <div class="login-card">
-        <h2>Login</h2>
+        <img class="login-mono" src="{% static 'hub/bdl-monogram-light.svg' %}" alt="">
+        <h2>Owner sign in</h2>
+        <p class="login-sub">Black Diamond Lodge · Sun Peaks</p>
         {% if form.errors %}
-        <div class="alert alert-danger" role="alert">
-            Invalid username or password. Please try again.
+        <div class="login-err" role="alert">
+            <i class="fas fa-circle-exclamation"></i>&nbsp; That username and password didn't match.
         </div>
         {% endif %}
         <form method="post">
             {% csrf_token %}
-            <div class="mb-3">
-                <label for="id_username" class="form-label">Username</label>
-                <input type="text" name="username" id="id_username" class="form-control" autofocus required>
+            <div class="login-field">
+                <i class="fas fa-user"></i>
+                <label for="id_username" class="visually-hidden">Username</label>
+                <input type="text" name="username" id="id_username" class="form-control" placeholder="Username" autocomplete="username" autofocus required>
             </div>
-            <div class="mb-3">
-                <label for="id_password" class="form-label">Password</label>
-                <input type="password" name="password" id="id_password" class="form-control" required>
+            <div class="login-field">
+                <i class="fas fa-lock"></i>
+                <label for="id_password" class="visually-hidden">Password</label>
+                <input type="password" name="password" id="id_password" class="form-control" placeholder="Password" autocomplete="current-password" required>
             </div>
-            <div class="d-grid gap-2 mt-4">
-                <button type="submit" class="btn btn-primary" id="login-submit">Login</button>
-                <a href="{% url 'landing_page' %}" class="btn btn-outline-secondary">Cancel</a>
-            </div>
+            <button type="submit" id="login-submit">Sign in</button>
         </form>
+        <a href="{% url 'landing_page' %}" class="login-back"><i class="fas fa-arrow-left"></i> Back to the hub</a>
     </div>
 </div>
+<script>
+    (function () {
+        function theme() {
+            var h = new Date().getHours();
+            document.body.classList.toggle('theme-night', h >= 18 || h < 6);
+        }
+        theme();
+        setInterval(theme, 60000);
+    })();
+</script>
 {% endblock %}
