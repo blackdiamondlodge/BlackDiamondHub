@@ -314,9 +314,14 @@ class FeedbackModalTest(StaticLiveServerTestCase):
         wait_for_network_idle(self.browser)
 
         # Wait for the success message to be visible
-        WebDriverWait(self.browser, 30).until(
-            EC.visibility_of_element_located((By.ID, "feedback-success"))
-        )
+        try:
+            WebDriverWait(self.browser, 30).until(
+                EC.visibility_of_element_located((By.ID, "feedback-success"))
+            )
+        except Exception:
+            from tests.selenium_helpers import dump_browser
+            dump_browser(self.browser, 'feedback-modal')
+            raise
 
         # Check that the success message is displayed
         success_message = self.browser.find_element(By.ID, "feedback-success").text

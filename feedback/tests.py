@@ -174,8 +174,13 @@ class FeedbackInboxSeleniumTest(StaticLiveServerTestCase):
         self.wait = WebDriverWait(self.browser, 20)
 
     def _row(self, fb):
-        return self.wait.until(EC.element_to_be_clickable(
-            (By.CSS_SELECTOR, f'.fbx-it[data-id="{fb.id}"]')))
+        try:
+            return self.wait.until(EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, f'.fbx-it[data-id="{fb.id}"]')))
+        except Exception:
+            from tests.selenium_helpers import dump_browser
+            dump_browser(self.browser, 'inbox-row')
+            raise
 
     def test_opening_a_message_marks_it_read(self):
         # Starts on the Unread filter, so only the unread message is listed.

@@ -166,3 +166,33 @@ def wait_for_network_idle(driver, timeout=10):
             "return window.__networkIdleTracker ? window.__networkIdleTracker.pending === 0 : true"
         )
     )
+
+
+def dump_browser(driver, label=''):
+    import json
+    print('\n==== DEBUG', label, driver.current_url)
+    try:
+        for e in driver.get_log('browser'):
+            print('CONSOLE', e.get('level'), e.get('message'))
+    except Exception as ex:
+        print('no console log', ex)
+    try:
+        print('STATE', json.dumps(driver.execute_script("""
+            var q=function(s){var e=document.querySelector(s); if(!e) return null;
+              var cs=getComputedStyle(e), r=e.getBoundingClientRect();
+              return {cls:e.className, disp:cs.display, vis:cs.visibility, op:cs.opacity, r:[r.x,r.y,r.width,r.height], txt:(e.innerText||'').slice(0,200)}};
+            var top=function(s){var e=document.querySelector(s); if(!e) return null; var r=e.getBoundingClientRect();
+              var t=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return t?(t.tagName+'#'+t.id+'.'+t.className).slice(0,200):null};
+            return {body:document.body.className, ready:document.readyState,
+              modal:q('#feedback-modal'), success:q('#feedback-success'), form:q('#feedback-form'),
+              chipAll:q('.fbx-chip[data-filter=\"all\"]'), topAtChip:top('.fbx-chip[data-filter=\"all\"]'),
+              items:Array.from(document.querySelectorAll('.fbx-it')).map(function(e){var r=e.getBoundingClientRect();return [e.dataset.id,getComputedStyle(e).display,r.y,r.height]}),
+              tracker:window.__networkIdleTracker||null,
+              res:performance.getEntriesByType('resource').slice(-25).map(function(r){return r.name.replace(location.origin,'')+' '+Math.round(r.duration)+'ms '+r.responseStatus})};
+        """), indent=1))
+    except Exception as ex:
+        print('state failed', ex)
+    try:
+        print('HTML', driver.page_source[:6000])
+    except Exception:
+        pass
