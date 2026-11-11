@@ -15,6 +15,8 @@ from hub.plugins import (
     Status, Stay, Tile,
 )
 from hub.status import current_stay, home_data
+from hub_settings import store as hub_store
+from hub_settings.models import AppSetting
 
 
 def _tile(**kw):
@@ -59,7 +61,7 @@ class LoaderValidationTests(SimpleTestCase):
         self.assertEqual([s.id for s in specs], ["radiant", "external"])
 
 
-class TileModeTests(SimpleTestCase):
+class TileModeTests(TestCase):
     plugins = (
         PluginSpec(id="wifi", app="wifi", tiles=(_tile(title="WiFi"),)),
         PluginSpec(id="vacation_mode", app="vacation_mode", tiles=(
@@ -68,9 +70,19 @@ class TileModeTests(SimpleTestCase):
         PluginSpec(id="ghost", app="ghost", tiles=(_tile(title="Ghost", url_name="no_such_url"),)),
     )
 
+    def setUp(self):
+        hub_store.clear()
+        self.addCleanup(hub_store.clear)
+
+    def sections(self, mode, plugins=None):
+        with override_settings(HUB_PLUGINS=plugins or self.plugins):
+            return {key: items for key, _, items in tiles_for_mode(mode)}
+
     def titles(self, mode):
-        with override_settings(HUB_PLUGINS=self.plugins):
-            return [t["title"] for _, _, tiles in tiles_for_mode(mode) for t in tiles]
+        return [t["title"] for items in self.sections(mode).values() for t in items if t["kind"] == "app"]
+
+    def save_layout(self, layout):
+        AppSetting.objects.update_or_create(app_id="hub", key="home_layout", defaults={"value": layout})
 
     def test_owner_only_tiles_are_hidden_from_other_modes(self):
         self.assertEqual(self.titles(GUEST), ["WiFi"])
@@ -80,16 +92,37 @@ class TileModeTests(SimpleTestCase):
     def test_tile_with_unknown_url_is_skipped(self):
         self.assertNotIn("Ghost", self.titles(OWNER))
 
-    def test_odd_sections_lead_with_one_large_tile(self):
+    def test_default_layout_leads_with_one_large_tile(self):
         def sizes(n):
             tiles = tuple(_tile(title=f"T{i}", order=i) for i in range(n))
-            with override_settings(HUB_PLUGINS=(PluginSpec(id="a", app="a", tiles=tiles),)):
-                (_, _, items), = tiles_for_mode(OWNER)
+            items = self.sections(OWNER, (PluginSpec(id="a", app="a", tiles=tiles),))["more"]
             return [t["size"] for t in items]
 
-        self.assertEqual(sizes(1), ["lg"])
-        self.assertEqual(sizes(2), ["half", "half"])
-        self.assertEqual(sizes(3), ["lg", "half", "half"])
+        self.assertEqual(sizes(1), ["l"])
+        self.assertEqual(sizes(2), ["l", "m"])
+        self.assertEqual(sizes(3), ["l", "m", "m"])
+
+    def test_weather_is_built_in_and_a_lone_lodge_card_has_no_section(self):
+        sections = self.sections(OWNER)
+        self.assertEqual([t["kind"] for t in sections["mountain"]], ["weather"])
+        self.assertNotIn("lodge", sections)
+
+    def test_saved_layout_orders_and_sizes_tiles(self):
+        self.save_layout({"more": [
+            {"id": "wifi:wifi_qr", "size": "s"},
+            {"id": "vacation_mode:vacation_mode", "size": "huge"},
+            {"id": "gone:app", "size": "l"},
+        ]})
+        items = self.sections(OWNER)["more"]
+        self.assertEqual([(t["title"], t["size"]) for t in items], [("WiFi", "s"), ("Vacation", "m")])
+
+    def test_tiles_missing_from_saved_layout_follow_it(self):
+        self.save_layout({"more": [{"id": "wifi:wifi_qr", "size": "m"}]})
+        self.assertEqual(self.titles(OWNER), ["WiFi", "Vacation"])
+
+    def test_malformed_saved_layout_is_ignored(self):
+        self.save_layout(["not", "a", "dict"])
+        self.assertEqual(self.titles(OWNER), ["Vacation", "WiFi"])
 
 
 class NavTitleTests(SimpleTestCase):

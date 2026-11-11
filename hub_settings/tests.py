@@ -1,3 +1,5 @@
+import json
+
 from bdh_sdk.plugins import BOOL, CHOICE, INT, TIME
 from bdh_sdk.settings import app_setting
 from bdh_sdk.storage import app_state
@@ -98,6 +100,55 @@ class SettingsPageTests(TestCase):
     def test_menu_link_for_staff(self):
         self.client.force_login(self.staff)
         self.assertContains(self.client.get(reverse("hub_settings_apps")), 'href="/settings/"')
+
+
+class HomeLayoutPageTests(TestCase):
+    url = "/settings/home/"
+
+    def setUp(self):
+        store.clear()
+        self.addCleanup(store.clear)
+        User = get_user_model()
+        self.staff = User.objects.create_user("staff", password="pw", is_staff=True)
+        self.guest = User.objects.create_user("guest", password="pw")
+
+    def saved(self):
+        return AppSetting.objects.get(app_id="hub", key="home_layout").value
+
+    def test_staff_only(self):
+        self.client.force_login(self.guest)
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    def test_lists_tiles_and_nav_entry(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'data-id="hub:weather"')
+        self.assertContains(response, 'href="/settings/home/"')
+        self.assertContains(response, "Home layout")
+
+    def test_save_keeps_known_tiles_and_valid_sizes(self):
+        self.client.force_login(self.staff)
+        layout = {"mountain": [{"id": "hub:weather", "size": "s"}, {"id": "hub:weather", "size": "l"},
+                               {"id": "nope:x", "size": "m"}],
+                  "garage": [{"id": "hub:weather", "size": "m"}]}
+        response = self.client.post(self.url, {"layout": json.dumps(layout)})
+        self.assertRedirects(response, self.url + "?saved=1")
+        self.assertEqual(self.saved(), {"mountain": [{"id": "hub:weather", "size": "s"}]})
+        self.assertEqual(AppSetting.objects.get(key="home_layout").updated_by, self.staff)
+
+    def test_bad_layout_is_rejected(self):
+        self.client.force_login(self.staff)
+        for raw in ("{nope", "[]", '{"mountain": ["x"]}'):
+            response = self.client.post(self.url, {"layout": raw})
+            self.assertEqual(response.status_code, 400)
+        self.assertFalse(AppSetting.objects.exists())
+
+    def test_reset_deletes_layout(self):
+        self.client.force_login(self.staff)
+        self.client.post(self.url, {"layout": json.dumps({"mountain": [{"id": "hub:weather", "size": "s"}]})})
+        self.assertContains(self.client.get(self.url), 'name="reset"')
+        self.assertRedirects(self.client.post(self.url, {"reset": "1"}), self.url + "?saved=1")
+        self.assertFalse(AppSetting.objects.exists())
 
 
 class SettingsValidationTests(TestCase):

@@ -1,0 +1,139 @@
+{% extends 'hub_settings/_layout.html' %}
+{% load static %}
+
+{% block section %}
+<style>
+    .hl-list { list-style: none; margin: 0; padding: 6px 0; }
+    .hl-row {
+        display: flex; flex-direction: row; align-items: center; gap: 16px; padding: 10px 22px 10px 8px;
+        margin: 0; min-width: 0;
+        background: var(--card); border-bottom: 1px solid rgba(255,255,255,.05);
+        touch-action: pan-y; user-select: none;
+    }
+    .hl-row:last-child { border-bottom: 0; }
+    .hl-row.is-drag { position: relative; z-index: 2; background: var(--card2); box-shadow: 0 10px 30px rgba(0,0,0,.45); border-radius: 14px; }
+    .hl-grip {
+        width: 48px; height: 48px; flex: none; display: grid; place-items: center;
+        color: var(--dim); font-size: 18px; cursor: grab; touch-action: none;
+    }
+    .hl-row.is-drag .hl-grip { cursor: grabbing; color: var(--acc2); }
+    .hl-ico { width: 36px; height: 36px; flex: none; display: grid; place-items: center; color: var(--acc); font-size: 22px; }
+    .hl-ico img { width: 36px; height: 36px; object-fit: contain; }
+    .hl-row .lbl { flex: 1; min-width: 0; }
+    .hl-row .lbl b { display: block; font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hl-row .lbl small { display: block; color: var(--mut); font-size: 13px; margin-top: 2px; }
+    .hl-size { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); flex: none; }
+    .hl-size button {
+        width: 48px; height: 40px; border: 0; border-radius: 9px; background: transparent;
+        color: var(--mut); font-size: 15px; font-weight: 600;
+    }
+    .hl-size button[aria-pressed="true"] { background: var(--acc); color: #0c1622; }
+    .hl-tip { color: var(--mut); font-size: 14px; margin: -6px 0 16px; }
+</style>
+
+<form method="post" id="hl-form" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="layout" id="hl-layout">
+    <div class="hst-head">
+        <div>
+            <h2>Home layout</h2>
+            <p>The order and size of the tiles on the home screen.</p>
+        </div>
+        <div class="act">
+            {% if customised %}<button type="submit" name="reset" value="1" class="hst-btn ghost" formnovalidate>Reset</button>{% endif %}
+            <button type="submit" class="hst-btn">Save</button>
+        </div>
+    </div>
+    {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
+    {% if has_errors %}<div class="hst-note bad" role="alert">That layout couldn't be saved. Try again.</div>{% endif %}
+    <p class="hl-tip">Drag <i class="fas fa-grip-vertical" aria-hidden="true"></i> to reorder. S is one square, M two side by side, L a big two-by-two.</p>
+    {% for key, title, tiles in sections %}
+    <section class="hst-card">
+        <h3>{{ title }}</h3>
+        <ul class="hl-list" data-section="{{ key }}">
+            {% for tile in tiles %}
+            <li class="hl-row" data-id="{{ tile.id }}" data-size="{{ tile.size }}">
+                <span class="hl-grip" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
+                <span class="hl-ico">
+                    {% if tile.kind == 'weather' %}<i class="fas fa-mountain" aria-hidden="true"></i>
+                    {% elif tile.kind == 'lodge' %}<i class="fas fa-house" aria-hidden="true"></i>
+                    {% elif tile.icon %}<img src="{% static tile.icon %}" alt="">{% endif %}
+                </span>
+                <span class="lbl">
+                    <b>{{ tile.title }}</b>
+                    {% if tile.kind == 'lodge' %}<small>Shown when an app reports the lodge's status</small>
+                    {% elif tile.kind == 'weather' %}<small>Sun Peaks temperatures</small>
+                    {% elif tile.subtitle %}<small>{{ tile.subtitle }}</small>{% endif %}
+                </span>
+                <span class="hl-size" role="group" aria-label="Size of {{ tile.title }}">
+                    {% for s in "sml" %}<button type="button" data-size="{{ s }}" aria-pressed="{% if s == tile.size %}true{% else %}false{% endif %}">{{ s|upper }}</button>{% endfor %}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endfor %}
+</form>
+
+<script>
+    (function () {
+        var form = document.getElementById('hl-form');
+
+        document.querySelectorAll('.hl-size button').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var row = btn.closest('.hl-row');
+                row.setAttribute('data-size', btn.getAttribute('data-size'));
+                row.querySelectorAll('.hl-size button').forEach(function (b) {
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+            });
+        });
+
+        // Touch-friendly reorder: drag a row by its grip within its own section.
+        document.querySelectorAll('.hl-grip').forEach(function (grip) {
+            grip.addEventListener('pointerdown', function (e) {
+                var row = grip.closest('.hl-row');
+                var list = row.parentNode;
+                var startY = e.clientY;
+                e.preventDefault();
+                grip.setPointerCapture(e.pointerId);
+                row.classList.add('is-drag');
+
+                function move(ev) {
+                    var y = ev.clientY;
+                    var prev = row.previousElementSibling, next = row.nextElementSibling;
+                    if (prev && y < prev.getBoundingClientRect().top + prev.offsetHeight / 2) {
+                        list.insertBefore(row, prev);
+                        startY = y;
+                    } else if (next && y > next.getBoundingClientRect().top + next.offsetHeight / 2) {
+                        list.insertBefore(next, row);
+                        startY = y;
+                    }
+                    row.style.transform = 'translateY(' + (y - startY) + 'px)';
+                }
+                function end() {
+                    row.classList.remove('is-drag');
+                    row.style.transform = '';
+                    grip.removeEventListener('pointermove', move);
+                    grip.removeEventListener('pointerup', end);
+                    grip.removeEventListener('pointercancel', end);
+                }
+                grip.addEventListener('pointermove', move);
+                grip.addEventListener('pointerup', end);
+                grip.addEventListener('pointercancel', end);
+            });
+        });
+
+        form.addEventListener('submit', function () {
+            var layout = {};
+            document.querySelectorAll('.hl-list').forEach(function (list) {
+                layout[list.getAttribute('data-section')] = Array.prototype.map.call(
+                    list.querySelectorAll('.hl-row'), function (row) {
+                        return { id: row.getAttribute('data-id'), size: row.getAttribute('data-size') };
+                    });
+            });
+            document.getElementById('hl-layout').value = JSON.stringify(layout);
+        });
+    })();
+</script>
+{% endblock %}
