@@ -66,6 +66,10 @@ def tiles_for_mode(mode):
     sections = []
     for key, title in SECTIONS.items():
         items = sorted(grouped[key], key=lambda t: (t["order"], t["title"]))
+        # Sections are two tiles tall. With an odd count the first tile (by
+        # order) spans both rows so the grid has no hole; the rest are half.
+        for i, item in enumerate(items):
+            item["size"] = "lg" if i == 0 and len(items) % 2 else "half"
         if items:
             sections.append((key, title, items))
     return sections
