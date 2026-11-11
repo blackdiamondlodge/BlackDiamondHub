@@ -8,6 +8,8 @@
     opacity: 0; transition: opacity 1.2s ease; cursor: none; user-select: none; touch-action: none;
 }
 .bdh-saver.on { opacity: 1; }
+/* Night: everything hides, leaving pure black. */
+.bdh-saver.night > * { opacity: 0 !important; }
 .bdh-saver .layer { position: absolute; inset: 0; opacity: 0; transition: opacity 3s ease; }
 .bdh-saver .layer.on { opacity: 1; }
 .bdh-saver .layer > svg, .bdh-saver .layer > img {

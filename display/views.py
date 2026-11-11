@@ -18,6 +18,7 @@ from .library import photo_json, season_photos
 from .models import SaverPhoto, UploadLink
 from .photos import BadPhoto, add_photo
 from .options import APP, SEASON_IDS, SEASONS, SLOT_CHOICES, SLOTS, SOURCES, value
+from .schedule import is_night, lodge_minute, parse_hhmm, window
 from .season import by_date, lodge_today, parse_mmdd, resolve
 from .stats import collect, gather, lifts_open
 
@@ -78,7 +79,22 @@ def saver_api(request):
         "photos": photos,
         "burn_in": value("burn_in"),
         "idle_minutes": value("idle_minutes"),
+        "night": window(),
         "stats": collect(keys, data, today, starts),
+    })
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@require_GET
+def schedule_api(request):
+    """Night mode for Home Assistant: ``dark`` is true while the display should be off."""
+    night = window()
+    response = JsonResponse({
+        "enabled": night is not None,
+        "from": value("night_from") if night else None,
+        "until": value("night_until") if night else None,
+        "dark": bool(night) and is_night(lodge_minute(), night["from"], night["until"]),
     })
     response["Cache-Control"] = "no-store"
     return response
@@ -102,6 +118,9 @@ def _form_values(post):
             if setting.key.endswith("_start"):
                 month, day = parse_mmdd(values[setting.key])
                 values[setting.key] = f"{month:02d}-{day:02d}"
+            elif setting.key in ("night_from", "night_until"):
+                minute = parse_hhmm(values[setting.key])
+                values[setting.key] = f"{minute // 60:02d}:{minute % 60:02d}"
         except ValueError as exc:
             errors[setting.key] = str(exc)
     return values, errors, raw

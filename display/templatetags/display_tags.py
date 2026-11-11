@@ -8,13 +8,14 @@ register = template.Library()
 def screensaver():
     """The screensaver and burn-in shifter, on every page of the hub."""
     from ..options import value
+    from ..schedule import window
 
     try:
         api = reverse("display_saver_api")
     except NoReverseMatch:  # display app not loaded
         return {"enabled": False}
     try:
-        config = {"idle_minutes": value("idle_minutes"), "burn_in": value("burn_in")}
+        config = {"idle_minutes": value("idle_minutes"), "burn_in": value("burn_in"), "night": window()}
     except Exception:
-        config = {"idle_minutes": 10, "burn_in": True}
+        config = {"idle_minutes": 10, "burn_in": True, "night": None}
     return {"enabled": True, "config": {**config, "api": api}}
