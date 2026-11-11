@@ -84,9 +84,12 @@ services:
 
     network_mode: host
 
-    # Database backups taken by the entrypoint before migrations run.
     volumes:
+      # Database backups taken by the entrypoint before migrations run.
       - ./backups:/backups
+      # Uploaded files (inventory images, screensaver photos). Without this
+      # they live in the container and are lost on every image update.
+      - ./media:/app/media
     
     restart: unless-stopped
 
