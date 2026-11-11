@@ -18,6 +18,7 @@ from hub_settings import store
 from hub_settings.models import AppSetting
 from .models import SaverPhoto, UploadLink
 from .options import DEFAULT_STARTS
+from .schedule import is_night, parse_hhmm
 from .season import parse_mmdd, resolve
 from .stats import MINUS, collect, stat, sun_times
 
@@ -151,7 +152,8 @@ class ViewTests(TestCase):
             data[s["start_key"]] = s["start"]
             data[f"source_{s['id']}"] = s["source"]
             data.update({slot["key"]: slot["value"] for slot in s["slots"]})
-        data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_minutes="3", cam="", tab="fall")
+        data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_minutes="3", cam="", tab="fall",
+                    night="on", night_from="23:00", night_until="06:00")
         data.update(overrides)
         return data
 
@@ -167,6 +169,42 @@ class ViewTests(TestCase):
         self.assertEqual(saved["winter_start"], "11-01")
         self.assertEqual(saved["idle_minutes"], 15)
         self.assertNotIn("burn_in", saved)  # unchanged defaults stay unsaved
+
+    def test_night_times(self):
+        response = self.client.post(reverse("display_settings"), self.form(night_from="25:00"))
+        self.assertContains(response, "Use HH:MM", status_code=400)
+
+        self.client.post(reverse("display_settings"), self.form(night_from="22:30", night_until="7:00"))
+        saved = store.saved("display")
+        self.assertEqual((saved["night_from"], saved["night_until"]), ("22:30", "07:00"))
+
+        with mock.patch("display.views.lodge_minute", return_value=23 * 60):
+            self.assertTrue(self.client.get(reverse("display_schedule_api")).json()["dark"])
+        with mock.patch("display.views.lodge_minute", return_value=12 * 60):
+            body = self.client.get(reverse("display_schedule_api")).json()
+        self.assertEqual(body, {"enabled": True, "from": "22:30", "until": "07:00", "dark": False})
+
+        self.client.post(reverse("display_settings"), {k: v for k, v in self.form().items() if k != "night"})
+        body = self.client.get(reverse("display_schedule_api")).json()
+        self.assertEqual(body, {"enabled": False, "from": None, "until": None, "dark": False})
+
+
+class ScheduleTests(TestCase):
+    def test_is_night_wraps_midnight(self):
+        night = (23 * 60, 6 * 60)
+        self.assertTrue(is_night(23 * 60, *night))
+        self.assertTrue(is_night(3 * 60, *night))
+        self.assertFalse(is_night(6 * 60, *night))
+        self.assertFalse(is_night(12 * 60, *night))
+        self.assertTrue(is_night(14 * 60, 13 * 60, 15 * 60))
+        self.assertFalse(is_night(0, 0, 0))  # same start and end: never
+
+    def test_parse_hhmm(self):
+        self.assertEqual(parse_hhmm(" 6:05 "), 365)
+        for bad in ("", "6", "24:00", "12:60", "ab:cd"):
+            with self.assertRaises(ValueError):
+                parse_hhmm(bad)
+
 
 def jpeg(size=(800, 600), orientation=None, name="p.jpg"):
     img = Image.new("RGB", size, (200, 30, 30))

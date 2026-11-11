@@ -161,6 +161,19 @@
                     <label class="lbl" for="dsp-burn"><b>Burn-in protection</b><small>Slow pixel shift on every screen</small></label>
                     <div class="ctl"><span class="hst-tog"><input type="checkbox" role="switch" id="dsp-burn" name="burn_in"{% if v.burn_in %} checked{% endif %}><span></span></span></div>
                 </div>
+                                    <div class="hst-row">
+                                        <label class="lbl" for="dsp-night"><b>Dark overnight</b><small>Screensaver goes fully black; touch still wakes it</small></label>
+                                        <div class="ctl"><span class="hst-tog"><input type="checkbox" role="switch" id="dsp-night" name="night"{% if v.night %} checked{% endif %}><span></span></span></div>
+                                    </div>
+                                    <div class="hst-row">
+                                        <label class="lbl" for="dsp-night-from"><b>Dark from</b>
+                                            {% if errors.night_from or errors.night_until %}<small class="err">{% firstof errors.night_from errors.night_until %}</small>{% else %}<small>Lodge time</small>{% endif %}</label>
+                                        <div class="ctl">
+                                            <input type="time" class="hst-in time{% if errors.night_from %} bad{% endif %}" id="dsp-night-from" name="night_from" value="{{ v.night_from }}" aria-label="Dark from">
+                                            <span class="hst-unit">to</span>
+                                            <input type="time" class="hst-in time{% if errors.night_until %} bad{% endif %}" id="dsp-night-until" name="night_until" value="{{ v.night_until }}" aria-label="Dark until">
+                                        </div>
+                                    </div>
             </section>
 
             <section class="hst-card">

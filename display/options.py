@@ -38,6 +38,7 @@ DEFAULT_SLOTS = {
     "fall": ("temp_top", "temp_village", "days_until_lifts", "sunset"),
 }
 DEFAULT_STARTS = {"winter": "11-21", "spring": "03-15", "summer": "06-01", "fall": "09-15"}
+DEFAULT_NIGHT = {"from": "23:00", "until": "06:00"}
 
 
 def _settings():
@@ -45,6 +46,9 @@ def _settings():
         Setting("idle_minutes", "Screensaver after", INT, 10, "No touches for this long", minimum=1,
                 maximum=120, unit="min"),
         Setting("burn_in", "Burn-in protection", BOOL, True, "Slow pixel shift on every screen"),
+        Setting("night", "Dark overnight", BOOL, True, "The screensaver goes black between these times"),
+        Setting("night_from", "Dark from", default=DEFAULT_NIGHT["from"], help="HH:MM, 24-hour"),
+        Setting("night_until", "Dark until", default=DEFAULT_NIGHT["until"], help="HH:MM, 24-hour"),
         Setting("winter_on_lifts", "Winter starts when lifts open", BOOL, True,
                 "Otherwise use the dates below"),
         Setting("rotate_minutes", "Change every", INT, 3, minimum=1, maximum=60, unit="min"),

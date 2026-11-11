@@ -96,6 +96,7 @@
 
     /* ---------- the overlay ---------- */
     let root = null, data = null, season = null, timers = [];
+    let night = cfg.night || null;
     const $ = sel => root.querySelector(sel);
     const esc = s => String(s).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[ch]);
     const timeText = iso => new Date(iso).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
@@ -140,6 +141,16 @@
         $('.season').style.translate = `${r(20)} ${r(12)}`;
     }
 
+    // Night mode, in lodge time (the display's own clock may be on another zone).
+    function isNight() {
+        if (params.get('saver_night') === '1') return true;
+        if (!night || night.from === night.until) return false;
+        const now = new Date();
+        const m = ((now.getUTCHours() * 60 + now.getUTCMinutes() + (night.offset || 0)) % 1440 + 1440) % 1440;
+        return night.from < night.until ? m >= night.from && m < night.until : m >= night.from || m < night.until;
+    }
+    function applyNight() { if (root) root.classList.toggle('night', isNight()); }
+
     let showing = 'stock', photoIndex = 0;
     function photoList() { return (data && data.photos) || []; }
 
@@ -174,6 +185,8 @@
 
     function render(d) {
         data = d;
+        if ('night' in d) night = d.night;
+        applyNight();
         if (d.season !== season) {
             season = d.season;
             $('.layer.stock').innerHTML = scene(season);
@@ -228,6 +241,7 @@
         if (!root) build();
         root.style.display = '';
         root.style.pointerEvents = '';
+        applyNight();
         tick();
         showLayer(showing);
         load().then(() => {
@@ -235,7 +249,8 @@
             const every = Math.max(60, (data && data.rotate_seconds) || 180) * 1000;
             timers.push(setInterval(rotate, every));
         });
-        timers.push(setInterval(tick, 10 * 1000), setInterval(drift, 60 * 1000), setInterval(load, 5 * 60 * 1000));
+        timers.push(setInterval(tick, 10 * 1000), setInterval(drift, 60 * 1000), setInterval(load, 5 * 60 * 1000),
+            setInterval(applyNight, 30 * 1000));
         requestAnimationFrame(() => root.classList.add('on'));
     }
 
