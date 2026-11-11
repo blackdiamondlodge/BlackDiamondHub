@@ -78,6 +78,10 @@ services:
       BDL_MODES_API_KEY: ${BDL_MODES_API_KEY:-}
       BDL_MODES_PREHEAT: ${BDL_MODES_PREHEAT:-false}
 
+      # bdl_shuttle AppDaemon app (bus reminders on the dining room Sonos)
+      BDH_SHUTTLE_REMINDERS_URL: ${BDH_SHUTTLE_REMINDERS_URL:-}
+      BDH_SHUTTLE_REMINDERS_API_KEY: ${BDH_SHUTTLE_REMINDERS_API_KEY:-}
+
     network_mode: host
 
     # Database backups taken by the entrypoint before migrations run.
