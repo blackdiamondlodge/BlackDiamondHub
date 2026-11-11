@@ -106,6 +106,50 @@ class LandingPageNoScrollTest(SeleniumTestCase):
 
 
 @tag('selenium')
+class LandingPageTileFitTest(SeleniumTestCase):
+    """Tile icons and titles stay inside their tiles on kiosk and laptop sizes."""
+
+    SIZES = [(1920, 1080), (1440, 900), (1366, 768), (1280, 720)]
+
+    def _overflows(self):
+        return self.browser.execute_script("""
+            var bad = [];
+            document.querySelectorAll('.hub-tile').forEach(function (tile) {
+                var t = tile.getBoundingClientRect();
+                var name = tile.querySelector('.hub-tile-title').textContent.trim();
+                tile.querySelectorAll('img, .hub-tile-title, .hub-tile-sub').forEach(function (el) {
+                    if (getComputedStyle(el).display === 'none') return;
+                    var r = el.getBoundingClientRect();
+                    if (r.left < t.left - 1 || r.right > t.right + 1 ||
+                        r.top < t.top - 1 || r.bottom > t.bottom + 1) {
+                        bad.push(name + ': ' + el.className + ' outside tile');
+                    }
+                });
+                var title = tile.querySelector('.hub-tile-title');
+                if (title.scrollWidth > title.clientWidth + 1) bad.push(name + ': title too wide');
+            });
+            return bad;
+        """)
+
+    def test_tiles_fit(self):
+        for width, height in self.SIZES:
+            with self.subTest(size=f'{width}x{height}'):
+                self.browser.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {
+                    'width': width, 'height': height, 'deviceScaleFactor': 1, 'mobile': False,
+                })
+                self.browser.get(self.live_server_url)
+                WebDriverWait(self.browser, 20).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, 'hub-tile'))
+                )
+                wait_for_paint(self.browser)
+                self.assertEqual(self._overflows(), [])
+                self.assertLessEqual(
+                    self.browser.execute_script('return document.body.scrollHeight'),
+                    self.browser.execute_script('return window.innerHeight'),
+                )
+
+
+@tag('selenium')
 class WeatherUnitToggleTest(SeleniumTestCase):
     TOGGLE = (By.CLASS_NAME, 'toggle-button')
 

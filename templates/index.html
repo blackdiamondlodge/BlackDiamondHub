@@ -102,26 +102,59 @@
         grid-template-rows: 1fr 1fr; grid-auto-columns: minmax(0, 1fr); gap: 16px;
     }
     .hub-tile {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        text-align: center; padding: 24px 18px;
+        display: block; min-width: 0; min-height: 0; overflow: hidden;
         background: var(--card); border: 1px solid var(--line); border-radius: 24px;
         color: var(--fg); text-decoration: none;
         transition: transform .15s ease, background .15s ease;
     }
     .hub-tile:hover, .hub-tile:focus-visible { color: var(--fg); background: var(--card2); }
     .hub-tile:active { transform: scale(.97); }
+    /* The layout lives on the inner box so the container queries below,
+       which can only style a container's descendants, can rearrange it. */
+    .hub-tile-in {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        width: 100%; height: 100%; text-align: center; padding: 24px 18px;
+    }
     .hub-tile img { flex-shrink: 0; }
-    .hub-tile-txt { display: flex; flex-direction: column; min-width: 0; }
-    .hub-tile-title { font-size: 24px; font-weight: 600; line-height: 1.15; }
-    .hub-tile-sub { font-size: 18px; line-height: 1.35; color: var(--mut); margin-top: 6px; }
+    .hub-tile-txt { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
+    .hub-tile-title { font-size: 24px; font-weight: 600; line-height: 1.15; overflow-wrap: break-word; }
+    .hub-tile-sub {
+        font-size: 18px; line-height: 1.35; color: var(--mut); margin-top: 6px;
+        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+    }
     /* Large: spans both rows, icon above the text. */
     .hub-tile-lg { grid-row: span 2; }
     .hub-tile-lg img { width: 128px; height: 128px; margin-bottom: 22px; }
     .hub-tile-lg .hub-tile-title { font-size: 28px; }
     .hub-tile-lg .hub-tile-sub { font-size: 19px; margin-top: 4px; }
     /* Half: icon beside the text. */
-    .hub-tile-half { flex-direction: row; justify-content: flex-start; text-align: left; padding: 16px 22px; gap: 20px; }
+    .hub-tile-half .hub-tile-in { flex-direction: row; justify-content: flex-start; text-align: left; padding: 16px 22px; gap: 20px; }
     .hub-tile-half img { width: 84px; height: 84px; }
+
+    /* Smaller windows (or a zoomed kiosk): each tile adapts to its own size. */
+    @media (min-width: 1101px) {
+        .hub-tile { container-type: size; }
+    }
+    @container (max-width: 340px) {
+        .hub-tile-half .hub-tile-in { flex-direction: column; justify-content: center; text-align: center; gap: 8px; padding: 12px; }
+        .hub-tile-half img { width: 64px; height: 64px; }
+        .hub-tile-title { font-size: 21px; }
+        .hub-tile-sub { font-size: 16px; margin-top: 2px; -webkit-line-clamp: 2; }
+    }
+    @container (max-height: 420px) {
+        .hub-tile-lg img { width: 88px; height: 88px; margin-bottom: 12px; }
+        .hub-tile-lg .hub-tile-title { font-size: 24px; }
+    }
+    @container (max-height: 210px) {
+        .hub-tile-half .hub-tile-in { padding-top: 8px; padding-bottom: 8px; }
+        .hub-tile-half img { width: 52px; height: 52px; }
+    }
+    @container (max-height: 165px) {
+        .hub-tile-sub { -webkit-line-clamp: 1; }
+    }
+    @container (max-height: 150px) {
+        .hub-tile-half .hub-tile-sub { display: none; }
+    }
     .hub-tile-sub.is-status { color: var(--fg); }
     .hub-tile-sub.lvl-on { color: var(--acc); }
     .hub-tile-sub.lvl-warn { color: #f0b429; }
@@ -150,6 +183,33 @@
     .hub-quick-btn.is-done, .hub-quick-btn.is-done i { color: #4cc38a; }
     .hub-quick-btn.is-error, .hub-quick-btn.is-error i { color: #ef6b6b; }
 
+    /* Laptop-sized windows: tighten the chrome so the tiles keep their room. */
+    @media (min-width: 1101px) and (max-width: 1500px) {
+        body.hub-home .content-wrapper { padding: 0 24px; }
+        .hub-wx { gap: 12px; padding: 12px 14px; }
+        .hub-chip { min-width: 0; padding: 10px 14px; column-gap: 12px; }
+        .hub-chip .temperature { font-size: 30px; min-width: 2.2em; }
+        .hub-chip .location-name, .hub-chip .elevation { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hub-chip .location-name { font-size: 16px; }
+        .hub-chip .elevation { font-size: 14px; }
+        .hub-sections { gap: 18px; }
+        .hub-tiles { gap: 12px; }
+    }
+    @media (min-width: 1101px) and (max-height: 860px) {
+        .hub-wx { margin-top: 14px; padding-top: 10px; padding-bottom: 10px; }
+        .hub-chip { padding-top: 8px; padding-bottom: 8px; }
+        .hub-chip .temperature { font-size: 30px; }
+        .hub-welcome, .hub-card { margin-top: 14px; }
+        .hub-welcome h1 { font-size: 28px; }
+        .hub-card { padding-top: 10px; padding-bottom: 10px; }
+        .hub-card-main h1 { font-size: 24px; }
+        .hub-sections { margin: 14px 0 16px; }
+        .hub-section h2 { font-size: 15px; margin-bottom: 8px; }
+        .hub-tiles { gap: 12px; }
+        .hub-quick { margin: -4px 0 16px; padding: 10px 16px; }
+        .hub-quick-btn { padding: 10px 18px; font-size: 18px; }
+    }
+
     /* Phones and small windows: stack and allow scrolling. */
     @media (max-width: 1100px) {
         body.hub-home .navbar.fixed-top { position: sticky; }
@@ -163,10 +223,10 @@
         .hub-sections { flex-direction: column; }
         .hub-section { flex: none !important; }
         .hub-tiles { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .hub-tile { padding: 18px 12px; min-width: 0; }
+        .hub-tile-in { padding: 18px 12px; }
         .hub-tile-lg { grid-row: auto; grid-column: span 2; }
         .hub-tile-lg img { width: 84px; height: 84px; margin-bottom: 12px; }
-        .hub-tile-half { flex-direction: column; justify-content: center; text-align: center; gap: 10px; }
+        .hub-tile-half .hub-tile-in { flex-direction: column; justify-content: center; text-align: center; gap: 10px; padding: 18px 12px; }
         .hub-tile-half img { width: 64px; height: 64px; }
         .hub-tile-title, .hub-tile-lg .hub-tile-title { font-size: 21px; }
         .hub-tile-sub { font-size: 16px; }
@@ -224,10 +284,12 @@
         <div class="hub-tiles">
             {% for tile in tiles %}
             <a class="hub-tile hub-tile-{{ tile.size }}" href="{{ tile.url }}" data-plugin="{{ tile.plugin }}">
-                <img src="{% static tile.icon %}" alt="">
-                <span class="hub-tile-txt">
-                    <span class="hub-tile-title">{{ tile.title }}</span>
-                    <span class="hub-tile-sub" data-subtitle="{{ tile.subtitle }}">{{ tile.subtitle }}</span>
+                <span class="hub-tile-in">
+                    <img src="{% static tile.icon %}" alt="">
+                    <span class="hub-tile-txt">
+                        <span class="hub-tile-title">{{ tile.title }}</span>
+                        <span class="hub-tile-sub" data-subtitle="{{ tile.subtitle }}">{{ tile.subtitle }}</span>
+                    </span>
                 </span>
             </a>
             {% endfor %}
