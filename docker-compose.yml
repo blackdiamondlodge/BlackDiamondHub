@@ -16,6 +16,10 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      # Table owner used only for the startup backup + migrations (optional;
+      # falls back to DB_USER). Not visible to the running site.
+      DB_MIGRATE_USER: ${DB_MIGRATE_USER:-}
+      DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD:-}
       ADMIN_USER: ${ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       # Spotify API credentials
