@@ -1,0 +1,5 @@
+{% if enabled %}{% load static %}
+<link rel="stylesheet" href="{% static 'display/saver.css' %}">
+{{ config|json_script:"bdh-saver-cfg" }}
+<script src="{% static 'display/saver.js' %}" defer></script>
+{% endif %}

@@ -1,0 +1,202 @@
+{% extends 'hub_settings/_layout.html' %}
+
+{% block section %}
+<style>
+    .hst-main { max-width: 1560px; }
+    .dsp { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
+    .dsp .hst-card h3 { display: flex; align-items: baseline; gap: 12px; }
+    .dsp .hst-card h3 span { margin-left: auto; letter-spacing: 0; text-transform: none; font-weight: 400; font-size: 13.5px; color: var(--mut); }
+    .dsp-body { padding: 18px 22px 22px; }
+    .dsp-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .dsp-tabs button {
+        height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--card2);
+        color: var(--mut); font-size: 15.5px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    }
+    .dsp-tabs button.on { background: var(--acc); color: #0c1622; border-color: var(--acc); font-weight: 600; }
+    .dsp-src { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .dsp-src label {
+        display: block; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2);
+        cursor: pointer; min-height: 64px;
+    }
+    .dsp-src label:has(input:checked) { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); background: #1d3352; }
+    .dsp-src b { font-weight: 500; font-size: 15.5px; display: flex; align-items: center; gap: 8px; }
+    .dsp-src input { accent-color: var(--acc); width: 16px; height: 16px; margin: 0; }
+    .dsp-src small { display: block; color: var(--mut); font-size: 13px; margin: 4px 0 0 24px; }
+    .dsp-bg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    .dsp-prev { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+    .dsp-prev svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .dsp-prev .tag {
+        position: absolute; left: 10px; top: 10px; padding: 3px 9px; border-radius: 8px; font-size: 12.5px;
+        background: rgba(0, 0, 0, .55); color: #eef3fa;
+    }
+    .dsp-ctl { display: grid; gap: 16px; }
+    .dsp-ctl p { margin: 0; color: var(--mut); font-size: 14.5px; line-height: 1.45; }
+    .dsp-line { display: flex; align-items: center; gap: 14px; }
+    .dsp-line > span:first-child { white-space: nowrap; font-size: 15px; }
+    .dsp-line input[type=range] { flex: 1; accent-color: var(--acc); height: 32px; }
+    .dsp-line output { min-width: 76px; text-align: center; padding: 10px 0; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); }
+    .dsp-line select { flex: 1; }
+    .dsp-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 18px 22px 22px; }
+    .dsp-slots label { display: block; }
+    .dsp-slots small { display: block; color: var(--dim); font-size: 12px; margin: 0 0 4px 4px; }
+    .dsp-slots select { width: 100%; }
+    .dsp-dates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 4px 22px 8px; }
+    .dsp-dates label { display: block; padding: 10px 12px; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); }
+    .dsp-dates label.bad { border-color: var(--red); }
+    .dsp-dates b { display: block; font-weight: 500; font-size: 14.5px; }
+    .dsp-dates input { width: 100%; background: none; border: 0; color: var(--mut); font-size: 14px; padding: 2px 0 0; }
+    .dsp-dates input:focus { outline: none; color: var(--fg); }
+    .dsp-foot { padding: 6px 22px 18px; color: var(--mut); font-size: 13px; }
+    .dsp-foot .err { color: var(--red); }
+    [data-season][hidden] { display: none !important; }
+    @media (max-width: 1100px) { .dsp, .dsp-bg { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .dsp-src, .dsp-dates { grid-template-columns: 1fr 1fr; } }
+</style>
+
+<form method="post" novalidate id="dsp-form">
+    {% csrf_token %}
+    <input type="hidden" name="tab" id="dsp-tab" value="{{ selected }}">
+    <div class="hst-head">
+        <div>
+            <h2>Display</h2>
+            <p>Screensaver, background &amp; schedule</p>
+        </div>
+        <div class="act">
+            <a class="hst-btn ghost" id="dsp-preview" href="/?saver=1&amp;saver_season={{ selected }}"
+               style="display:flex;align-items:center;text-decoration:none">Preview screensaver</a>
+            <button type="submit" class="hst-btn">Save</button>
+        </div>
+    </div>
+    {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
+    {% if has_errors %}<div class="hst-note bad" role="alert">Some values need fixing.</div>{% endif %}
+
+    <div class="dsp">
+        <div>
+            <section class="hst-card">
+                <h3>Background <span>Currently showing: {{ showing }}</span></h3>
+                <div class="dsp-body">
+                    <div class="dsp-tabs" role="tablist">
+                        {% for s in seasons %}
+                        <button type="button" role="tab" data-tab="{{ s.id }}" class="{% if s.id == selected %}on{% endif %}"
+                                aria-selected="{% if s.id == selected %}true{% else %}false{% endif %}">
+                            <i class="fas {% if s.id == 'winter' %}fa-snowflake{% elif s.id == 'spring' %}fa-seedling{% elif s.id == 'summer' %}fa-sun{% else %}fa-leaf{% endif %}" aria-hidden="true"></i>{{ s.label }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% for s in seasons %}
+                    <div class="dsp-src" data-season="{{ s.id }}"{% if s.id != selected %} hidden{% endif %}>
+                        {% for v, l in sources %}
+                        <label>
+                            <b><input type="radio" name="source_{{ s.id }}" value="{{ v }}"{% if v == s.source %} checked{% endif %}>{{ l }}</b>
+                            <small>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'cam' %}{{ default_cam|default:'Resort webcam' }}{% else %}Rotate the scene and the cam{% endif %}</small>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    <div class="dsp-bg">
+                        <div class="dsp-prev" id="dsp-prev"><span class="tag" id="dsp-prev-tag">Preview</span></div>
+                        <div class="dsp-ctl">
+                            <p>Each image slowly pans and zooms to protect the screen. With <b>Mix</b>, the background switches between the scene and the live cam.</p>
+                            <label class="dsp-line">
+                                <span>Change every</span>
+                                <input type="range" name="rotate_minutes" min="1" max="60" value="{{ v.rotate_minutes }}" id="dsp-rot">
+                                <output for="dsp-rot" id="dsp-rot-out">{{ v.rotate_minutes }} min</output>
+                            </label>
+                            {% if errors.rotate_minutes %}<small style="color:var(--red)">{{ errors.rotate_minutes }}</small>{% endif %}
+                            <label class="dsp-line">
+                                <span>Live cam</span>
+                                <select class="hst-in" name="cam">
+                                    <option value="">Automatic{% if default_cam and not v.cam %} ({{ default_cam }}){% endif %}</option>
+                                    {% for c in cams %}<option value="{{ c.slug }}"{% if c.slug == v.cam %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                                    {% if v.cam and not cams %}<option value="{{ v.cam }}" selected>{{ v.cam }}</option>{% endif %}
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div>
+            <section class="hst-card">
+                <h3>Info strip <span id="dsp-strip-season">{% for s in seasons %}{% if s.id == selected %}{{ s.label }}{% endif %}{% endfor %}</span></h3>
+                {% for s in seasons %}
+                <div class="dsp-slots" data-season="{{ s.id }}"{% if s.id != selected %} hidden{% endif %}>
+                    {% for slot in s.slots %}
+                    <label>
+                        <small>Slot {{ slot.n }}</small>
+                        <select class="hst-in" name="{{ slot.key }}" aria-label="{{ s.label }} slot {{ slot.n }}">
+                            {% for val, l in slot_choices %}<option value="{{ val }}"{% if val == slot.value %} selected{% endif %}>{{ l }}</option>{% endfor %}
+                        </select>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </section>
+
+            <section class="hst-card">
+                <h3>Schedule</h3>
+                <div class="hst-row">
+                    <label class="lbl" for="dsp-idle"><b>Screensaver after</b>
+                        {% if errors.idle_minutes %}<small class="err">{{ errors.idle_minutes }}</small>{% else %}<small>No touches for this long</small>{% endif %}</label>
+                    <div class="ctl">
+                        <input type="number" inputmode="numeric" class="hst-in num{% if errors.idle_minutes %} bad{% endif %}" id="dsp-idle"
+                               name="idle_minutes" min="1" max="120" value="{{ v.idle_minutes }}"><span class="hst-unit">min</span>
+                    </div>
+                </div>
+                <div class="hst-row">
+                    <label class="lbl" for="dsp-burn"><b>Burn-in protection</b><small>Slow pixel shift on every screen</small></label>
+                    <div class="ctl"><span class="hst-tog"><input type="checkbox" role="switch" id="dsp-burn" name="burn_in"{% if v.burn_in %} checked{% endif %}><span></span></span></div>
+                </div>
+            </section>
+
+            <section class="hst-card">
+                <h3>Seasons</h3>
+                <div class="hst-row">
+                    <label class="lbl" for="dsp-lifts"><b>Winter starts when lifts open</b><small>Otherwise use the dates below</small></label>
+                    <div class="ctl"><span class="hst-tog"><input type="checkbox" role="switch" id="dsp-lifts" name="winter_on_lifts"{% if v.winter_on_lifts %} checked{% endif %}><span></span></span></div>
+                </div>
+                <div class="dsp-dates">
+                    {% for s in seasons %}
+                    <label class="{% if s.start_error %}bad{% endif %}">
+                        <b>{{ s.label }}{% if s.id == 'winter' %}*{% endif %}</b>
+                        <input type="text" name="{{ s.start_key }}" value="{{ s.start }}" placeholder="MM-DD" maxlength="5"
+                               inputmode="numeric" aria-label="{{ s.label }} starts (MM-DD)">
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="dsp-foot">
+                    {% for s in seasons %}{% if s.start_error %}<div class="err">{{ s.label }}: {{ s.start_error }}</div>{% endif %}{% endfor %}
+                    Starts are month-day, e.g. 11-21. * Up to 30 days earlier if the lifts open first.
+                </div>
+            </section>
+        </div>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const labels = {};
+    document.querySelectorAll('[data-tab]').forEach(b => { labels[b.dataset.tab] = b.textContent.trim(); });
+    const prev = document.getElementById('dsp-prev');
+    function select(season) {
+        document.querySelectorAll('[data-tab]').forEach(b => {
+            const on = b.dataset.tab === season;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-selected', on);
+        });
+        document.querySelectorAll('[data-season]').forEach(el => { el.hidden = el.dataset.season !== season; });
+        document.getElementById('dsp-tab').value = season;
+        document.getElementById('dsp-strip-season').textContent = labels[season];
+        document.getElementById('dsp-prev-tag').textContent = 'Preview \u00b7 ' + labels[season];
+        document.getElementById('dsp-preview').href = '/?saver=1&saver_season=' + season;
+        prev.querySelector('svg')?.remove();
+        if (window.BDHSaver) prev.insertAdjacentHTML('afterbegin', window.BDHSaver.scene(season));
+    }
+    document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => select(b.dataset.tab)));
+    const rot = document.getElementById('dsp-rot');
+    rot.addEventListener('input', () => { document.getElementById('dsp-rot-out').textContent = rot.value + ' min'; });
+    select(document.getElementById('dsp-tab').value);
+});
+</script>
+{% endblock %}

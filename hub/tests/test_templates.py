@@ -8,7 +8,7 @@ from django.template.loader import get_template
 from django.test import SimpleTestCase
 
 _REFERENCE = re.compile(r"""{%\s*(?:extends|include)\s+["']([^"']+)["']""")
-CORE_TEMPLATES = {"base.html"}
+CORE_TEMPLATES = {"base.html", "hub_settings/_layout.html"}
 
 
 def _plugin_apps():

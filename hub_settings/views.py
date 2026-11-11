@@ -43,8 +43,29 @@ def _version(spec):
     return ""
 
 
+# Built-in apps whose settings have their own page instead of the generic form.
+CUSTOM_PAGES = {"display": ("Display", "fa-display", "display_settings")}
+
+
+def _custom_url(app_id):
+    page = CUSTOM_PAGES.get(app_id)
+    if page and any(s.id == app_id for s in plugins()):
+        return reverse(page[2])
+    return ""
+
+
+def _settings_url(spec):
+    if not spec.settings:
+        return ""
+    return _custom_url(spec.id) or reverse("hub_settings_app", args=[spec.id])
+
+
 def _lodge_sections():
-    return [
+    custom = [
+        {"id": app_id, "label": label, "icon": icon, "url": _custom_url(app_id)}
+        for app_id, (label, icon, _name) in CUSTOM_PAGES.items() if _custom_url(app_id)
+    ]
+    return custom + [
         {"id": "apps", "label": "Apps", "icon": "fa-puzzle-piece", "url": reverse("hub_settings_apps"),
          "count": len(plugins())},
         {"id": "accounts", "label": "Accounts", "icon": "fa-user", "url": reverse("admin:auth_user_changelist")},
@@ -55,7 +76,7 @@ def _app_sections():
     return [
         {"id": spec.id, "label": _label(spec), "img": _icon(spec),
          "url": reverse("hub_settings_app", args=[spec.id])}
-        for spec in plugins() if spec.settings
+        for spec in plugins() if spec.settings and spec.id not in CUSTOM_PAGES
     ]
 
 
@@ -73,7 +94,7 @@ def index(request):
 def apps_overview(request):
     apps = [
         {"spec": spec, "label": _label(spec), "img": _icon(spec), "version": _version(spec),
-         "settings_url": reverse("hub_settings_app", args=[spec.id]) if spec.settings else ""}
+         "settings_url": _settings_url(spec)}
         for spec in plugins()
     ]
     return _render(request, "hub_settings/apps.html", "apps", apps=apps)
@@ -115,6 +136,8 @@ def _save(request, spec, saved, values):
 
 @staff_page
 def app_settings(request, app_id):
+    if _custom_url(app_id):
+        return redirect(_custom_url(app_id))
     spec = _spec(app_id)
     saved = store.saved(spec.id)
 
