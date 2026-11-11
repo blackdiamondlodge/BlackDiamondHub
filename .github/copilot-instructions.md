@@ -125,6 +125,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 - `hub/plugins.py` — plugin contract (`PluginSpec`, `Tile`, modes, sections) that every hub app implements
 - `hub/loader.py` / `hub/modes.py` — plugin discovery/validation, websocket route collection and homepage mode (guest / dashboard / owner) + tile lookup
 - `hub/spotify_auth.py` — platform-owned Spotify social-auth hooks (`spotify_token` context processor, disconnect-pipeline steps) referenced from core settings
+- `bdh_sdk.alerts` — pop-up alerts on the hub display (e.g. the doorbell camera): `push(Alert(app, key, title, embed_url, body="", ttl=60, wake=True))` (or `await apush(...)`) from any thread, non-blocking. `hub/alerts.py` installs the sender with `set_sender` and serves `ws/hub/alerts/` (a core route in `asgi.py`); `hub/static/hub/alerts.js` (loaded by `base.html`, display-sized screens only) shows one alert at a time in a modal with the `embed_url` iframe, dedupes by `key`, wakes/pauses the screensaver (`BDHSaver.wake/pause/resume`). Staff test hook: `/hub/api/alerts/test/` (`?embed=/path/&ttl=N`).
 - `bdh_sdk.ha` — shared Home Assistant client (`get_entity_states`, `get_history`, `call_service`, `ws_commands`…), in bdh-sdk so extracted apps can use it. Apps import it from `bdh_sdk.ha`, never from another app (`hub/ha_client.py` and `device_control.ha_client` are compatibility re-exports)
 - `tests/selenium_helpers.py` — Shared Selenium test utilities (login, Chrome options, network waits)
 - `.env` — Environment variables (HA_TOKEN, DB credentials, etc.)

@@ -254,13 +254,13 @@
         requestAnimationFrame(() => root.classList.add('on'));
     }
 
-    function hide() {
+    function hide(swallow = true) {
         if (!root) return;
         timers.forEach(clearInterval);
         timers = [];
         root.classList.remove('on');
         root.style.pointerEvents = 'none';
-        swallowNextClick();
+        if (swallow) swallowNextClick();
         setTimeout(() => { if (!root.classList.contains('on')) root.style.display = 'none'; }, 1300);
         arm();
     }
@@ -268,10 +268,11 @@
     /* ---------- idle detection ---------- */
     const idleMs = Math.max(1, cfg.idle_minutes || 10) * 60 * 1000;
     let idleTimer = null;
+    let paused = false;
     const isDisplay = () => window.innerWidth >= 1280;
     function arm() {
         clearTimeout(idleTimer);
-        if (isDisplay()) idleTimer = setTimeout(show, idleMs);
+        if (!paused && isDisplay()) idleTimer = setTimeout(show, idleMs);
     }
     ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(type =>
         document.addEventListener(type, () => { if (!root || !root.classList.contains('on')) arm(); },
@@ -279,6 +280,17 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
     window.addEventListener('resize', arm);
 
-    window.BDHSaver = {show, hide, scene};
+    /* Something else (an alert) owns the screen: keep the saver away until resume(). */
+    function pause() {
+        paused = true;
+        clearTimeout(idleTimer);
+    }
+    function resume() {
+        paused = false;
+        arm();
+    }
+    const wake = () => hide(false);
+
+    window.BDHSaver = {show, hide, wake, pause, resume, scene};
     if (params.get('saver') === '1') show(); else arm();
 })();
