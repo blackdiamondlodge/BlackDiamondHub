@@ -1,0 +1,24 @@
+{% extends 'hub_settings/_layout.html' %}
+{% load static %}
+
+{% block section %}
+<div class="hst-head">
+    <div>
+        <h2>Apps</h2>
+        <p>Apps installed on this hub.</p>
+    </div>
+</div>
+<section class="hst-card">
+    <h3>Installed</h3>
+    {% for a in apps %}
+    <div class="hst-app">
+        {% if a.img %}<img src="{% static a.img %}" alt="">{% else %}<span class="ph"><i class="fas fa-puzzle-piece" aria-hidden="true"></i></span>{% endif %}
+        <div class="lbl">
+            <b>{{ a.label }}</b>
+            <small>{{ a.spec.id }}{% if a.version %} · v{{ a.version }}{% endif %}</small>
+        </div>
+        {% if a.settings_url %}<a href="{{ a.settings_url }}">Settings <i class="fas fa-chevron-right" aria-hidden="true"></i></a>{% endif %}
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}

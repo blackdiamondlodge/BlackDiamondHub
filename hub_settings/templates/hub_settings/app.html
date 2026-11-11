@@ -1,0 +1,53 @@
+{% extends 'hub_settings/_layout.html' %}
+
+{% block section %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="hst-head">
+        <div>
+            <h2>{{ label }}</h2>
+            <p>Saved here, these override the server's environment.</p>
+        </div>
+        <div class="act"><button type="submit" class="hst-btn">Save</button></div>
+    </div>
+    {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
+    {% if has_errors %}<div class="hst-note bad" role="alert">Some values need fixing.</div>{% endif %}
+    <section class="hst-card">
+        <h3>{{ label }}</h3>
+        {% for r in rows %}
+        <div class="hst-row">
+            <label class="lbl" for="hs-{{ r.s.key }}">
+                <b>{{ r.s.label }}</b>
+                {% if r.error %}<small class="err">{{ r.error }}</small>{% elif r.s.help %}<small>{{ r.s.help }}</small>{% endif %}
+            </label>
+            <div class="ctl">
+                {% if r.saved %}
+                <button type="submit" name="reset" value="{{ r.s.key }}" class="hst-reset" formnovalidate
+                        title="Use the default ({{ r.default }})">Reset</button>
+                {% endif %}
+                {% if r.s.type == 'bool' %}
+                <span class="hst-tog">
+                    <input type="checkbox" role="switch" id="hs-{{ r.s.key }}" name="{{ r.s.key }}"{% if r.value %} checked{% endif %}>
+                    <span></span>
+                </span>
+                {% elif r.s.type == 'choice' %}
+                <select class="hst-in{% if r.error %} bad{% endif %}" id="hs-{{ r.s.key }}" name="{{ r.s.key }}">
+                    {% for v, l in r.s.options %}<option value="{{ v }}"{% if v|stringformat:'s' == r.value|stringformat:'s' %} selected{% endif %}>{{ l }}</option>{% endfor %}
+                </select>
+                {% elif r.s.type == 'int' %}
+                <input type="number" inputmode="numeric" class="hst-in num{% if r.error %} bad{% endif %}" id="hs-{{ r.s.key }}" name="{{ r.s.key }}"
+                       value="{{ r.value|default_if_none:'' }}"{% if r.s.minimum is not None %} min="{{ r.s.minimum }}"{% endif %}{% if r.s.maximum is not None %} max="{{ r.s.maximum }}"{% endif %}>
+                {% if r.s.unit %}<span class="hst-unit">{{ r.s.unit }}</span>{% endif %}
+                {% elif r.s.type == 'time' %}
+                <input type="time" class="hst-in time{% if r.error %} bad{% endif %}" id="hs-{{ r.s.key }}" name="{{ r.s.key }}" value="{{ r.value|default_if_none:'' }}">
+                {% else %}
+                <input type="text" class="hst-in txt{% if r.error %} bad{% endif %}" id="hs-{{ r.s.key }}" name="{{ r.s.key }}"
+                       value="{{ r.value|default_if_none:'' }}" placeholder="{{ r.default|default_if_none:'' }}">
+                {% if r.s.unit %}<span class="hst-unit">{{ r.s.unit }}</span>{% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+</form>
+{% endblock %}

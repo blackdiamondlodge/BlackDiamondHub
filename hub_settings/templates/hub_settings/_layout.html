@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block navbar_title %}Settings{% endblock %}
+
+{% block body_class %}hst-page{% endblock %}
+
+{% block extra_head %}
+<style>
+    body.hst-page {
+        background: radial-gradient(1200px 600px at 15% -10%, #1b2d4a 0%, transparent 60%), linear-gradient(180deg, #121c2c, #0d1420);
+        background-attachment: fixed; min-height: 100vh;
+    }
+    .hst {
+        --card: #18243a; --card2: #1d2b45; --line: #26354f; --fg: #eef3fa; --mut: #8fa3bd;
+        --dim: #6f86a3; --acc: #5ba4e6; --acc2: #7cc4ff; --red: #ff9a9a; --ok: #7fd8a4;
+        display: grid; grid-template-columns: 290px 1fr; gap: 20px;
+        min-height: calc(100vh - 62px - 40px); padding: 20px 8px 20px; color: var(--fg);
+    }
+    .hst-nav {
+        background: #121c2c; border: 1px solid var(--line); border-radius: 22px; padding: 10px 0 16px;
+        align-self: start; position: sticky; top: 82px;
+    }
+    .hst-grp { padding: 16px 22px 6px; font-size: 12px; letter-spacing: .14em; color: var(--dim); font-weight: 600; text-transform: uppercase; }
+    .hst-nav a {
+        display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 22px;
+        color: var(--mut); text-decoration: none; font-size: 15.5px;
+    }
+    .hst-nav a:hover { color: var(--fg); background: rgba(255,255,255,.03); }
+    .hst-nav a.on { background: #1d3352; color: var(--fg); box-shadow: inset 3px 0 0 var(--acc); font-weight: 600; }
+    .hst-nav i, .hst-nav img { width: 20px; text-align: center; }
+    .hst-nav img { height: 20px; object-fit: contain; }
+    .hst-nav .n { margin-left: auto; font-size: 13px; color: var(--dim); }
+    .hst-foot { padding: 14px 22px 0; font-size: 13px; color: var(--dim); line-height: 1.4; }
+    .hst-main { min-width: 0; max-width: 900px; }
+    .hst-head { display: flex; align-items: flex-start; gap: 16px; margin: 6px 0 18px; }
+    .hst-head h2 { font-size: 34px; font-weight: 300; margin: 0; }
+    .hst-head p { margin: 4px 0 0; color: var(--mut); font-size: 15px; }
+    .hst-head .act { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+    .hst-btn {
+        height: 44px; padding: 0 22px; border-radius: 12px; border: 0; font-size: 15px; font-weight: 600;
+        background: var(--acc); color: #0c1622; cursor: pointer;
+    }
+    .hst-btn.ghost { background: rgba(255,255,255,.05); color: var(--mut); }
+    .hst-btn.ghost:hover { color: var(--acc2); background: rgba(91,164,230,.14); }
+    .hst-card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; margin-bottom: 18px; overflow: hidden; }
+    .hst-card h3 {
+        margin: 0; padding: 16px 22px 12px; font-size: 12.5px; letter-spacing: .14em; color: var(--dim);
+        font-weight: 600; text-transform: uppercase; border-bottom: 1px solid var(--line);
+    }
+    .hst-row { display: flex; align-items: center; gap: 18px; padding: 16px 22px; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .hst-row:last-child { border-bottom: 0; }
+    .hst-row .lbl { flex: 1; min-width: 0; }
+    .hst-row .lbl b { display: block; font-size: 16px; font-weight: 500; }
+    .hst-row .lbl small { display: block; color: var(--mut); font-size: 13.5px; margin-top: 3px; line-height: 1.35; }
+    .hst-row .lbl .err { color: var(--red); }
+    .hst-row .ctl { display: flex; align-items: center; gap: 10px; }
+    .hst-in {
+        height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--card2); color: var(--fg);
+        padding: 0 14px; font-size: 15px; min-width: 0;
+    }
+    .hst-in:focus { outline: 2px solid var(--acc); outline-offset: 1px; }
+    .hst-in.num { width: 110px; } .hst-in.txt { width: 280px; } .hst-in.time { width: 140px; color-scheme: dark; }
+    .hst-in.bad { border-color: var(--red); }
+    select.hst-in { padding-right: 32px; }
+    .hst-unit { color: var(--mut); font-size: 14px; }
+    .hst-tog { position: relative; width: 58px; height: 34px; flex: none; }
+    .hst-tog input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: relative; z-index: 1; }
+    .hst-tog span { position: absolute; inset: 0; border-radius: 999px; background: #2b3d5c; transition: background .15s; }
+    .hst-tog span::after {
+        content: ""; position: absolute; top: 4px; left: 4px; width: 26px; height: 26px; border-radius: 50%;
+        background: #eef3fa; transition: transform .15s;
+    }
+    .hst-tog input:checked + span { background: var(--acc); }
+    .hst-tog input:checked + span::after { transform: translateX(24px); }
+    .hst-tog input:focus-visible + span { outline: 2px solid var(--acc2); outline-offset: 2px; }
+    .hst-reset { border: 0; background: none; color: var(--dim); font-size: 13px; cursor: pointer; padding: 6px; }
+    .hst-reset:hover { color: var(--acc2); }
+    .hst-note { padding: 12px 18px; border-radius: 14px; margin-bottom: 16px; font-size: 14.5px; }
+    .hst-note.ok { background: rgba(127,216,164,.10); color: var(--ok); }
+    .hst-note.bad { background: rgba(255,154,154,.10); color: var(--red); }
+    .hst-app { display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .hst-app:last-child { border-bottom: 0; }
+    .hst-app img { width: 36px; height: 36px; object-fit: contain; }
+    .hst-app .ph { width: 36px; height: 36px; display: grid; place-items: center; color: var(--dim); }
+    .hst-app .lbl { flex: 1; min-width: 0; }
+    .hst-app .lbl b { display: block; font-size: 16px; font-weight: 500; }
+    .hst-app .lbl small { color: var(--mut); font-size: 13px; }
+    .hst-app a { color: var(--acc2); text-decoration: none; font-size: 14.5px; }
+    @media (max-width: 760px) {
+        .hst { grid-template-columns: 1fr; padding: 12px 4px; }
+        .hst-nav { position: static; }
+        .hst-row { flex-wrap: wrap; }
+        .hst-in.txt { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="visually-hidden">Settings</h1>
+<div class="hst">
+    <nav class="hst-nav" aria-label="Settings sections">
+        <div class="hst-grp">Lodge</div>
+        {% for s in lodge_sections %}
+        <a href="{{ s.url }}" class="{% if s.id == active %}on{% endif %}"{% if s.id == active %} aria-current="page"{% endif %}>
+            <i class="fas {{ s.icon }}" aria-hidden="true"></i>{{ s.label }}{% if s.count %}<span class="n">{{ s.count }}</span>{% endif %}
+        </a>
+        {% endfor %}
+        <div class="hst-grp">Apps</div>
+        {% for s in app_sections %}
+        <a href="{{ s.url }}" class="{% if s.id == active %}on{% endif %}"{% if s.id == active %} aria-current="page"{% endif %}>
+            {% if s.img %}<img src="{% static s.img %}" alt="">{% else %}<i class="fas fa-puzzle-piece" aria-hidden="true"></i>{% endif %}{{ s.label }}
+        </a>
+        {% empty %}
+        <div class="hst-foot">No app has settings yet.</div>
+        {% endfor %}
+        <div class="hst-foot">Apps add their own section here automatically.</div>
+    </nav>
+    <main class="hst-main">
+        {% block section %}{% endblock %}
+    </main>
+</div>
+{% endblock %}

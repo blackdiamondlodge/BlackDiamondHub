@@ -71,6 +71,7 @@ INSTALLED_APPS = [
 # point group.
 HUB_PLUGINS = load_plugins([
     'feedback.plugin.spec',
+    'hub_settings.plugin.spec',
 ])
 INSTALLED_APPS += [spec.app for spec in HUB_PLUGINS]
 

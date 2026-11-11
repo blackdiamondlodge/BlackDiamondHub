@@ -8,7 +8,7 @@ import re
 from importlib import import_module
 from importlib.metadata import entry_points
 
-from .plugins import API_VERSION, SECTIONS, PluginSpec
+from .plugins import API_VERSION, SECTIONS, PluginSpec, Setting
 
 ENTRY_POINT_GROUP = "blackdiamondhub.plugins"
 
@@ -66,6 +66,13 @@ def validate(specs):
                     f"plugin {spec.id!r} tile {tile.title!r} has unknown "
                     f"section {tile.section!r}"
                 )
+        keys = set()
+        for setting in spec.settings:
+            if not isinstance(setting, Setting):
+                raise PluginError(f"plugin {spec.id!r} setting {setting!r} is not a Setting")
+            if setting.key in keys:
+                raise PluginError(f"plugin {spec.id!r} has duplicate setting {setting.key!r}")
+            keys.add(setting.key)
     return specs
 
 
