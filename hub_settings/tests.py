@@ -1,5 +1,6 @@
 from bdh_sdk.plugins import BOOL, CHOICE, INT, TIME
 from bdh_sdk.settings import app_setting
+from bdh_sdk.storage import app_state
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -9,7 +10,7 @@ from hub.loader import PluginError, validate
 from hub.plugins import PluginSpec, Setting
 
 from . import store
-from .models import AppSetting
+from .models import AppSetting, AppState
 
 DEMO = PluginSpec(
     id="demo",
@@ -109,3 +110,17 @@ class SettingsValidationTests(TestCase):
         spec = PluginSpec(id="bad", app="bad", settings=("a",))
         with self.assertRaisesMessage(PluginError, "is not a Setting"):
             validate([spec])
+
+
+class AppStateTests(TestCase):
+    def test_app_state_is_stored_in_database(self):
+        state = app_state("display")
+        state.set("lifts_opened", "2026-11-21")
+        state.set("lifts_opened", "2026-11-22")
+        self.assertEqual(AppState.objects.get(app_id="display").value, "2026-11-22")
+        self.assertEqual(state.get("lifts_opened"), "2026-11-22")
+        self.assertEqual(state.keys(), ["lifts_opened"])
+        self.assertIsNone(app_state("other").get("lifts_opened"))
+        state.delete("lifts_opened")
+        self.assertNotIn("lifts_opened", state)
+        self.assertFalse(AppState.objects.exists())
