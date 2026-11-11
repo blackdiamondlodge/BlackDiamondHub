@@ -19,14 +19,20 @@ django_asgi_app = get_asgi_application()
 from channels.auth import AuthMiddlewareStack  # noqa: E402
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
 from channels.security.websocket import AllowedHostsOriginValidator  # noqa: E402
+from django.urls import path  # noqa: E402
 
+from hub.alerts import AlertConsumer  # noqa: E402
 from hub.loader import websocket_urlpatterns  # noqa: E402
+
+core_websocket_urlpatterns = [
+    path("ws/hub/alerts/", AlertConsumer.as_asgi()),
+]
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
         AuthMiddlewareStack(
-            URLRouter(websocket_urlpatterns())
+            URLRouter(core_websocket_urlpatterns + websocket_urlpatterns())
         )
     ),
 })

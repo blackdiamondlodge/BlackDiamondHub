@@ -1,0 +1,28 @@
+.hub-alert {
+    position: fixed; inset: 0; z-index: 2147483600;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(5, 10, 20, .55); backdrop-filter: blur(6px);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease;
+    font-family: "Segoe UI", Inter, system-ui, sans-serif;
+}
+.hub-alert.on { opacity: 1; pointer-events: auto; }
+.hub-alert-card {
+    width: min(78vw, 1100px); background: #121a29; color: #e4eaf3;
+    border: 1px solid rgba(255, 255, 255, .12); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .6);
+    transform: scale(.96); transition: transform .25s ease;
+}
+.hub-alert.on .hub-alert-card { transform: none; }
+.hub-alert-head { display: flex; align-items: center; gap: 16px; padding: 16px 18px 14px 24px; }
+.hub-alert-text { flex: 1; min-width: 0; }
+.hub-alert-title { font-size: 26px; font-weight: 600; line-height: 1.2; }
+.hub-alert-body { font-size: 17px; opacity: .7; margin-top: 2px; }
+.hub-alert-close {
+    flex: none; width: 56px; height: 56px; border-radius: 50%; border: 0;
+    background: rgba(255, 255, 255, .1); color: #fff; font-size: 24px; cursor: pointer;
+}
+.hub-alert-close:active { background: rgba(255, 255, 255, .22); }
+.hub-alert-frame { aspect-ratio: 16 / 9; max-height: 70vh; background: #000; }
+.hub-alert-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.hub-alert-bar { height: 4px; background: rgba(255, 255, 255, .08); }
+.hub-alert-bar span { display: block; height: 100%; background: #6aa7ff; transform-origin: left; }
