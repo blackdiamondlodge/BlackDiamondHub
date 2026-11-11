@@ -491,6 +491,7 @@
                                     <i class="fas fa-inbox"></i>Feedback inbox
                                     <span class="fb-n">{% if unread_feedback_count > 0 %}{{ unread_feedback_count }}{% endif %}</span>
                                 </a>
+                                <a href="{% url 'hub_settings' %}" role="menuitem"><i class="fas fa-sliders-h"></i>Settings</a>
                                 <a href="{% url 'admin:index' %}" role="menuitem"><i class="fas fa-gear"></i>Admin</a>
                                 <hr>
                             {% endif %}
