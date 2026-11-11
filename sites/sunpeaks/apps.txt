@@ -10,7 +10,7 @@
 # An app's third-party dependencies must be in the hub's requirements.txt.
 # Installed apps register through the "blackdiamondhub.plugins" entry point.
 
-bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.1.1/bdh_app_wifi-1.1.1-py3-none-any.whl --hash=sha256:d0601c1d7d948842ab474817fff0cef935349627015924ad7359c35da556154b
+bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.1.2/bdh_app_wifi-1.1.2-py3-none-any.whl --hash=sha256:8284a760b7b22ad88a7c89bf07bcd71f80ae1d8c7e5383507fc4674decc35b6a
 bdh-app-sunpeaks-webcams @ https://github.com/blackdiamondlodge/bdh-app-sunpeaks-webcams/releases/download/v1.1.0/bdh_app_sunpeaks_webcams-1.1.0-py3-none-any.whl \
     --hash=sha256:65884955aec6613999083973f23a1884729a802d4f6815d394845431a42e20ac
 bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.1.0/bdh_app_lift_status-1.1.0-py3-none-any.whl \
