@@ -91,13 +91,16 @@
     .hub-reading-label { display: block; font-size: 14px; color: var(--mut); text-transform: uppercase; letter-spacing: 1px; }
     .hub-card-go { color: var(--mut); font-size: 22px; }
 
-    .hub-sections { display: flex; gap: 28px; flex: 1; min-height: 0; margin: 26px 0 32px; }
+    .hub-sections { display: flex; gap: 28px; flex: 1; min-height: 0; margin: 22px 0 26px; }
     .hub-section { display: flex; flex-direction: column; min-width: 0; }
     .hub-section h2 {
         font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;
         color: var(--mut); margin: 0 0 14px 4px;
     }
-    .hub-tiles { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 18px; }
+    .hub-tiles {
+        flex: 1; min-height: 0; display: grid; grid-auto-flow: column dense;
+        grid-template-rows: 1fr 1fr; grid-auto-columns: minmax(0, 1fr); gap: 16px;
+    }
     .hub-tile {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center; padding: 24px 18px;
@@ -107,9 +110,18 @@
     }
     .hub-tile:hover, .hub-tile:focus-visible { color: var(--fg); background: var(--card2); }
     .hub-tile:active { transform: scale(.97); }
-    .hub-tile img { width: 120px; height: 120px; margin-bottom: 26px; flex-shrink: 0; }
-    .hub-tile-title { font-size: 26px; font-weight: 600; line-height: 1.15; min-height: 2.3em; display: flex; align-items: flex-start; }
-    .hub-tile-sub { font-size: 19px; line-height: 1.35; color: var(--mut); margin-top: 4px; min-height: 2.7em; }
+    .hub-tile img { flex-shrink: 0; }
+    .hub-tile-txt { display: flex; flex-direction: column; min-width: 0; }
+    .hub-tile-title { font-size: 24px; font-weight: 600; line-height: 1.15; }
+    .hub-tile-sub { font-size: 18px; line-height: 1.35; color: var(--mut); margin-top: 6px; }
+    /* Large: spans both rows, icon above the text. */
+    .hub-tile-lg { grid-row: span 2; }
+    .hub-tile-lg img { width: 128px; height: 128px; margin-bottom: 22px; }
+    .hub-tile-lg .hub-tile-title { font-size: 28px; }
+    .hub-tile-lg .hub-tile-sub { font-size: 19px; margin-top: 4px; }
+    /* Half: icon beside the text. */
+    .hub-tile-half { flex-direction: row; justify-content: flex-start; text-align: left; padding: 16px 22px; gap: 20px; }
+    .hub-tile-half img { width: 84px; height: 84px; }
     .hub-tile-sub.is-status { color: var(--fg); }
     .hub-tile-sub.lvl-on { color: var(--acc); }
     .hub-tile-sub.lvl-warn { color: #f0b429; }
@@ -150,11 +162,14 @@
         .hub-chip .elevation { font-size: 13px; }
         .hub-sections { flex-direction: column; }
         .hub-section { flex: none !important; }
-        .hub-tiles { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
-        .hub-tile { padding: 22px 12px; }
-        .hub-tile img { width: 84px; height: 84px; margin-bottom: 14px; }
-        .hub-tile-title { font-size: 21px; min-height: 0; }
-        .hub-tile-sub { min-height: 0; }
+        .hub-tiles { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hub-tile { padding: 18px 12px; min-width: 0; }
+        .hub-tile-lg { grid-row: auto; grid-column: span 2; }
+        .hub-tile-lg img { width: 84px; height: 84px; margin-bottom: 12px; }
+        .hub-tile-half { flex-direction: column; justify-content: center; text-align: center; gap: 10px; }
+        .hub-tile-half img { width: 64px; height: 64px; }
+        .hub-tile-title, .hub-tile-lg .hub-tile-title { font-size: 21px; }
+        .hub-tile-sub { font-size: 16px; }
         .hub-quick { flex-wrap: wrap; margin: 0 0 20px; padding: 12px; gap: 10px; }
         .hub-quick-label { width: 100%; }
         .hub-quick-btn { font-size: 17px; padding: 12px 16px; }
@@ -203,14 +218,17 @@
 
 <main class="hub-sections" id="hub-sections">
     {% for key, title, tiles in hub_sections %}
-    <section class="hub-section hub-section-{{ key }}" style="flex: {{ tiles|length }}">
+    {# Width follows the column count: one per large tile or pair of half tiles. #}
+    <section class="hub-section hub-section-{{ key }}" style="flex: {% if tiles|length|divisibleby:2 %}{{ tiles|length }}{% else %}{{ tiles|length|add:1 }}{% endif %}">
         <h2>{{ title }}</h2>
         <div class="hub-tiles">
             {% for tile in tiles %}
-            <a class="hub-tile" href="{{ tile.url }}" data-plugin="{{ tile.plugin }}">
+            <a class="hub-tile hub-tile-{{ tile.size }}" href="{{ tile.url }}" data-plugin="{{ tile.plugin }}">
                 <img src="{% static tile.icon %}" alt="">
-                <span class="hub-tile-title">{{ tile.title }}</span>
-                <span class="hub-tile-sub" data-subtitle="{{ tile.subtitle }}">{{ tile.subtitle }}</span>
+                <span class="hub-tile-txt">
+                    <span class="hub-tile-title">{{ tile.title }}</span>
+                    <span class="hub-tile-sub" data-subtitle="{{ tile.subtitle }}">{{ tile.subtitle }}</span>
+                </span>
             </a>
             {% endfor %}
         </div>

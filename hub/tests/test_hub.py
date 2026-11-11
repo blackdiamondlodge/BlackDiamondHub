@@ -80,6 +80,17 @@ class TileModeTests(SimpleTestCase):
     def test_tile_with_unknown_url_is_skipped(self):
         self.assertNotIn("Ghost", self.titles(OWNER))
 
+    def test_odd_sections_lead_with_one_large_tile(self):
+        def sizes(n):
+            tiles = tuple(_tile(title=f"T{i}", order=i) for i in range(n))
+            with override_settings(HUB_PLUGINS=(PluginSpec(id="a", app="a", tiles=tiles),)):
+                (_, _, items), = tiles_for_mode(OWNER)
+            return [t["size"] for t in items]
+
+        self.assertEqual(sizes(1), ["lg"])
+        self.assertEqual(sizes(2), ["half", "half"])
+        self.assertEqual(sizes(3), ["lg", "half", "half"])
+
 
 class NavTitleTests(SimpleTestCase):
     plugins = (
