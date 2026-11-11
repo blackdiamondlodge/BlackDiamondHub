@@ -99,7 +99,7 @@
     }
     .hub-tiles {
         flex: 1; min-height: 0; display: grid; grid-auto-flow: column dense;
-        grid-template-rows: 1fr 1fr; grid-auto-columns: 1fr; gap: 16px;
+        grid-template-rows: 1fr 1fr; grid-auto-columns: minmax(0, 1fr); gap: 16px;
     }
     .hub-tile {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -162,12 +162,12 @@
         .hub-chip .elevation { font-size: 13px; }
         .hub-sections { flex-direction: column; }
         .hub-section { flex: none !important; }
-        .hub-tiles { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(2, 1fr); }
-        .hub-tile { padding: 18px 14px; }
+        .hub-tiles { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hub-tile { padding: 18px 12px; min-width: 0; }
         .hub-tile-lg { grid-row: auto; grid-column: span 2; }
         .hub-tile-lg img { width: 84px; height: 84px; margin-bottom: 12px; }
-        .hub-tile-half { gap: 14px; }
-        .hub-tile-half img { width: 60px; height: 60px; }
+        .hub-tile-half { flex-direction: column; justify-content: center; text-align: center; gap: 10px; }
+        .hub-tile-half img { width: 64px; height: 64px; }
         .hub-tile-title, .hub-tile-lg .hub-tile-title { font-size: 21px; }
         .hub-tile-sub { font-size: 16px; }
         .hub-quick { flex-wrap: wrap; margin: 0 0 20px; padding: 12px; gap: 10px; }
