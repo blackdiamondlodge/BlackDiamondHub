@@ -26,3 +26,21 @@ class AppSetting(models.Model):
 
     def __str__(self):
         return f"{self.app_id}.{self.key} = {self.value!r}"
+
+
+class AppState(models.Model):
+    """Something an app remembers between runs, via ``bdh_sdk.storage.app_state``."""
+
+    app_id = models.CharField(max_length=64)
+    key = models.CharField(max_length=128)
+    value = models.JSONField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["app_id", "key"], name="hub_settings_unique_state_key"),
+        ]
+        ordering = ["app_id", "key"]
+
+    def __str__(self):
+        return f"{self.app_id}.{self.key} = {self.value!r}"
