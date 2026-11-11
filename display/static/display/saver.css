@@ -1,0 +1,58 @@
+/* Burn-in protection: base.html content shifts by a few pixels (set by saver.js). */
+.content-wrapper { position: relative; left: var(--bx, 0); top: var(--by, 0); }
+.navbar.fixed-top { translate: var(--bx, 0) var(--by, 0); }
+
+.bdh-saver {
+    position: fixed; inset: 0; z-index: 2147483000; overflow: hidden; background: #000;
+    color: #e4eaf3; font-family: "Segoe UI", Inter, system-ui, sans-serif;
+    opacity: 0; transition: opacity 1.2s ease; cursor: none; user-select: none; touch-action: none;
+}
+.bdh-saver.on { opacity: 1; }
+.bdh-saver .layer { position: absolute; inset: 0; opacity: 0; transition: opacity 3s ease; }
+.bdh-saver .layer.on { opacity: 1; }
+.bdh-saver .layer > svg, .bdh-saver .layer > img {
+    position: absolute; left: -4%; top: -4%; width: 108%; height: 108%; object-fit: cover;
+    animation: bdh-pan 120s ease-in-out infinite alternate;
+}
+.bdh-saver .layer.cam > img { animation-duration: 75s; }
+@keyframes bdh-pan {
+    from { transform: scale(1) translate(1.5%, 1%); }
+    to   { transform: scale(1.07) translate(-1.5%, -1%); }
+}
+.bdh-saver .shade {
+    position: absolute; inset: 0;
+    background:
+        linear-gradient(90deg, rgba(8, 14, 28, .55) 0%, rgba(8, 14, 28, .25) 30%, rgba(8, 14, 28, 0) 50%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, .55) 100%);
+}
+.bdh-saver .info {
+    position: absolute; left: 5.7vw; bottom: 9.3vh; transition: translate 6s ease-in-out;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .35), 0 2px 18px rgba(0, 0, 0, .35);
+}
+.bdh-saver .clock {
+    font-size: clamp(72px, 8.75vw, 168px); font-weight: 200; letter-spacing: -.02em; line-height: 1;
+    color: rgba(240, 244, 250, .9);
+}
+.bdh-saver .clock small {
+    font-size: .26em; font-weight: 300; margin-left: .25em; color: rgba(240, 244, 250, .65);
+}
+.bdh-saver .date {
+    font-size: clamp(18px, 1.56vw, 30px); font-weight: 300; color: rgba(240, 244, 250, .75);
+    margin: .35em 0 .95em .2em;
+}
+.bdh-saver .row { display: flex; gap: clamp(24px, 2.3vw, 44px); margin-left: 6px; }
+.bdh-saver .row div { font-size: clamp(14px, 1.15vw, 22px); color: rgba(240, 244, 250, .68); }
+.bdh-saver .row b {
+    display: block; font-size: 1.55em; font-weight: 400; color: rgba(240, 244, 250, .9); margin-bottom: 2px;
+}
+.bdh-saver .season, .bdh-saver .cam-name {
+    position: absolute; right: 3.1vw; bottom: 4.8vh; font-size: clamp(12px, .95vw, 18px);
+    color: rgba(240, 244, 250, .55); letter-spacing: .08em; text-transform: uppercase;
+    transition: translate 6s ease-in-out;
+}
+.bdh-saver .cam-name { bottom: calc(4.8vh + 1.7em); letter-spacing: .04em; text-transform: none; opacity: 0; transition: opacity 3s; }
+.bdh-saver .cam-name.on { opacity: 1; }
+.bdh-saver .hint {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: 3.5vh;
+    font-size: clamp(12px, .9vw, 17px); color: rgba(240, 244, 250, .4); letter-spacing: .04em;
+}
