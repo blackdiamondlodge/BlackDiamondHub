@@ -174,6 +174,20 @@ jobs:
     - name: Build image
       run: docker build -t bdh-smoke .
 
+    - name: Create a read/write-only runtime login
+      # Mirrors homehub: migrations run as the owner (postgres here), the
+      # site runs as a login that can't create or alter tables.
+      env:
+        PGPASSWORD: postgres
+      run: |
+        psql -h localhost -U postgres -d smoke_db -v ON_ERROR_STOP=1 <<'SQL'
+        CREATE ROLE hub_app LOGIN PASSWORD 'hub_app';
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+          GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hub_app;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+          GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO hub_app;
+        SQL
+
     - name: Start container
       run: |
         mkdir -p /tmp/bdh-backups
@@ -181,7 +195,8 @@ jobs:
           -e DJANGO_SECRET_KEY=smoke-test-only \
           -e ALLOWED_HOSTS=localhost \
           -e DB_HOST=localhost -e DB_NAME=smoke_db \
-          -e DB_USER=postgres -e DB_PASSWORD=postgres \
+          -e DB_USER=hub_app -e DB_PASSWORD=hub_app \
+          -e DB_MIGRATE_USER=postgres -e DB_MIGRATE_PASSWORD=postgres \
           -v /tmp/bdh-backups:/backups \
           bdh-smoke
 
@@ -211,6 +226,29 @@ jobs:
         ls -l /tmp/bdh-backups
         ls /tmp/bdh-backups/*.sql.gz
         docker logs bdh 2>&1 | grep -q 'backup written'
+
+    - name: Check the site runs as the limited login
+      run: |
+        set -e
+        # The owner credentials are not in the Daphne process environment.
+        ! docker exec bdh sh -c 'tr "\0" "\n" < /proc/1/environ' | grep -q DB_MIGRATE
+        docker exec bdh /app/.venv/bin/python manage.py shell -c "
+        from django.db import connection
+        from django.contrib.sessions.models import Session
+        from django.utils import timezone
+        with connection.cursor() as c:
+            c.execute('select current_user')
+            assert c.fetchone()[0] == 'hub_app'
+        Session.objects.create(session_key='smoke', session_data='', expire_date=timezone.now())
+        Session.objects.filter(session_key='smoke').delete()
+        try:
+            with connection.cursor() as c:
+                c.execute('create table smoke_ddl (id int)')
+        except Exception as e:
+            print('DDL refused as expected:', e)
+        else:
+            raise SystemExit('runtime login could create a table')
+        "
 
     - name: Container logs
       if: always()
