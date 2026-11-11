@@ -44,18 +44,44 @@ def plugins():
     return getattr(settings, "HUB_PLUGINS", ())
 
 
-def tiles_for_mode(mode):
-    """Return [(section_key, section_title, [tile dicts])] for the mode."""
+SIZES = ("s", "m", "l")
+
+# The home layout (tile order and size per section), saved from Settings.
+LAYOUT_APP, LAYOUT_KEY = "hub", "home_layout"
+
+# Tiles the hub draws itself rather than an app: the weather and the lodge card.
+BUILTIN_TILES = (
+    {"id": "hub:weather", "kind": "weather", "section": "mountain", "title": "Mountain conditions",
+     "icon": "", "order": 0},
+    {"id": "hub:lodge", "kind": "lodge", "section": "lodge", "title": "Lodge status",
+     "icon": "", "order": 0},
+)
+
+
+def home_layout():
+    """The saved layout: {section: [{"id": ..., "size": ...}, ...]}."""
+    from bdh_sdk.settings import app_setting
+
+    layout = app_setting(LAYOUT_APP, LAYOUT_KEY, {})
+    return layout if isinstance(layout, dict) else {}
+
+
+def _catalog(mode=None):
+    """Every tile per section, in default order, optionally only those shown in ``mode``."""
     grouped = {key: [] for key in SECTIONS}
+    for tile in BUILTIN_TILES:
+        grouped[tile["section"]].append({**tile, "plugin": "", "subtitle": "", "url": ""})
     for spec in plugins():
         for tile in spec.tiles:
-            if mode not in tile.modes:
+            if mode is not None and mode not in tile.modes:
                 continue
             try:
                 url = reverse(tile.url_name)
             except NoReverseMatch:
                 continue
             grouped[tile.section].append({
+                "id": f"{spec.id}:{tile.url_name}",
+                "kind": "app",
                 "plugin": spec.id,
                 "title": tile.title,
                 "subtitle": tile.subtitle,
@@ -63,13 +89,38 @@ def tiles_for_mode(mode):
                 "icon": tile.icon,
                 "order": tile.order,
             })
+    for items in grouped.values():
+        items.sort(key=lambda t: (t["order"], t["title"]))
+    return grouped
+
+
+def arrange(items, saved):
+    """Order and size ``items`` by the saved entries for their section.
+
+    Saved tiles come first in their saved order; tiles the layout doesn't
+    mention (e.g. a newly installed app) follow in default order. Without a
+    saved size the first tile is large and the rest medium.
+    """
+    saved = [e for e in saved or () if isinstance(e, dict)]
+    rank = {e.get("id"): i for i, e in enumerate(saved)}
+    sizes = {e.get("id"): e.get("size") for e in saved}
+    items = sorted(items, key=lambda t: rank.get(t["id"], len(rank)))
+    for i, item in enumerate(items):
+        size = sizes.get(item["id"])
+        item["size"] = size if size in SIZES else ("l" if i == 0 else "m")
+    return items
+
+
+def tiles_for_mode(mode=None):
+    """Return [(section_key, section_title, [tile dicts])], laid out as saved.
+
+    With ``mode`` None every tile is included (the layout settings page).
+    """
+    grouped, layout = _catalog(mode), home_layout()
     sections = []
     for key, title in SECTIONS.items():
-        items = sorted(grouped[key], key=lambda t: (t["order"], t["title"]))
-        # Sections are two tiles tall. With an odd count the first tile (by
-        # order) spans both rows so the grid has no hole; the rest are half.
-        for i, item in enumerate(items):
-            item["size"] = "lg" if i == 0 and len(items) % 2 else "half"
-        if items:
+        items = arrange(grouped[key], layout.get(key))
+        # The lodge card alone doesn't make a section: it's often empty.
+        if any(t["kind"] != "lodge" for t in items):
             sections.append((key, title, items))
     return sections
