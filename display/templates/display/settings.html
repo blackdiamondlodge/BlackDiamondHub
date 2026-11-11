@@ -1,6 +1,8 @@
 {% extends 'hub_settings/_layout.html' %}
+{% load static %}
 
 {% block section %}
+<link rel="stylesheet" href="{% static 'display/library.css' %}">
 <style>
     .hst-main { max-width: 1560px; }
     .dsp { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
@@ -13,7 +15,7 @@
         color: var(--mut); font-size: 15.5px; cursor: pointer; display: flex; align-items: center; gap: 8px;
     }
     .dsp-tabs button.on { background: var(--acc); color: #0c1622; border-color: var(--acc); font-weight: 600; }
-    .dsp-src { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .dsp-src { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
     .dsp-src label {
         display: block; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2);
         cursor: pointer; min-height: 64px;
@@ -88,7 +90,7 @@
                         {% for v, l in sources %}
                         <label>
                             <b><input type="radio" name="source_{{ s.id }}" value="{{ v }}"{% if v == s.source %} checked{% endif %}>{{ l }}</b>
-                            <small>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'cam' %}{{ default_cam|default:'Resort webcam' }}{% else %}Rotate the scene and the cam{% endif %}</small>
+                            <small>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'photos' %}{{ s.photo_count }} photo{{ s.photo_count|pluralize }} for {{ s.label|lower }}{% elif v == 'cam' %}{{ default_cam|default:'Resort webcam' }}{% else %}Rotate scene, photos &amp; cam{% endif %}</small>
                         </label>
                         {% endfor %}
                     </div>
@@ -96,7 +98,7 @@
                     <div class="dsp-bg">
                         <div class="dsp-prev" id="dsp-prev"><span class="tag" id="dsp-prev-tag">Preview</span></div>
                         <div class="dsp-ctl">
-                            <p>Each image slowly pans and zooms to protect the screen. With <b>Mix</b>, the background switches between the scene and the live cam.</p>
+                            <p>Each image slowly pans and zooms to protect the screen. With <b>Mix</b>, the background rotates between the scene, your photos and the live cam.</p>
                             <label class="dsp-line">
                                 <span>Change every</span>
                                 <input type="range" name="rotate_minutes" min="1" max="60" value="{{ v.rotate_minutes }}" id="dsp-rot">
@@ -114,6 +116,17 @@
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section class="hst-card" id="dsp-lib" data-list="{% url 'display_photos' %}" data-link="{% url 'display_upload_link' %}"
+                     data-add="{% url 'display_photo_add' %}" data-base="{% url 'display_photos' %}">
+                <h3>Photo library <span id="dsp-lib-count"></span></h3>
+                <div class="dsp-lib" id="dsp-lib-grid">
+                    <button type="button" class="dsp-add" id="dsp-add">
+                        <i class="fas fa-qrcode" aria-hidden="true"></i><b>Upload photos</b><small>Scan with your phone</small>
+                    </button>
+                </div>
+                <div class="dsp-foot">Tap a season tag to change when a photo shows. Untagged photos show in every season.</div>
             </section>
         </div>
 
@@ -174,6 +187,36 @@
     </div>
 </form>
 
+<dialog class="dsp-qr" id="dsp-qr" aria-labelledby="dsp-qr-title">
+    <div class="dsp-qr-head">
+        <h3 id="dsp-qr-title">Add photos from your phone</h3>
+        <button type="button" class="dsp-x" data-close aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
+    </div>
+    <div class="dsp-qr-body">
+        <div class="dsp-qr-code" id="dsp-qr-code"></div>
+        <div class="dsp-qr-side">
+            <ol>
+                <li>Open your phone's camera and point it at the code.</li>
+                <li>Pick a season, then choose photos.</li>
+                <li>They'll appear here as they arrive.</li>
+            </ol>
+            <p class="dsp-qr-time" id="dsp-qr-time"></p>
+            <p class="dsp-qr-status" id="dsp-qr-status" role="status"></p>
+            <div class="dsp-qr-new" id="dsp-qr-new"></div>
+        </div>
+    </div>
+    <div class="dsp-qr-foot">
+        <label class="dsp-local">
+            <input type="file" id="dsp-local" accept="image/*" multiple>
+            <span>Or choose files on this device</span>
+        </label>
+        <button type="button" class="hst-btn" data-close>Done</button>
+    </div>
+</dialog>
+
+{{ photos|json_script:"dsp-photos" }}
+{{ season_choices|json_script:"dsp-seasons" }}
+<script src="{% static 'display/library.js' %}" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const labels = {};

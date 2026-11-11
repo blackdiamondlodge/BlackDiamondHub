@@ -103,7 +103,7 @@
     function build() {
         root = document.createElement('div');
         root.className = 'bdh-saver';
-        root.innerHTML = '<div class="layer stock"></div><div class="layer cam"></div><div class="shade"></div>'
+        root.innerHTML = '<div class="layer stock"></div><div class="layer photos"></div><div class="layer cam"></div><div class="shade"></div>'
             + '<div class="info"><div class="clock"></div><div class="date"></div><div class="row"></div></div>'
             + '<div class="cam-name"></div><div class="season"></div><div class="hint">Tap anywhere</div>';
         // Swallow the tap that wakes the display so it doesn't land on what's underneath.
@@ -140,10 +140,34 @@
         $('.season').style.translate = `${r(20)} ${r(12)}`;
     }
 
-    let showing = 'stock';
+    let showing = 'stock', photoIndex = 0;
+    function photoList() { return (data && data.photos) || []; }
+
+    // Loads the next library photo into the photos layer, fading through if it's on screen.
+    function nextPhoto(fade) {
+        const list = photoList();
+        const layer = $('.layer.photos');
+        if (!list.length) { layer.replaceChildren(); return; }
+        const url = list[photoIndex++ % list.length];
+        const current = layer.querySelector('img');
+        if (current && current.dataset.src === url) return;
+        const img = new Image();
+        img.alt = '';
+        img.dataset.src = url;
+        img.onload = () => {
+            if (!fade) { layer.replaceChildren(img); return; }
+            layer.classList.remove('on');
+            setTimeout(() => { layer.replaceChildren(img); if (showing === 'photos') layer.classList.add('on'); }, 3000);
+        };
+        img.src = url;
+    }
+
     function showLayer(name) {
+        const leaving = showing === 'photos' && name !== 'photos';
         showing = name;
         $('.layer.stock').classList.toggle('on', name === 'stock');
+        $('.layer.photos').classList.toggle('on', name === 'photos');
+        if (leaving) setTimeout(() => nextPhoto(false), 3500);
         $('.layer.cam').classList.toggle('on', name === 'cam');
         $('.cam-name').classList.toggle('on', name === 'cam');
     }
@@ -171,8 +195,13 @@
         } else {
             camLayer.replaceChildren();
         }
+        const photosLayer = $('.layer.photos');
+        const loaded = photosLayer.querySelector('img');
+        if (!photoList().length) photosLayer.replaceChildren();
+        else if (!loaded || !photoList().includes(loaded.dataset.src)) nextPhoto(false);
         const sources = d.sources || ['stock'];
-        if (!sources.includes(showing) || (showing === 'cam' && !camLayer.firstChild)) showLayer(sources[0]);
+        const empty = name => (name === 'cam' && !camLayer.firstChild) || (name === 'photos' && !photoList().length);
+        if (!sources.includes(showing) || empty(showing)) showLayer(sources.find(s => !empty(s)) || 'stock');
     }
 
     function load() {
@@ -184,9 +213,13 @@
 
     function rotate() {
         const sources = (data && data.sources) || ['stock'];
-        if (sources.length < 2) return;
+        if (sources.length < 2) {
+            if (showing === 'photos' && photoList().length > 1) nextPhoto(true);
+            return;
+        }
         const next = sources[(sources.indexOf(showing) + 1) % sources.length];
         if (next === 'cam' && !$('.layer.cam').firstChild) return;
+        if (next === 'photos' && !$('.layer.photos').firstChild) return;
         showLayer(next);
     }
 

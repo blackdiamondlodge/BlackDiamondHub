@@ -9,6 +9,7 @@ SEASON_IDS = tuple(s for s, _ in SEASONS)
 
 SOURCES = (
     ("stock", "Stock illustration"),
+    ("photos", "My photos"),
     ("cam", "Live cam"),
     ("mix", "Mix"),
 )
