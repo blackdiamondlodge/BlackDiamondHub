@@ -1,13 +1,22 @@
-from datetime import date
+import io
+import os
+import shutil
+import tempfile
+from datetime import date, timedelta
 from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.core.files.storage import FileSystemStorage
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
+from PIL import Image
 
 from hub_settings import store
 from hub_settings.models import AppSetting
+from .models import SaverPhoto, UploadLink
 from .options import DEFAULT_STARTS
 from .season import parse_mmdd, resolve
 from .stats import MINUS, collect, stat, sun_times
@@ -158,3 +167,119 @@ class ViewTests(TestCase):
         self.assertEqual(saved["winter_start"], "11-01")
         self.assertEqual(saved["idle_minutes"], 15)
         self.assertNotIn("burn_in", saved)  # unchanged defaults stay unsaved
+
+def jpeg(size=(800, 600), orientation=None, name="p.jpg"):
+    img = Image.new("RGB", size, (200, 30, 30))
+    buf = io.BytesIO()
+    exif = img.getexif()
+    if orientation:
+        exif[0x0112] = orientation
+    exif[0x010F] = "SecretCam"  # Make: must not survive processing
+    img.save(buf, "JPEG", exif=exif)
+    return SimpleUploadedFile(name, buf.getvalue(), content_type="image/jpeg")
+
+
+class PhotoTests(TestCase):
+    def setUp(self):
+        self.addCleanup(store.clear)
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, True)
+        storage = FileSystemStorage(root, base_url="/media/apps/display/")
+        for name in ("image", "thumb"):
+            patcher = mock.patch.object(SaverPhoto._meta.get_field(name), "storage", storage)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.root = root
+        User = get_user_model()
+        self.staff = User.objects.create_user("staff", password="pw", is_staff=True)
+        self.guest = User.objects.create_user("guest", password="pw")
+        self.client.force_login(self.staff)
+        patcher = mock.patch("display.views.gather", return_value={})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def link(self):
+        return self.client.post(reverse("display_upload_link")).json()
+
+    def test_phone_upload_flow(self):
+        link = self.link()
+        self.assertIn("<svg", link["qr"])
+        self.assertTrue(link["url"].endswith(f"/display/upload/{link['key']}/"))
+        phone = Client()
+        page = phone.get(reverse("display_upload", args=[link["key"]]))
+        self.assertContains(page, "Choose photos")
+        self.assertEqual(page["Cache-Control"], "no-store")
+        response = phone.post(reverse("display_upload_photo", args=[link["key"]]),
+                              {"photo": jpeg(), "seasons": "summer"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["photos"][0]["tag"], "Summer")
+        status = self.client.get(reverse("display_photos"), {"link": link["key"]}).json()
+        self.assertEqual(status["link"]["arrived"], 1)
+        self.assertTrue(status["link"]["claimed"])
+        self.assertGreater(status["link"]["seconds"], 25 * 60)  # claiming extends the code
+
+        other = Client()
+        self.assertEqual(other.get(reverse("display_upload", args=[link["key"]])).status_code, 403)
+        self.assertEqual(other.post(reverse("display_upload_photo", args=[link["key"]]),
+                                    {"photo": jpeg()}).status_code, 403)
+
+    def test_upload_link_errors(self):
+        phone = Client()
+        self.assertEqual(phone.get(reverse("display_upload", args=["nope"])).status_code, 404)
+        link = UploadLink.objects.create()
+        # Posting without opening the page (no claim) is refused.
+        self.assertEqual(phone.post(reverse("display_upload_photo", args=[link.key]),
+                                    {"photo": jpeg()}).status_code, 403)
+        UploadLink.objects.filter(pk=link.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+        self.assertContains(phone.get(reverse("display_upload", args=[link.key])), "expired", status_code=410)
+
+    def test_processing(self):
+        response = self.client.post(reverse("display_photo_add"), {"photo": jpeg((4000, 1000), orientation=6)})
+        self.assertEqual(response.status_code, 200)
+        photo = SaverPhoto.objects.get()
+        self.assertEqual(photo.seasons, [])
+        with Image.open(photo.image.path) as img:
+            self.assertEqual(img.size, (640, 2560))  # rotated upright, then fit to 2560
+            self.assertNotIn(0x010F, img.getexif())
+        with Image.open(photo.thumb.path) as img:
+            self.assertLessEqual(max(img.size), 480)
+
+        bad = SimpleUploadedFile("x.jpg", b"not an image", content_type="image/jpeg")
+        self.assertEqual(self.client.post(reverse("display_photo_add"), {"photo": bad}).status_code, 400)
+
+    def test_update_and_delete(self):
+        self.client.post(reverse("display_photo_add"), {"photo": jpeg(), "seasons": "winter,spring,summer,fall"})
+        photo = SaverPhoto.objects.get()
+        self.assertEqual(photo.seasons, [])  # all four means any season
+        url = reverse("display_photo_update", args=[photo.id])
+        body = self.client.post(url, {"seasons": "fall,winter", "enabled": "0"}).json()
+        self.assertEqual(body["seasons"], ["fall", "winter"])
+        self.assertFalse(body["enabled"])
+        path = photo.image.path
+        self.client.post(reverse("display_photo_delete", args=[photo.id]))
+        self.assertFalse(SaverPhoto.objects.exists())
+        self.assertFalse(os.path.exists(path))
+
+    def test_staff_only(self):
+        self.client.post(reverse("display_photo_add"), {"photo": jpeg()})
+        photo = SaverPhoto.objects.get()
+        self.client.force_login(self.guest)
+        for url in (reverse("display_upload_link"), reverse("display_photo_add"),
+                    reverse("display_photo_update", args=[photo.id]),
+                    reverse("display_photo_delete", args=[photo.id])):
+            self.assertEqual(self.client.post(url, {"enabled": "0"}).status_code, 302, url)
+        self.assertEqual(self.client.get(reverse("display_photos")).status_code, 302)
+        self.assertTrue(SaverPhoto.objects.get().enabled)
+
+    def test_saver_api_photos(self):
+        AppSetting.objects.create(app_id="display", key="source_summer", value="photos")
+        AppSetting.objects.create(app_id="display", key="source_winter", value="photos")
+        self.client.post(reverse("display_photo_add"), {"photo": jpeg(), "seasons": "summer"})
+        summer = self.client.get(reverse("display_saver_api"), {"season": "summer"}).json()
+        self.assertEqual(summer["sources"], ["photos"])
+        self.assertEqual(len(summer["photos"]), 1)
+        winter = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
+        self.assertEqual(winter["sources"], ["stock"])  # no winter photos: fall back to the scene
+        SaverPhoto.objects.update(enabled=False)
+        summer = self.client.get(reverse("display_saver_api"), {"season": "summer"}).json()
+        self.assertEqual(summer["sources"], ["stock"])

@@ -1,0 +1,67 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Add photos · Black Diamond Lodge</title>
+<link rel="stylesheet" href="{% static 'display/upload.css' %}">
+</head>
+<body>
+<main class="up">
+  <header class="up-head">
+    <div class="up-mark">BDL</div>
+    <div>
+      <h1>Add photos</h1>
+      <p>to the lodge screensaver</p>
+    </div>
+  </header>
+
+{% if message %}
+  <section class="up-card up-msg">
+    <p>{{ message }}</p>
+  </section>
+{% else %}
+  <section class="up-card" id="pick">
+    <h2>Which season?</h2>
+    <p class="up-sub">They'll show while the hub is in that season.</p>
+    <div class="up-seasons" role="radiogroup" aria-label="Season">
+      {% for sid, label in season_choices %}
+      <label class="up-chip"><input type="radio" name="season" value="{{ sid }}"{% if sid == current %} checked{% endif %}><span>{{ label }}</span></label>
+      {% endfor %}
+      <label class="up-chip"><input type="radio" name="season" value=""><span>Any</span></label>
+    </div>
+
+    <label class="up-choose">
+      <input type="file" id="files" accept="image/*" multiple>
+      <span>Choose photos</span>
+    </label>
+    <p class="up-sub up-center">Landscape photos look best.</p>
+  </section>
+
+  <section class="up-card" id="progress" hidden>
+    <h2 id="progress-title">Sending…</h2>
+    <ul class="up-list" id="list"></ul>
+    <button type="button" class="up-link" id="cancel">Cancel remaining</button>
+  </section>
+
+  <section class="up-card up-done" id="done" hidden>
+    <div class="up-tick" aria-hidden="true">&#10003;</div>
+    <h2 id="done-title">Photos added</h2>
+    <p class="up-sub" id="done-sub"></p>
+    <div class="up-actions">
+      <button type="button" class="up-btn" id="more">Add more</button>
+      <button type="button" class="up-btn up-ghost" id="finish">Done</button>
+    </div>
+  </section>
+
+  <section class="up-card up-msg" id="closed" hidden>
+    <p>All set. You can close this page.</p>
+  </section>
+
+  <div id="upload-config" data-url="{{ post_url }}" data-csrf="{{ csrf_token }}" hidden></div>
+{% endif %}
+</main>
+{% if not message %}<script src="{% static 'display/upload.js' %}"></script>{% endif %}
+</body>
+</html>
