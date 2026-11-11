@@ -82,9 +82,10 @@
     }
 
     /* ---------- burn-in: shift every screen by a few pixels ---------- */
-    const SHIFT = 3;
+    const SHIFT = 6;
     function shift() {
-        const r = () => Math.round(Math.random() * SHIFT * 2 - SHIFT) + 'px';
+        // Up/left only: a positive offset would push the page past the viewport and make it scroll.
+        const r = () => -Math.round(Math.random() * SHIFT) + 'px';
         document.documentElement.style.setProperty('--bx', r());
         document.documentElement.style.setProperty('--by', r());
     }
