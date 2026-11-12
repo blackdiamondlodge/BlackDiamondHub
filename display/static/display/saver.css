@@ -21,12 +21,12 @@
     from { transform: scale(1) translate(1.5%, 1%); }
     to   { transform: scale(1.07) translate(-1.5%, -1%); }
 }
-/* Library photos: each one is a frame that crossfades in over the last and slowly pans/zooms (Ken Burns). */
-.bdh-saver .layer.photos .frame {
+/* Library photos and stock paintings: each is a frame that crossfades in over the last and slowly pans/zooms (Ken Burns). */
+.bdh-saver .layer .frame {
     position: absolute; inset: 0; overflow: hidden; opacity: 0; transition: opacity 3s ease;
     animation: bdh-kb 184s ease-in-out forwards;
 }
-.bdh-saver .layer.photos .frame.in { opacity: 1; }
+.bdh-saver .layer .frame.in { opacity: 1; }
 .bdh-saver .frame > img { position: absolute; display: block; }
 .bdh-saver .frame > .bg {
     inset: -8%; width: 116%; height: 116%; object-fit: cover; filter: blur(40px) brightness(.6) saturate(1.1);
