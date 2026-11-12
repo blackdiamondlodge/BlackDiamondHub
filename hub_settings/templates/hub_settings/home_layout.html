@@ -57,7 +57,7 @@
     .hl-add:disabled { opacity: .4; cursor: default; }
 </style>
 
-<form method="post" id="hl-form" novalidate>
+<form method="post" id="hl-form" novalidate{% if has_errors %} data-dirty{% endif %}>
     {% csrf_token %}
     <input type="hidden" name="layout" id="hl-layout">
     <div class="hst-head">
@@ -67,7 +67,7 @@
         </div>
         <div class="act">
             {% if customised %}<button type="submit" name="reset" value="1" class="hst-btn ghost" formnovalidate>Reset</button>{% endif %}
-            <button type="submit" class="hst-btn">Save</button>
+            <button type="submit" class="hst-btn" data-save>Save</button>
         </div>
     </div>
     {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
@@ -223,24 +223,30 @@
             grip.addEventListener('pointercancel', end);
         });
 
-        form.addEventListener('submit', function (e) {
-            if (e.submitter && e.submitter.name === 'reset') return;
-            var bad = null;
-            var layout = { groups: groups().map(function (g) {
-                var input = g.querySelector('.hl-title');
-                var title = input.value.trim();
-                input.classList.toggle('bad', !title);
-                if (!title && !bad) bad = input;
+        function layout() {
+            return { groups: groups().map(function (g) {
                 return {
                     key: g.getAttribute('data-key'),
-                    title: title,
+                    title: g.querySelector('.hl-title').value.trim(),
                     tiles: Array.prototype.map.call(g.querySelectorAll('.hl-row'), function (row) {
                         return { id: row.getAttribute('data-id'), size: row.getAttribute('data-size') };
                     }),
                 };
             }) };
+        }
+        form.bdhState = function () { return JSON.stringify(layout()); };
+
+        form.addEventListener('submit', function (e) {
+            if (e.submitter && e.submitter.name === 'reset') return;
+            var bad = null;
+            groups().forEach(function (g) {
+                var input = g.querySelector('.hl-title');
+                var empty = !input.value.trim();
+                input.classList.toggle('bad', empty);
+                if (empty && !bad) bad = input;
+            });
             if (bad) { e.preventDefault(); bad.focus(); return; }
-            document.getElementById('hl-layout').value = JSON.stringify(layout);
+            document.getElementById('hl-layout').value = form.bdhState();
         });
 
         refresh();

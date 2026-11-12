@@ -34,7 +34,7 @@ def _settings():
         Setting("night_until", "Dark until", default=DEFAULT_NIGHT["until"], help="HH:MM, 24-hour"),
         Setting("winter_on_lifts", "Let apps bring winter forward", BOOL, True,
                 "Otherwise use the dates below"),
-        Setting("rotate_minutes", "Change every", INT, 3, minimum=1, maximum=60, unit="min"),
+        Setting("rotate_seconds", "Change every", INT, 180, minimum=30, maximum=600, unit="s"),
         Setting("cam", "Live cam", help="Background id; empty picks the first", default=""),
     ]
     for season, label in SEASONS:

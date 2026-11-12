@@ -193,16 +193,29 @@
         $('.caption').classList.toggle('on', showing === 'photos' && !!text);
     }
 
-    // Slow random pan and zoom; it lasts as long as the photo stays up.
+    function rotateSeconds() {
+        return Math.min(600, Math.max(30, (data && data.rotate_seconds) || 180));
+    }
+
+    // Pans from one side to the other along `angle`. With transform scale(s) translate(t%), the
+    // visible shift is s*t, so |t| must stay under (s-1)/(2s) of the frame or an edge shows;
+    // 85% of that leaves margin.
+    function kenBurnsPan(s0, s1, angle) {
+        const lim = s => (s - 1) / (2 * s) * 100 * 0.85;
+        const dx = Math.cos(angle), dy = Math.sin(angle);
+        return [-dx * lim(s0), -dy * lim(s0), dx * lim(s1), dy * lim(s1)];
+    }
+
+    // Slow pan and zoom (like Apple TV / Google Photos); it lasts as long as the photo stays up.
     function kenBurns(frame) {
-        const every = Math.max(60, (data && data.rotate_seconds) || 180);
+        const every = rotateSeconds();
         const zoomIn = Math.random() < 0.5;
-        const [s0, s1] = zoomIn ? [rand(1.04, 1.07), rand(1.12, 1.16)] : [rand(1.12, 1.16), rand(1.04, 1.07)];
-        // Small enough that the zoom always hides the frame's edges.
-        const p = () => rand(-1.5, 1.5).toFixed(2) + '%';
+        const [s0, s1] = zoomIn ? [rand(1.10, 1.13), rand(1.22, 1.28)] : [rand(1.22, 1.28), rand(1.10, 1.13)];
+        const [x0, y0, x1, y1] = kenBurnsPan(s0, s1, Math.random() * 2 * Math.PI);
         frame.style.setProperty('--s0', s0.toFixed(3));
         frame.style.setProperty('--s1', s1.toFixed(3));
-        [['--x0', p()], ['--y0', p()], ['--x1', p()], ['--y1', p()]].forEach(([k, v]) => frame.style.setProperty(k, v));
+        [['--x0', x0], ['--y0', y0], ['--x1', x1], ['--y1', y1]]
+            .forEach(([k, v]) => frame.style.setProperty(k, v.toFixed(2) + '%'));
         frame.style.animationDuration = (every + 4) + 's';
     }
 
@@ -360,7 +373,7 @@
         showLayer(showing);
         load().then(() => {
             if (!root.classList.contains('on')) return;
-            const every = Math.max(60, (data && data.rotate_seconds) || 180) * 1000;
+            const every = rotateSeconds() * 1000;
             timers.push(setInterval(rotate, every));
         });
         timers.push(setInterval(tick, 10 * 1000), setInterval(drift, 60 * 1000), setInterval(load, 5 * 60 * 1000),

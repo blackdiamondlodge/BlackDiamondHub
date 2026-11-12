@@ -24,7 +24,7 @@
 /* Library photos: each one is a frame that crossfades in over the last and slowly pans/zooms (Ken Burns). */
 .bdh-saver .layer.photos .frame {
     position: absolute; inset: 0; overflow: hidden; opacity: 0; transition: opacity 3s ease;
-    animation: bdh-kb 184s linear forwards;
+    animation: bdh-kb 184s ease-in-out forwards;
 }
 .bdh-saver .layer.photos .frame.in { opacity: 1; }
 .bdh-saver .frame > img { position: absolute; display: block; }
@@ -35,8 +35,8 @@
 .bdh-saver .frame.fill > .fg { object-fit: cover; }
 .bdh-saver .frame.fill > .bg { display: none; }
 @keyframes bdh-kb {
-    from { transform: scale(var(--s0, 1.05)) translate(var(--x0, 0), var(--y0, 0)); }
-    to   { transform: scale(var(--s1, 1.12)) translate(var(--x1, 0), var(--y1, 0)); }
+    from { transform: scale(var(--s0, 1.1)) translate(var(--x0, 0), var(--y0, 0)); }
+    to   { transform: scale(var(--s1, 1.25)) translate(var(--x1, 0), var(--y1, 0)); }
 }
 .bdh-saver .shade {
     position: absolute; inset: 0;

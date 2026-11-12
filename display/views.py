@@ -52,7 +52,7 @@ def _preview(request):
     if "cam" in request.GET:
         out["cam"] = request.GET["cam"][:80]
     try:
-        out["rotate"] = min(60, max(1, int(request.GET["rotate"])))
+        out["rotate"] = min(600, max(30, int(request.GET["rotate"])))
     except (KeyError, ValueError):
         pass
     if request.GET.get("caption") in ("0", "1"):
@@ -88,7 +88,7 @@ def saver_api(request):
         "season": season,
         "label": dict(SEASONS)[season],
         "sources": layers,
-        "rotate_seconds": preview.get("rotate", value("rotate_minutes")) * 60,
+        "rotate_seconds": preview.get("rotate", value("rotate_seconds")),
         "cam": cam,
         "photos": photos,
         "burn_in": value("burn_in"),

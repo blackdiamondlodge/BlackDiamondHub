@@ -86,7 +86,15 @@ class SettingsPageTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertContains(response, "Some values need fixing", status_code=400)
         self.assertContains(response, 'value="90"', status_code=400)
+        self.assertContains(response, " data-dirty>", status_code=400)  # the unsaved values can be saved again
         self.assertFalse(AppSetting.objects.exists())
+
+    def test_save_waits_for_a_change(self):
+        self.client.force_login(self.staff)
+        page = self.client.get(self.url)
+        self.assertContains(page, 'class="hst-btn" data-save>Save')
+        self.assertNotContains(page, " data-dirty>")
+        self.assertContains(page, ".hst-btn:disabled")
 
     def test_reset_deletes_saved_value(self):
         self.client.force_login(self.staff)
@@ -142,7 +150,7 @@ class SettingsPageTests(TestCase):
             self.assertContains(page, f'href="{reverse("hub_settings_home")}"')
             self.assertContains(page, "iCal links")
             self.assertNotContains(page, "Broken")
-            self.assertNotContains(page, 'class="hst-btn">Save')
+            self.assertNotContains(page, " data-save>")
 
     def test_layout_nav_available_to_app_pages(self):
         from django.template.loader import render_to_string
@@ -221,7 +229,12 @@ class HomeLayoutPageTests(TestCase):
             raw = layout if isinstance(layout, str) else json.dumps(layout)
             response = self.client.post(self.url, {"layout": raw})
             self.assertEqual(response.status_code, 400, raw)
+            self.assertContains(response, " data-dirty>", status_code=400)
         self.assertFalse(AppSetting.objects.exists())
+        page = self.client.get(self.url)
+        self.assertContains(page, 'class="hst-btn" data-save>Save')
+        self.assertContains(page, "form.bdhState")
+        self.assertNotContains(page, " data-dirty>")
 
     def test_reset_deletes_layout(self):
         self.client.force_login(self.staff)

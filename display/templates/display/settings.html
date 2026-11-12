@@ -55,9 +55,9 @@
     @media (max-width: 760px) { .dsp-src, .dsp-dates { grid-template-columns: 1fr 1fr; } }
 </style>
 
-<form method="post" novalidate id="dsp-form">
+<form method="post" novalidate id="dsp-form"{% if has_errors %} data-dirty{% endif %}>
     {% csrf_token %}
-    <input type="hidden" name="tab" id="dsp-tab" value="{{ selected }}">
+    <input type="hidden" name="tab" id="dsp-tab" value="{{ selected }}" data-clean>
     <div class="hst-head">
         <div>
             <h2>Display</h2>
@@ -66,7 +66,7 @@
         <div class="act">
             <a class="hst-btn ghost" id="dsp-preview" href="/?saver=1&amp;saver_season={{ selected }}"
                style="display:flex;align-items:center;text-decoration:none">Preview screensaver</a>
-            <button type="submit" class="hst-btn">Save</button>
+            <button type="submit" class="hst-btn" data-save>Save</button>
         </div>
     </div>
     {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
@@ -101,10 +101,10 @@
                             <p>Images drift slowly to protect the screen and crossfade between each other. Portrait photos show whole over a soft blurred fill. With <b>Mix</b>, the background rotates between the scene, your photos and the live cam.</p>
                             <label class="dsp-line">
                                 <span>Change every</span>
-                                <input type="range" name="rotate_minutes" min="1" max="60" value="{{ v.rotate_minutes }}" id="dsp-rot">
-                                <output for="dsp-rot" id="dsp-rot-out">{{ v.rotate_minutes }} min</output>
+                                <input type="range" name="rotate_seconds" min="30" max="600" step="30" value="{{ v.rotate_seconds }}" id="dsp-rot">
+                                <output for="dsp-rot" id="dsp-rot-out">{{ v.rotate_seconds }} s</output>
                             </label>
-                            {% if errors.rotate_minutes %}<small style="color:var(--red)">{{ errors.rotate_minutes }}</small>{% endif %}
+                            {% if errors.rotate_seconds %}<small style="color:var(--red)">{{ errors.rotate_seconds }}</small>{% endif %}
                             {% if cams or v.cam %}
                             <label class="dsp-line">
                                 <span>Live cam</span>
@@ -273,7 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => select(b.dataset.tab)));
     const rot = document.getElementById('dsp-rot');
-    rot.addEventListener('input', () => { document.getElementById('dsp-rot-out').textContent = rot.value + ' min'; });
+    const showRot = () => {
+        const s = +rot.value, m = Math.floor(s / 60);
+        document.getElementById('dsp-rot-out').textContent = s < 60 ? s + ' s' : m + (s % 60 ? '\u00bd' : '') + ' min';
+    };
+    rot.addEventListener('input', showRot);
+    showRot();
     select(document.getElementById('dsp-tab').value);
 });
 </script>

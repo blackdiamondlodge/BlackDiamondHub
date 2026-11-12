@@ -1,3 +1,4 @@
+import importlib
 import io
 import os
 import shutil
@@ -6,6 +7,7 @@ from datetime import date, timedelta
 from unittest import mock
 
 from bdh_sdk.provides import BACKGROUNDS, SEASON, STATS, WINTER, Background, SeasonHint, Stat
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
@@ -230,7 +232,7 @@ class ViewTests(TestCase):
             data[s["start_key"]] = s["start"]
             data[f"source_{s['id']}"] = s["source"]
             data.update({slot["key"]: slot["value"] for slot in s["slots"]})
-        data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_minutes="3", cam="", tab="fall",
+        data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_seconds="180", cam="", tab="fall",
                     night="on", night_from="23:00", night_until="06:00")
         data.update(overrides)
         return data
@@ -239,6 +241,11 @@ class ViewTests(TestCase):
         response = self.client.post(reverse("display_settings"), self.form(winter_start="11-1", idle_minutes="15"))
         self.assertEqual(response.status_code, 400)  # 11-1 isn't MM-DD
         self.assertContains(response, "Use MM-DD", status_code=400)
+        self.assertContains(response, " data-dirty>", status_code=400)
+        page = self.client.get(reverse("display_settings"))
+        self.assertContains(page, 'class="hst-btn" data-save>Save')
+        self.assertRegex(page.content.decode(), r'id="dsp-tab" value="\w+" data-clean')  # switching tabs isn't a change
+        self.assertNotContains(page, " data-dirty>")
 
         response = self.client.post(reverse("display_settings"), self.form(winter_start="11-01", idle_minutes="15"))
         self.assertRedirects(response, reverse("display_settings") + "?saved=1&season=fall",
@@ -271,6 +278,26 @@ class ViewTests(TestCase):
         self.client.post(reverse("display_settings"), {k: v for k, v in self.form().items() if k != "night"})
         body = self.client.get(reverse("display_schedule_api")).json()
         self.assertEqual(body, {"enabled": False, "from": None, "until": None, "dark": False})
+
+
+class RotateMigrationTests(TestCase):
+    """0003 turns the old "Change every" minutes into seconds within 30 s - 10 min."""
+
+    def test_to_seconds(self):
+        mig = importlib.import_module("display.migrations.0003_rotate_seconds")
+        self.assertEqual([mig.to_seconds(v) for v in (3, "2", 60, 0, "x", None)], [180, 120, 600, 30, None, None])
+
+    def test_forwards_moves_saved_value(self):
+        mig = importlib.import_module("display.migrations.0003_rotate_seconds")
+        AppSetting.objects.create(app_id="display", key="rotate_minutes", value=5)
+        AppSetting.objects.create(app_id="other", key="rotate_minutes", value=5)
+        mig.forwards(django_apps, None)
+        self.assertEqual(AppSetting.objects.get(app_id="display", key="rotate_seconds").value, 300)
+        self.assertFalse(AppSetting.objects.filter(app_id="display", key="rotate_minutes").exists())
+        self.assertTrue(AppSetting.objects.filter(app_id="other", key="rotate_minutes").exists())
+        mig.backwards(django_apps, None)
+        self.assertEqual(AppSetting.objects.get(app_id="display", key="rotate_minutes").value, 5)
+        self.assertFalse(AppSetting.objects.filter(key="rotate_seconds").exists())
 
 
 class CatalogTests(TestCase):
@@ -441,10 +468,11 @@ class PhotoTests(TestCase):
     def test_preview_overrides_are_staff_only(self):
         self.client.post(reverse("display_photo_add"), {"photo": jpeg(taken="2023:12:25 08:00:00")})
         api = reverse("display_saver_api")
-        preview = {"season": "summer", "source": "photos", "rotate": "99", "caption": "1"}
+        preview = {"season": "summer", "source": "photos", "rotate": "9999", "caption": "1"}
         body = self.client.get(api, preview).json()
         self.assertEqual(body["sources"], ["photos"])
-        self.assertEqual(body["rotate_seconds"], 60 * 60)  # clamped to the slider's range
+        self.assertEqual(body["rotate_seconds"], 600)  # clamped to the slider's range
+        self.assertEqual(self.client.get(api, dict(preview, rotate="5")).json()["rotate_seconds"], 30)
         self.assertEqual(body["photos"][0]["caption"], "December 2023")
         self.client.force_login(self.guest)
         body = self.client.get(api, preview).json()
