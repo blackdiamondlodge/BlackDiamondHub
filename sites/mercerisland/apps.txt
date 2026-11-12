@@ -13,7 +13,7 @@
 # Same pins as sites/sunpeaks/apps.txt; bump both together. Exception:
 # bdh-app-weather is Mercer Island only (Sun Peaks uses its snow report).
 
-bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.5.0/bdh_app_cameras-1.5.0-py3-none-any.whl --hash=sha256:0c8f84302da3a0ab3dcedacb078ac29c1870829f54436f28eb9369feced8e394
+bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.6.0/bdh_app_cameras-1.6.0-py3-none-any.whl --hash=sha256:d844946b6fcd4296bfaf89a8046cd4c7de4fa29700bbf4b3f7629d720697e259
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v2.5.0/bdh_app_sonos_control-2.5.0-py3-none-any.whl --hash=sha256:02be4a3c92aac24e6fb0bbc30768cd3b043e39ddc3bac920605ce2b3ede16c95
 bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.3.0/bdh_app_wifi-1.3.0-py3-none-any.whl --hash=sha256:088a97356790d3050a98e4c1f40681b82d0b119d7b9d765f6994e8c474aa96d5
 bdh-app-weather @ https://github.com/blackdiamondlodge/bdh-app-weather/releases/download/v1.3.0/bdh_app_weather-1.3.0-py3-none-any.whl --hash=sha256:a476826547ce7a3e97d4f4464130de1b1992f7e75073c93f0a0cc54439ab9af7

@@ -354,8 +354,13 @@ class OnScreenKeyboardTest(SeleniumTestCase):
         browser.find_element(By.ID, 'id_username').click()
         wait = WebDriverWait(browser, 10)
         self.wait_open()
+        kb_h = "return getComputedStyle(document.documentElement).getPropertyValue('--hub-kb-h')"
+        wait.until(lambda d: d.execute_script(kb_h))
+        self.assertEqual(browser.execute_script(kb_h),
+                         browser.execute_script("return document.querySelector('.hub-kb').offsetHeight + 'px'"))
         browser.find_element(By.CSS_SELECTOR, '.hub-kb-hide').click()
         wait.until(EC.invisibility_of_element_located(self.KB_OPEN))
+        self.assertEqual(browser.execute_script(kb_h), '')
 
     def test_off_on_desktop(self):
         # Headless Chrome has a mouse (hover), so it isn't treated as the hub screen.
