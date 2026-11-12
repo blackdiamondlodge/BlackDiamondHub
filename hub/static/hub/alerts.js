@@ -1,11 +1,13 @@
 /* Pop-up alerts pushed by apps through bdh_sdk.alerts (see hub/alerts.py).
  * One alert at a time: the newest replaces the current one, and a repeat of the
- * same key just restarts its countdown. Only the hub's own display listens. */
+ * same key just restarts its countdown (unless "Keep open" was tapped).
+ * Only the hub's own display listens. */
 (function () {
     'use strict';
     const isDisplay = () => window.innerWidth >= 1280;
     let ws = null, backoff = 1000, retry = null, resizeTimer = null;
-    let root = null, current = null, closeTimer = null;
+    const KEEP_MAX_S = 600;
+    let root = null, current = null, closeTimer = null, kept = false;
 
     function el(tag, cls) {
         const e = document.createElement(tag);
@@ -21,14 +23,34 @@
             '<div class="hub-alert-card">' +
             '<div class="hub-alert-head"><div class="hub-alert-text">' +
             '<div class="hub-alert-title"></div><div class="hub-alert-body"></div></div>' +
+            '<button type="button" class="hub-alert-keep" aria-pressed="false">' +
+            '<i class="fas fa-thumbtack"></i><span>Keep open</span></button>' +
             '<button type="button" class="hub-alert-close" aria-label="Close">' +
             '<i class="fas fa-times"></i></button></div>' +
             '<div class="hub-alert-frame"></div>' +
             '<div class="hub-alert-bar"><span></span></div></div>';
         root.addEventListener('click', e => {
-            if (e.target === root || e.target.closest('.hub-alert-close')) close();
+            if (e.target.closest('.hub-alert-keep')) keepOpen();
+            else if (e.target === root || e.target.closest('.hub-alert-close')) close();
         });
         document.body.appendChild(root);
+    }
+
+    function setKept(on) {
+        kept = on;
+        root.classList.toggle('kept', on);
+        const btn = root.querySelector('.hub-alert-keep');
+        btn.setAttribute('aria-pressed', String(on));
+        btn.querySelector('span').textContent = on ? 'Kept open' : 'Keep open';
+    }
+
+    /* Stop the countdown; the alert stays until closed, up to a safety cap so a
+     * forgotten live feed doesn't stream (and hold off the screensaver) forever. */
+    function keepOpen() {
+        if (!current || kept) return;
+        setKept(true);
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(close, KEEP_MAX_S * 1000);
     }
 
     function startTimer(ttl) {
@@ -65,13 +87,16 @@
         body.textContent = alert.body || '';
         body.hidden = !alert.body;
         root.classList.add('on');
-        startTimer(Math.max(1, Math.min(600, alert.ttl || 60)));
+        if (!same) setKept(false);
+        // A repeat of a kept alert (e.g. another ring) leaves it kept open.
+        if (!kept) startTimer(Math.max(1, Math.min(600, alert.ttl || 60)));
     }
 
     function close() {
         if (!root || !current) return;
         clearTimeout(closeTimer);
         current = null;
+        setKept(false);
         root.classList.remove('on');
         // Drop the iframe so live video stops streaming.
         root.querySelector('.hub-alert-frame').textContent = '';
@@ -110,6 +135,6 @@
         resizeTimer = setTimeout(() => (isDisplay() ? connect() : disconnect()), 500);
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
-    window.BDHAlerts = {show, close};
+    window.BDHAlerts = {show, close, keepOpen};
     connect();
 })();
