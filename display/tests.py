@@ -24,7 +24,7 @@ from .models import SaverPhoto, UploadLink
 from .options import DEFAULT_STARTS
 from .schedule import is_night, parse_hhmm
 from .season import parse_mmdd, resolve
-from .stats import MINUS, collect, stat, sun_times
+from .stats import collect, days_until_lifts
 
 STARTS = dict(DEFAULT_STARTS)  # winter 11-21, spring 03-15, summer 06-01, fall 09-15
 
@@ -70,40 +70,20 @@ class SeasonTests(TestCase):
                 parse_mmdd(bad)
 
 
-DATA = {
-    "resort": {
-        "temperatures": [
-            {"name": "Top of the World", "elevation_m": 2080, "c": -6.4},
-            {"name": "Valley", "elevation_m": 1255, "c": 0.4},
-        ],
-        "new_snow": [{"period": "48 Hr", "cm": 38}],
-    },
-    "lifts": {"lifts_open": 0, "lifts_total": 13, "trails_open": 112, "trails_total": 138},
-}
-
-
 class StatTests(TestCase):
-    def test_formats(self):
+    def test_days_until_lifts(self):
         today = date(2026, 11, 11)
-        self.assertEqual(stat("temp_top", DATA, today, STARTS), {"label": "Up top", "value": f"{MINUS}6°C"})
-        self.assertEqual(stat("temp_village", DATA, today, STARTS)["value"], "0°C")
-        self.assertEqual(stat("new_snow", DATA, today, STARTS)["value"], "38 cm")
-        self.assertEqual(stat("runs_open", DATA, today, STARTS)["value"], "112 of 138")
-        self.assertEqual(stat("days_until_lifts", DATA, today, STARTS)["value"], "10 days")
+        self.assertEqual(days_until_lifts(today, STARTS, False)["value"], "10 days")
+        self.assertIsNone(days_until_lifts(today, STARTS, True))
+        self.assertIsNone(days_until_lifts(today, STARTS, None))
 
     @mock.patch("hub.provides.stats", return_value={})
     @mock.patch("hub.provides.stat_owners", return_value=set())
     def test_missing_data_is_skipped(self, _owners, stats):
         # Isolated from the installed apps' providers, which would fetch live data.
         keys = ["snow_report.temp_top", "none", "snow_report.base", "snow_report.wind_top", "lift_status.groomed"]
-        self.assertEqual(collect(keys, {}, date(2026, 11, 11), STARTS), [])
+        self.assertEqual(collect(keys, date(2026, 11, 11), STARTS), [])
         stats.assert_not_called()
-
-    def test_sun_times_are_plausible(self):
-        rise, sets = sun_times(date(2026, 6, 21), 50.884, -119.885)
-        # Sun Peaks summer solstice: about 4:45 and 21:15 local (UTC-7).
-        self.assertEqual(((rise.hour - 7) % 24, rise.minute // 15), (4, 3))
-        self.assertEqual(((sets.hour - 7) % 24, sets.minute // 15), (21, 1))
 
 
 P = "display.tests."
@@ -115,11 +95,17 @@ def weather_stats():
 
 
 def snow_stats():
-    return [Stat("snow_48h", "48h snow", value=PROVIDED.get("snow", "20 cm"))]
+    return [Stat("temp_top", "Up top", value="-6°C"), Stat("temp_village", "At the lodge", value="0°C"),
+            Stat("snow_48h", "48h snow", value=PROVIDED.get("snow", "20 cm"))]
+
+
+def lift_stats():
+    return [Stat("runs_open", "Runs open", value="112 of 138")]
 
 
 def webcams():
-    return [Background("peak", "Peak cam", "http://cam/peak.jpg", refresh_seconds=30)]
+    return [Background("peak", "Peak cam", "http://cam/peak.jpg", refresh_seconds=30),
+            Background("village", "Village cam", "http://cam/village.jpg")]
 
 
 def lifts_hint():
@@ -128,13 +114,19 @@ def lifts_hint():
 
 _OWN = ("snow_report", "lift_status", "sunpeaks_webcams", "weather")
 BASE = tuple(s for s in settings.HUB_PLUGINS if s.id not in _OWN)
-# Sun Peaks before its apps provide anything: the display's adapters stand in.
-MOUNTAIN = BASE + (PluginSpec(id="snow_report", app="snow_report"), PluginSpec(id="lift_status", app="lift_status"))
+SNOW = PluginSpec(id="snow_report", app="snow_report", provides={STATS: P + "snow_stats"},
+                  stat_keys=(("temp_top", "Up top"), ("temp_village", "At the lodge"), ("snow_48h", "48h snow")))
+LIFTS = PluginSpec(id="lift_status", app="lift_status", provides={STATS: P + "lift_stats"},
+                   stat_keys=(("runs_open", "Runs open"),))
+CAMS = PluginSpec(id="sunpeaks_webcams", app="sunpeaks_webcams", provides={BACKGROUNDS: P + "webcams"})
+MOUNTAIN = BASE + (SNOW, LIFTS, CAMS)
+MOUNTAIN_SLOTS = ["snow_report.temp_top", "snow_report.temp_village", "snow_report.snow_48h", "lift_status.runs_open"]
 WEATHER = PluginSpec(id="weather", app="weather", provides={STATS: P + "weather_stats"},
                      stat_keys=(("temp", "Outside"), ("sunrise", "Sunrise"), ("sunset", "Sunset")))
+# No site slot defaults: the display's generic ones apply.
+NO_SITE_SLOTS = {f"BDH_DISPLAY_SLOTS_{s}": None for s in ("WINTER", "SPRING", "SUMMER", "FALL")}
 
-
-@override_settings(HUB_PLUGINS=MOUNTAIN)
+@override_settings(HUB_PLUGINS=MOUNTAIN, BDH_DISPLAY_SLOTS_WINTER=MOUNTAIN_SLOTS)
 class ViewTests(TestCase):
     def setUp(self):
         store.clear()
@@ -145,64 +137,44 @@ class ViewTests(TestCase):
         User = get_user_model()
         self.staff = User.objects.create_user("staff", password="pw", is_staff=True)
         self.guest = User.objects.create_user("guest", password="pw")
-        for target, value in (("display.views.gather", DATA), ("display.views._cams", [
-            {"camera_name": "Sunburst Express", "slug": "sunburst", "image_url": "http://x/s.jpg"},
-            {"camera_name": "Village", "slug": "village", "image_url": "http://x/v.jpg"},
-        ])):
-            patcher = mock.patch(target, return_value=value)
-            patcher.start()
-            self.addCleanup(patcher.stop)
 
     def test_saver_api(self):
         body = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
         self.assertEqual(body["season"], "winter")
         self.assertEqual(body["sources"], ["stock"])
-        self.assertEqual([s["label"] for s in body["stats"]], ["Up top", "At the lodge", "New snow, 48h", "Runs open"])
+        self.assertEqual([s["label"] for s in body["stats"]], ["Up top", "At the lodge", "48h snow", "Runs open"])
 
     def test_saver_api_cam(self):
         AppSetting.objects.create(app_id="display", key="source_summer", value="mix")
         body = self.client.get(reverse("display_saver_api"), {"season": "summer"}).json()
         self.assertEqual(body["sources"], ["stock", "cam"])
-        self.assertEqual(body["cam"]["name"], "Sunburst Express")
-        self.assertEqual(body["cam"]["refresh_seconds"], 60)
+        self.assertEqual(body["cam"], {"name": "Peak cam", "url": "http://cam/peak.jpg",
+                                       "timestamp": None, "refresh_seconds": 30})
 
-    def test_old_cam_slug_still_picks_that_cam(self):
+    def test_saved_cam_picks_that_background(self):
         AppSetting.objects.create(app_id="display", key="source_summer", value="cam")
-        AppSetting.objects.create(app_id="display", key="cam", value="village")
+        AppSetting.objects.create(app_id="display", key="cam", value="sunpeaks_webcams.village")
         body = self.client.get(reverse("display_saver_api"), {"season": "summer"}).json()
-        self.assertEqual(body["cam"]["url"], "http://x/v.jpg")
+        self.assertEqual(body["cam"]["url"], "http://cam/village.jpg")
 
-    def test_old_bare_slot_keys_still_show(self):
-        AppSetting.objects.create(app_id="display", key="slot_winter_1", value="new_snow")
+    def test_site_slot_defaults(self):
         body = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
-        self.assertEqual(body["stats"][0]["label"], "New snow, 48h")
-
-    def test_provider_and_adapter_mix_while_apps_roll_out(self):
-        snow = PluginSpec(id="snow_report", app="snow_report", provides={STATS: P + "snow_stats"},
-                          stat_keys=(("snow_48h", "48h snow"),))
-        with override_settings(HUB_PLUGINS=BASE + (snow, PluginSpec(id="lift_status", app="lift_status"))):
+        self.assertEqual(len(body["stats"]), 4)
+        with override_settings(BDH_DISPLAY_SLOTS_WINTER="lift_status.runs_open, snow_report.temp_top"):
             body = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
-        # snow_report provides now, so its legacy temps are gone; lift_status still uses the adapter.
-        self.assertEqual(body["stats"], [{"label": "48h snow", "value": "20 cm"},
-                                         {"label": "Runs open", "value": "112 of 138"}])
-
+        self.assertEqual([s["label"] for s in body["stats"]], ["Runs open", "Up top"])
+        AppSetting.objects.create(app_id="display", key="slot_winter_1", value="snow_report.snow_48h")
+        body = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
+        self.assertEqual(body["stats"][0]["label"], "48h snow")
     def test_unavailable_slot_is_kept_and_skipped(self):
         AppSetting.objects.create(app_id="display", key="slot_winter_2", value="ticker.price")
         body = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
-        self.assertEqual([s["label"] for s in body["stats"]], ["Up top", "New snow, 48h", "Runs open"])
+        self.assertEqual([s["label"] for s in body["stats"]], ["Up top", "48h snow", "Runs open"])
         self.client.force_login(self.staff)
         page = self.client.get(reverse("display_settings"))
         self.assertContains(page, '<option value="ticker.price" selected>ticker.price (unavailable)</option>')
         self.client.post(reverse("display_settings"), self.form())
         self.assertEqual(store.saved("display")["slot_winter_2"], "ticker.price")
-
-    def test_provided_backgrounds_replace_the_webcam_adapter(self):
-        AppSetting.objects.create(app_id="display", key="source_summer", value="cam")
-        cams = PluginSpec(id="sunpeaks_webcams", app="sunpeaks_webcams", provides={BACKGROUNDS: P + "webcams"})
-        with override_settings(HUB_PLUGINS=MOUNTAIN + (cams,)):
-            body = self.client.get(reverse("display_saver_api"), {"season": "summer"}).json()
-        self.assertEqual(body["cam"], {"name": "Peak cam", "url": "http://cam/peak.jpg",
-                                       "timestamp": None, "refresh_seconds": 30})
 
     def test_season_hint_brings_winter_forward(self):
         hint = PluginSpec(id="lift_status", app="lift_status", provides={SEASON: P + "lifts_hint"})
@@ -214,7 +186,7 @@ class ViewTests(TestCase):
             self.assertEqual(self.client.get(reverse("display_saver_api")).json()["season"], "winter")
 
     def test_site_without_mountain_apps(self):
-        with override_settings(HUB_PLUGINS=BASE + (WEATHER,)), mock.patch("display.views._cams", return_value=[]):
+        with override_settings(HUB_PLUGINS=BASE + (WEATHER,), **NO_SITE_SLOTS):
             body = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
             self.assertEqual(body["stats"], [{"label": "Outside", "value": "12°C"},
                                              {"label": "Sunset", "value": "4:30 PM"}])
@@ -298,16 +270,6 @@ class ViewTests(TestCase):
 
 
 class CatalogTests(TestCase):
-    def test_normalize(self):
-        with override_settings(HUB_PLUGINS=MOUNTAIN):
-            self.assertEqual(catalog.normalize("new_snow"), "snow_report.snow_48h")
-            self.assertEqual(catalog.normalize("sunset"), "snow_report.sunset")
-            self.assertEqual(catalog.normalize("snow_report.sunset"), "snow_report.sunset")
-            for same in ("none", "days_until_lifts", "", "ticker.price"):
-                self.assertEqual(catalog.normalize(same), same)
-        with override_settings(HUB_PLUGINS=BASE + (WEATHER,)):
-            self.assertEqual(catalog.normalize("sunrise"), "weather.sunrise")
-
     def test_groups(self):
         with override_settings(HUB_PLUGINS=BASE + (WEATHER,)):
             self.assertEqual(catalog.stat_groups(["weather.temp", "gone.x"]), [
@@ -317,6 +279,11 @@ class CatalogTests(TestCase):
         with override_settings(HUB_PLUGINS=MOUNTAIN):
             groups = dict(catalog.stat_groups())
         self.assertIn(("lift_status.runs_open", "Runs open"), groups["Lift Status"])
+        self.assertNotIn("Screensaver", groups)  # days until lifts needs an app that knows the season
+        hint = PluginSpec(id="lift_status", app="lift_status", provides={STATS: P + "lift_stats", SEASON: P + "lifts_hint"},
+                          stat_keys=(("runs_open", "Runs open"),))
+        with override_settings(HUB_PLUGINS=BASE + (SNOW, hint)):
+            groups = dict(catalog.stat_groups())
         self.assertEqual(groups["Screensaver"], [("days_until_lifts", "Days until lifts open")])
 
 
@@ -350,6 +317,7 @@ def jpeg(size=(800, 600), orientation=None, name="p.jpg", taken=None):
     return SimpleUploadedFile(name, buf.getvalue(), content_type="image/jpeg")
 
 
+@override_settings(HUB_PLUGINS=BASE)  # no live providers
 class PhotoTests(TestCase):
     def setUp(self):
         self.addCleanup(store.clear)
@@ -365,9 +333,6 @@ class PhotoTests(TestCase):
         self.staff = User.objects.create_user("staff", password="pw", is_staff=True)
         self.guest = User.objects.create_user("guest", password="pw")
         self.client.force_login(self.staff)
-        patcher = mock.patch("display.views.gather", return_value={})
-        patcher.start()
-        self.addCleanup(patcher.stop)
 
     def link(self):
         return self.client.post(reverse("display_upload_link")).json()

@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 
 from display.schedule import lodge_minute, window
-from display.stats import stat
 from hub.context_processors import _brand, brand
 from hub.modes import builtin_tiles
 from hub.site import SITES_DIR, app_settings, load_site
@@ -161,6 +160,5 @@ class LocationTests(SimpleTestCase):
         self.assertIn(offset, (-480, -420))
 
     @override_settings(HUB_LOCATION={})
-    def test_no_location_means_utc_and_no_sun_times(self):
+    def test_no_location_means_utc(self):
         self.assertEqual(lodge_minute(self.winter), 20 * 60)
-        self.assertIsNone(stat("sunrise", {}, self.winter.date(), {}))

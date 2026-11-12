@@ -16,16 +16,9 @@ SOURCES = (
 
 SLOTS = 4
 
-# Stored as bare keys, normalized by catalog.normalize. Sites without the
-# mountain apps get GENERIC_SLOTS instead.
-DEFAULT_SLOTS = {
-    "winter": ("temp_top", "temp_village", "new_snow", "runs_open"),
-    "spring": ("temp_top", "temp_village", "base", "sunset"),
-    "summer": ("temp_top", "temp_village", "lifts_open", "sunset"),
-    "fall": ("temp_top", "temp_village", "days_until_lifts", "sunset"),
-}
-GENERIC_SLOTS = ("weather.temp", "weather.sunrise", "weather.sunset", "none")
-MOUNTAIN_APPS = ("snow_report", "lift_status")
+# Info-strip stats a slot shows until it's set. A site picks its own per season
+# in site.toml: [apps.display] slots_<season> = ["<app>.<key>", ...].
+DEFAULT_SLOTS = ("weather.temp", "weather.sunrise", "weather.sunset", "none")
 DEFAULT_STARTS = {"winter": "11-21", "spring": "03-15", "summer": "06-01", "fall": "09-15"}
 DEFAULT_NIGHT = {"from": "23:00", "until": "06:00"}
 
@@ -86,16 +79,16 @@ def starts():
 
 
 def default_slot(season, n):
-    """The info-strip stat a slot shows when it was never set, for this site's apps."""
-    from .catalog import installed, normalize
-
-    mountain = any(app in installed() for app in MOUNTAIN_APPS)
-    return normalize((DEFAULT_SLOTS[season] if mountain else GENERIC_SLOTS)[n - 1])
+    """The info-strip stat a slot shows when it was never set: the site's ``slots_<season>``."""
+    keys = app_setting(APP, f"slots_{season}", None) or DEFAULT_SLOTS
+    if isinstance(keys, str):
+        keys = keys.split(",")
+    keys = [str(k).strip() for k in keys][:SLOTS]
+    keys += ["none"] * (SLOTS - len(keys))
+    return keys[n - 1] or "none"
 
 
 def slot(season, n, raw=None):
-    """A slot's stat id, normalized; ``raw`` overrides the saved value."""
-    from .catalog import normalize
-
-    key = normalize(value(f"slot_{season}_{n}") if raw is None else raw)
+    """A slot's stat id; ``raw`` overrides the saved value."""
+    key = (value(f"slot_{season}_{n}") if raw is None else raw or "").strip()
     return key or default_slot(season, n)

@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from hub import provides
 from hub_settings import store
 from hub_settings.views import _render, _save, staff_page
 
@@ -21,39 +22,22 @@ from .photos import BadPhoto, add_photo
 from .options import APP, SEASON_IDS, SEASONS, SLOTS, SOURCES, value
 from .schedule import is_night, lodge_minute, parse_hhmm, window
 from .season import by_date, lodge_today, parse_mmdd, resolve
-from .stats import collect, gather, lifts_open
+from .stats import collect
 
 SOURCE_LAYERS = {"stock": ["stock"], "photos": ["photos"], "cam": ["cam"], "mix": ["stock", "photos", "cam"]}
 
 
-def _cams():
-    try:
-        from sunpeaks_webcams.views import feed
-
-        cams, _wait = feed.get()
-        return cams
-    except Exception:
-        return []
-
-
-def _backgrounds():
-    return catalog.backgrounds(_cams)
-
-
-def season_signal(data):
-    """Whether an app says winter has come early: season providers, else the lifts."""
+def season_signal():
+    """Whether an app says winter has come early (None when no app can tell)."""
     from bdh_sdk.provides import SEASON
 
-    from hub import provides
-
-    if provides.providers(SEASON):
-        return any(h.get("season") == "winter" for h in provides.season_hints())
-    return lifts_open(data)
+    if not provides.providers(SEASON):
+        return None
+    return any(h.get("season") == "winter" for h in provides.season_hints())
 
 
-def current_season(data=None, today=None, signal=None):
-    data = gather() if data is None else data
-    signal = season_signal(data) if signal is None else signal
+def current_season(today=None, signal=None):
+    signal = season_signal() if signal is None else signal
     return resolve(today or lodge_today(), options.starts(), signal,
                    value("winter_on_lifts"), app_state(APP))
 
@@ -78,19 +62,18 @@ def _preview(request):
 
 @require_GET
 def saver_api(request):
-    data = gather()
     today = lodge_today()
     starts = options.starts()
-    signal = season_signal(data)
+    signal = season_signal()
     season = request.GET.get("season")
     if season not in SEASON_IDS:
-        season = current_season(data, today, signal)
+        season = current_season(today, signal)
     preview = _preview(request)
 
     layers = SOURCE_LAYERS[preview.get("source") or value(f"source_{season}")]
     cam = None
     if "cam" in layers:
-        found = catalog.pick_background(_backgrounds(), preview.get("cam", value("cam")))
+        found = catalog.pick_background(provides.backgrounds(), preview.get("cam", value("cam")))
         if found:
             cam = {"name": found["label"], "url": found["url"], "timestamp": found.get("timestamp"),
                    "refresh_seconds": found.get("refresh_seconds")}
@@ -111,7 +94,7 @@ def saver_api(request):
         "burn_in": value("burn_in"),
         "idle_minutes": value("idle_minutes"),
         "night": window(),
-        "stats": collect(keys, data, today, starts, signal),
+        "stats": collect(keys, today, starts, signal),
     })
     response["Cache-Control"] = "no-store"
     return response
@@ -165,7 +148,7 @@ SLOT_ID = re.compile(r"^[a-z0-9_]+(\.[a-z0-9_]+)?$")
 def _slot_value(key, posted):
     """A posted stat id; the site default is stored as empty so it follows the installed apps."""
     _, season, n = key.split("_")
-    posted = catalog.normalize(posted)
+    posted = (posted or "").strip()
     if not posted or posted == options.default_slot(season, int(n)):
         return ""
     if not SLOT_ID.match(posted):
@@ -206,10 +189,9 @@ def settings_page(request):
                   for n in range(1, SLOTS + 1)],
     } for sid, label in SEASONS]
 
-    backgrounds = _backgrounds()
+    backgrounds = provides.backgrounds()
     cams = [{"slug": b["id"], "name": b["label"]} for b in backgrounds]
     chosen = catalog.pick_background(backgrounds, current["cam"])
-    current["cam"] = catalog.background_id(current["cam"])
     in_use = [slot["value"] for season in seasons for slot in season["slots"]]
     sources = SOURCES if backgrounds else [s for s in SOURCES if s[0] not in ("cam", "mix")]
     return _render(
