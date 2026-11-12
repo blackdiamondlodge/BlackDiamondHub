@@ -16,6 +16,19 @@ SOURCES = (
 
 SLOTS = 4
 
+# The home screen behind the tiles, and how the tiles draw over it.
+HOME_BACKGROUNDS = (
+    ("mountains", "Mountains"),
+    ("art", "Seasonal art"),
+    ("photos", "My photos"),
+)
+HOME_TILES = (
+    ("solid", "Solid"),
+    ("clear", "Clear glass"),
+    ("frosted", "Frosted glass"),
+    ("dark", "Dark glass"),
+)
+
 # Built-in art, the same at every site: static/display/stock/<season>/<style>.webp.
 STOCK_STYLES = ("monet", "vangogh", "ukiyoe", "harris", "bierstadt", "klimt", "hopper", "hokusai_wave")
 
@@ -39,6 +52,10 @@ def _settings():
                 "Otherwise use the dates below"),
         Setting("rotate_seconds", "Change every", INT, 180, minimum=30, maximum=600, unit="s"),
         Setting("cam", "Live cam", help="Background id; empty picks the first", default=""),
+        Setting("home_bg", "Home background", CHOICE, "mountains", choices=HOME_BACKGROUNDS),
+        Setting("home_tiles", "Home tiles", CHOICE, "solid", choices=HOME_TILES),
+        Setting("home_dim", "Dim background", INT, 45, "Darkens the picture so tiles stay readable",
+                minimum=0, maximum=80, unit="%"),
     ]
     for season, label in SEASONS:
         out.append(Setting(f"{season}_start", f"{label} starts", default=DEFAULT_STARTS[season],
