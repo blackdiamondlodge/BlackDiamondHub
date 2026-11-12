@@ -48,6 +48,24 @@ def current_season(data=None, today=None):
                    value("winter_on_lifts"), app_state(APP))
 
 
+def _preview(request):
+    """Unsaved settings-page values a staff preview may try out: source, cam, rotate, caption."""
+    if not (request.user.is_authenticated and request.user.is_staff):
+        return {}
+    out = {}
+    if request.GET.get("source") in SOURCE_LAYERS:
+        out["source"] = request.GET["source"]
+    if "cam" in request.GET:
+        out["cam"] = request.GET["cam"][:80]
+    try:
+        out["rotate"] = min(60, max(1, int(request.GET["rotate"])))
+    except (KeyError, ValueError):
+        pass
+    if request.GET.get("caption") in ("0", "1"):
+        out["caption"] = request.GET["caption"] == "1"
+    return out
+
+
 @require_GET
 def saver_api(request):
     data = gather()
@@ -56,15 +74,17 @@ def saver_api(request):
     season = request.GET.get("season")
     if season not in SEASON_IDS:
         season = current_season(data, today)
+    preview = _preview(request)
 
-    layers = SOURCE_LAYERS[value(f"source_{season}")]
+    layers = SOURCE_LAYERS[preview.get("source") or value(f"source_{season}")]
     cam = None
     if "cam" in layers:
-        found = pick_cam(_cams(), value("cam"))
+        found = pick_cam(_cams(), preview.get("cam", value("cam")))
         if found:
             cam = {"name": found.get("camera_name", ""), "url": found.get("image_url", ""),
                    "timestamp": found.get("timestamp")}
-    photos = season_photos(season) if "photos" in layers else []
+    captions = preview.get("caption", value("photo_caption"))
+    photos = season_photos(season, captions) if "photos" in layers else []
     layers = [layer for layer in layers if (layer != "cam" or cam) and (layer != "photos" or photos)]
     if not layers:
         layers = ["stock"]
@@ -74,7 +94,7 @@ def saver_api(request):
         "season": season,
         "label": dict(SEASONS)[season],
         "sources": layers,
-        "rotate_seconds": value("rotate_minutes") * 60,
+        "rotate_seconds": preview.get("rotate", value("rotate_minutes")) * 60,
         "cam": cam,
         "photos": photos,
         "burn_in": value("burn_in"),

@@ -7,6 +7,7 @@
     const seasons = JSON.parse(document.getElementById('dsp-seasons').textContent);
     const csrf = document.querySelector('#dsp-form [name=csrfmiddlewaretoken]').value;
     const tiles = new Map();
+    const known = new Map();
 
     function el(tag, cls, text) {
         const e = document.createElement(tag);
@@ -74,6 +75,7 @@
                 await post(photoUrl(photo.id, 'delete/'), {});
                 tile.remove();
                 tiles.delete(photo.id);
+                known.delete(photo.id);
                 updateCount();
             } catch (e) { alert(e.message); }
         });
@@ -83,6 +85,7 @@
     }
 
     function render(photo, fresh) {
+        known.set(photo.id, photo);
         let tile = tiles.get(photo.id);
         if (!tile) {
             tile = el('div', 'dsp-ph');
@@ -115,11 +118,18 @@
         trash.addEventListener('click', () => confirmDelete(tile, photo));
         tile.append(img, tog, tag, trash);
         if (!photo.enabled) tile.append(el('span', 'hid', 'Hidden'));
+        updateCount();
         return tile;
     }
 
     function updateCount() {
         count.textContent = tiles.size ? `${tiles.size} photo${tiles.size === 1 ? '' : 's'}` : '';
+        // The per-season counts under each "My photos" source choice.
+        document.querySelectorAll('[data-photo-count]').forEach(n => {
+            const season = n.dataset.photoCount;
+            const k = [...known.values()].filter(p => p.enabled && (!p.seasons.length || p.seasons.includes(season))).length;
+            n.textContent = `${k} photo${k === 1 ? '' : 's'} for ${n.dataset.label}`;
+        });
     }
 
     function sync(photos, markNew) {

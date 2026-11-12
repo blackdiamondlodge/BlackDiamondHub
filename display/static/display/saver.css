@@ -21,6 +21,23 @@
     from { transform: scale(1) translate(1.5%, 1%); }
     to   { transform: scale(1.07) translate(-1.5%, -1%); }
 }
+/* Library photos: each one is a frame that crossfades in over the last and slowly pans/zooms (Ken Burns). */
+.bdh-saver .layer.photos .frame {
+    position: absolute; inset: 0; overflow: hidden; opacity: 0; transition: opacity 3s ease;
+    animation: bdh-kb 184s linear forwards;
+}
+.bdh-saver .layer.photos .frame.in { opacity: 1; }
+.bdh-saver .frame > img { position: absolute; display: block; }
+.bdh-saver .frame > .bg {
+    inset: -8%; width: 116%; height: 116%; object-fit: cover; filter: blur(40px) brightness(.6) saturate(1.1);
+}
+.bdh-saver .frame > .fg { inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.bdh-saver .frame.fill > .fg { object-fit: cover; }
+.bdh-saver .frame.fill > .bg { display: none; }
+@keyframes bdh-kb {
+    from { transform: scale(var(--s0, 1.05)) translate(var(--x0, 0), var(--y0, 0)); }
+    to   { transform: scale(var(--s1, 1.12)) translate(var(--x1, 0), var(--y1, 0)); }
+}
 .bdh-saver .shade {
     position: absolute; inset: 0;
     background:
@@ -52,8 +69,12 @@
     color: rgba(240, 244, 250, .55); letter-spacing: .08em; text-transform: uppercase;
     transition: translate 6s ease-in-out;
 }
-.bdh-saver .cam-name { bottom: calc(4.8vh + 1.7em); letter-spacing: .04em; text-transform: none; opacity: 0; transition: opacity 3s; }
-.bdh-saver .cam-name.on { opacity: 1; }
+.bdh-saver .cam-name, .bdh-saver .caption { bottom: calc(4.8vh + 1.7em); letter-spacing: .04em; text-transform: none; opacity: 0; transition: opacity 3s; }
+.bdh-saver .cam-name.on, .bdh-saver .caption.on { opacity: 1; }
+.bdh-saver .caption {
+    position: absolute; right: 3.1vw; font-size: clamp(12px, .95vw, 18px); color: rgba(240, 244, 250, .7);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
 .bdh-saver .hint {
     position: absolute; left: 50%; transform: translateX(-50%); bottom: 3.5vh;
     font-size: clamp(12px, .9vw, 17px); color: rgba(240, 244, 250, .4); letter-spacing: .04em;
