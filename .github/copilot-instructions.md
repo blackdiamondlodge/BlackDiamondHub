@@ -7,7 +7,7 @@ BlackDiamondHub is a Django-based home automation and management hub for a vacat
 ## Django Apps
 
 - **feedback** — Guest feedback (navbar modal, message only; records the page and the stay in progress) and a staff-only two-pane inbox at /feedback/ (views use staff_page/staff_api)
-- **hub_settings** — Staff-only Settings page at /settings/ (avatar menu → Settings): a Lodge section (Apps list with versions, Accounts → Django admin users) plus one page per app that declares `PluginSpec.settings`. Saved values live in `AppSetting` rows and override the environment; `store.lookup` is registered with bdh-sdk's `set_store` and cached for 30 s (cleared on save/delete)
+- **hub_settings** — Staff-only Settings page at /settings/ (avatar menu → Settings): a Lodge section (Home layout, Apps list with versions) plus one page per app that declares `PluginSpec.settings`. Saved values live in `AppSetting` rows and override the environment; `store.lookup` is registered with bdh-sdk's `set_store` and cached for 30 s (cleared on save/delete)
 Installed from their own repos via `sites/sunpeaks/apps.txt`:
 
 - **wifi** (`blackdiamondlodge/bdh-app-wifi`) — WiFi QR code generator with password display
