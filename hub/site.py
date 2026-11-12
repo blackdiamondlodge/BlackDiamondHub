@@ -10,7 +10,7 @@ from pathlib import Path
 
 SITES_DIR = Path(__file__).resolve().parent.parent / "sites"
 DEFAULT_SITE = "sunpeaks"
-BRAND_FILES = ("monogram", "monogram_light")
+BRAND_FILES = ("monogram", "monogram_light", "og_image")
 
 
 def load_site(name=None, sites_dir=SITES_DIR):

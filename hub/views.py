@@ -2,7 +2,7 @@
 import logging
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
@@ -73,3 +73,17 @@ def alert_test(request):
 @require_GET
 def alert_sample(request):
     return HttpResponse(SAMPLE_PAGE)
+
+
+@require_GET
+def og_image(request):
+    """The site's link-preview card, for og:image (UniFi Connect thumbnails, chat apps)."""
+    from .context_processors import og_image_path
+
+    path = og_image_path()
+    if not path:
+        raise Http404
+    response = FileResponse(open(path, "rb"), content_type="image/png")
+    response["Cache-Control"] = "public, max-age=86400"
+    return response
+

@@ -76,6 +76,27 @@ class BrandTests(SimpleTestCase):
         self.assertIn('aria-label="Black Diamond Hub"', base64.b64decode(b["monogram"].split(",", 1)[1]).decode())
 
 
+class OgImageTests(SimpleTestCase):
+    def setUp(self):
+        _brand.cache_clear()
+        self.addCleanup(_brand.cache_clear)
+
+    @override_settings(ALLOWED_HOSTS=["hub.example"])
+    def test_pages_advertise_the_sites_preview_card(self):
+        response = self.client.get("/accounts/login/", HTTP_HOST="hub.example:8000")
+        self.assertContains(response, '<meta property="og:image" content="http://hub.example:8000/og-image.png">', html=False)
+        self.assertContains(response, '<meta property="og:title" content="Black Diamond Lodge">', html=False)
+        image = self.client.get("/og-image.png", HTTP_HOST="hub.example:8000")
+        self.assertEqual(image["Content-Type"], "image/png")
+        self.assertEqual(b"".join(image.streaming_content),
+                         (SITES_DIR / "sunpeaks/brand/og-image.png").read_bytes())
+
+    @override_settings(HUB_BRAND={})
+    def test_site_without_a_card_has_no_og_image(self):
+        self.assertNotContains(self.client.get("/accounts/login/"), "og:image")
+        self.assertEqual(self.client.get("/og-image.png").status_code, 404)
+
+
 class MountainWeatherTests(TestCase):
     def setUp(self):
         _brand.cache_clear()

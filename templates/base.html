@@ -5,6 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ hub_brand.name }}</title>
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ hub_brand.name }}">
+    <meta property="og:title" content="{{ hub_brand.name }}">
+    {% if hub_brand.subtitle %}<meta property="og:description" content="{{ hub_brand.subtitle }}">{% endif %}
+    {% if hub_brand.og_image %}{% url 'og_image' as og_image_url %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ og_image_url }}">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">{% endif %}
     <link rel="shortcut icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'apple-touch-icon.png' %}">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon-32x32.png' %}">

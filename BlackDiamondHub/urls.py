@@ -21,11 +21,13 @@ from django.contrib.auth import views as auth_views
 from django.views.static import serve as serve_media
 
 from . import views
+from hub import views as hub_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', views.landing_page, name='landing_page'),
+    path('og-image.png', hub_views.og_image, name='og_image'),
     path('hub/api/', include('hub.urls')),
     path('auth/', include('social_django.urls', namespace='social')),
 ]
