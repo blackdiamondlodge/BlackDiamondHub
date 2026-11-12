@@ -23,7 +23,7 @@ type = "home_assistant"
 # the environment still win). See each app's README.
 [apps.cameras]
 # Pop up the Front Door camera when the door opens or a person is seen there.
-event_popups = { "ha/state/binary_sensor.storage_room_alarm_panel_pro_front_door" = "Front Door", "ha/state/binary_sensor.front_door_camera_person_detected" = "Front Door" }
+event_popups = { "ha/state/binary_sensor.storage_room_alarm_panel_pro_front_door" = "Front Door Camera", "ha/state/binary_sensor.front_door_camera_person_detected" = "Front Door Camera" }
 
 [apps.weather]
 units = "imperial"
