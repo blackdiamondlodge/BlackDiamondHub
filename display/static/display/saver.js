@@ -266,6 +266,19 @@
         showCaption();
     }
 
+    let camTimer = null, camEvery = 0;
+
+    // Live images change behind the same URL: refetch with a cache-buster, swap in once loaded.
+    function loadCam(url, fresh) {
+        const img = new Image();
+        img.alt = '';
+        img.dataset.src = url;
+        img.onload = () => {
+            if (data && data.cam && data.cam.url === url) $('.layer.cam').replaceChildren(img);
+        };
+        img.src = fresh ? url + (url.includes('?') ? '&' : '?') + 't=' + Date.now() : url;
+    }
+
     function render(d) {
         data = d;
         if ('night' in d) night = d.night;
@@ -281,14 +294,16 @@
         if (d.cam && d.cam.url) {
             $('.cam-name').textContent = d.cam.name || '';
             const current = camLayer.querySelector('img');
-            if (!current || current.dataset.src !== d.cam.url) {
-                const img = new Image();
-                img.alt = '';
-                img.dataset.src = d.cam.url;
-                img.onload = () => camLayer.replaceChildren(img);
-                img.src = d.cam.url;
+            if (!current || current.dataset.src !== d.cam.url) loadCam(d.cam.url, false);
+            const every = Math.max(10, d.cam.refresh_seconds || 0) * 1000;
+            if (!d.cam.refresh_seconds) { clearInterval(camTimer); camTimer = null; camEvery = 0; }
+            else if (every !== camEvery || camTimer === null) {
+                clearInterval(camTimer);
+                camEvery = every;
+                camTimer = setInterval(() => data && data.cam && loadCam(data.cam.url, true), every);
             }
         } else {
+            clearInterval(camTimer); camTimer = null; camEvery = 0;
             camLayer.replaceChildren();
         }
         const photosLayer = $('.layer.photos');

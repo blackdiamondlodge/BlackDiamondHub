@@ -1,5 +1,7 @@
 """Numbers for the screensaver's info strip.
 
+Stats come from the apps that provide them (``hub.provides``). For an app that
+doesn't provide stats yet, the adapters below read its data directly.
 Every source is optional: a stat whose data is missing is left out.
 """
 import logging
@@ -78,8 +80,11 @@ def _of(open_, total):
     return f"{open_} of {total}" if total else None
 
 
-def stat(key, data, today, starts):
-    """One stat as ``{"label", "value"}`` (or ``{"label", "time"}`` with an ISO UTC time), or None."""
+def stat(key, data, today, starts, opened=None):
+    """One stat as ``{"label", "value"}`` (or ``{"label", "time"}`` with an ISO UTC time), or None.
+
+    ``opened`` overrides whether the lifts are open (falsy but not None: closed).
+    """
     resort = data.get("resort") or {}
     lifts = data.get("lifts") or {}
 
@@ -131,7 +136,9 @@ def stat(key, data, today, starts):
         return {"label": key.capitalize(), "time": when.isoformat().replace("+00:00", "Z")}
 
     if key == "days_until_lifts":
-        if lifts_open(data) != 0 or by_date(today, starts) == "winter":
+        if opened is None:
+            opened = lifts_open(data)
+        if opened is None or opened or by_date(today, starts) == "winter":
             return None
         days = (next_start(today, starts["winter"]) - today).days
         return {"label": "Until lifts open", "value": "1 day" if days == 1 else f"{days} days"}
@@ -139,13 +146,27 @@ def stat(key, data, today, starts):
     return None
 
 
-def collect(keys, data, today, starts):
+def collect(keys, data, today, starts, lifts=None):
+    """The info strip for stat ids ``keys`` (see ``display.catalog``), in order, skipping gaps."""
+    from hub import provides
+
+    from .catalog import LEGACY, LOCAL, owner
+
+    owners = provides.stat_owners()
+    wanted = {owner(k) for k in keys if owner(k) in owners}
+    provided = provides.stats(wanted) if wanted else {}
     out = []
     for key in keys:
-        if key == "none":
-            continue
         try:
-            item = stat(key, data, today, starts)
+            if owner(key) in owners:
+                item = provided.get(key)
+                item = item and {k: v for k, v in item.items() if k != "order"}
+            elif key in LEGACY:
+                item = stat(LEGACY[key][0], data, today, starts)
+            elif key in LOCAL:
+                item = stat(key, data, today, starts, lifts)
+            else:
+                item = None
         except Exception as exc:
             log.warning("display stat %s failed: %s", key, exc)
             item = None
