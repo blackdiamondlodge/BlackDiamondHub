@@ -103,6 +103,42 @@ The image is built with `--build-arg HUB_SITE=<site>`, which also sets
 To add a site: create `sites/<site>/site.toml` and `apps.txt`, then add it to
 the matrices in `.github/workflows/docker-publish.yml` and `tests.yml`.
 
+## Deploying a hub server
+
+A hub server is an Ubuntu VM running the compose stack (hub, go2rtc,
+Watchtower) against a PostgreSQL server elsewhere on the LAN.
+
+1. Database, on the Postgres host (creates the database plus a `hub_admin`
+   owner login used only for migrations and a `hub_app` login the site runs
+   as, with row access only):
+
+    ```sh
+    sudo -u postgres env HUB_ADMIN_PASSWORD=... HUB_APP_PASSWORD=... \
+        bash deploy/create_db.sh homehub
+    ```
+
+    Then allow the hub server in `pg_hba.conf`.
+
+2. Server:
+
+    ```sh
+    git clone https://github.com/blackdiamondlodge/BlackDiamondHub.git
+    cd BlackDiamondHub && sudo deploy/bootstrap.sh
+    ```
+
+    The first run installs Docker, grows the root disk, writes
+    `go2rtc/go2rtc.yaml` with this host's IP and copies `.env.example` to
+    `.env`. Fill in `.env` (`HUB_IMAGE_TAG`, `DB_USER=hub_app`,
+    `DB_MIGRATE_USER=hub_admin`, ...) and run the script again to start the
+    stack. Re-run it after changing `.env` or `docker-compose.yml`; Watchtower
+    only picks up new images.
+
+3. Admin login (admins see settings and admin-only app features):
+
+    ```sh
+    sudo docker compose exec djangoapp .venv/bin/python manage.py createsuperuser
+    ```
+
 ## Running Tests
 
 To run the tests, use the following command:

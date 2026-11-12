@@ -48,7 +48,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 
 ### What auto-deploys vs. what doesn't
 - **Auto-deploys** (via Watchtower): Any code change inside the Docker image — Django code, templates, static files, Python dependencies
-- **Does NOT auto-deploy**: Changes to `docker-compose.yml`, `.env`, or `go2rtc/go2rtc.yaml` on the server — these require manual SSH + `git pull` + `docker compose up -d --force-recreate`
+- **Does NOT auto-deploy**: Changes to `docker-compose.yml`, `.env`, or `go2rtc/go2rtc.yaml` on the server — these require SSH + `git pull` + `sudo deploy/bootstrap.sh` (idempotent; see README "Deploying a hub server", and `deploy/create_db.sh` for the database logins)
 - `go2rtc/go2rtc.yaml` is **not tracked** (go2rtc writes stream URLs with RTSPS access tokens into it). Copy `go2rtc/go2rtc.example.yaml` to create it; never commit stream URLs.
 
 ### Docker Services (docker-compose.yml)
