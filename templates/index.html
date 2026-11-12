@@ -803,11 +803,12 @@
             nav.appendChild(b);
             return b;
         });
-        nav.hidden = false;
 
         var queued = false;
         function update() {
             queued = false;
+            // Every section already fits on screen: nothing to jump to.
+            nav.hidden = view.scrollWidth <= view.clientWidth + 4;
             var x = view.scrollLeft;
             if (sky) sky.style.transform = 'translateX(' + (-x * 0.35) + 'px)';
             var active = 0;
@@ -824,6 +825,7 @@
             if (!queued) { queued = true; requestAnimationFrame(update); }
         }, { passive: true });
         window.addEventListener('resize', update);
+        window.addEventListener('load', update);
         update();
     })();
 </script>
