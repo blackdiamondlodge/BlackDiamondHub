@@ -5,6 +5,7 @@ name = "Black Diamond Lodge"
 subtitle = "Sun Peaks · BC"
 monogram = "brand/bdl-monogram.svg"              # dark diamond, for QR codes
 monogram_light = "brand/bdl-monogram-light.svg"  # light diamond, for the navbar
+og_image = "brand/og-image.png"                # link-preview card (tools/render_og_image.py)
 
 [location]  # for the screensaver's season, night mode and sunrise/sunset
 latitude = 50.884

@@ -26,11 +26,20 @@ def _brand():
         # Inline, so pages outside the static/auth paths (login, upload) can show it.
         "monogram": _data_uri(monogram_svg()),
         "monogram_light": _data_uri(monogram_svg(light=True)),
+        "og_image": bool(og_image_path()),
     }
 
 
+def og_image_path():
+    """Path of the site's link-preview PNG (``og_image`` in site.toml), or None."""
+    from django.conf import settings
+
+    return (getattr(settings, "HUB_BRAND", None) or {}).get("og_image")
+
+
 def brand(request):
-    """``hub_brand``: the site's name, subtitle and monograms (as data URIs)."""
+    """``hub_brand``: the site's name, subtitle, monograms (as data URIs) and
+    whether it has a link-preview card (``og_image``)."""
     return {"hub_brand": _brand()}
 
 

@@ -4,6 +4,7 @@
 [brand]
 name = "Slivinski Hub"
 subtitle = "Mercer Island"
+og_image = "brand/og-image.png"  # link-preview card (tools/render_og_image.py)
 
 [location]  # for the screensaver's season, night mode and sunrise/sunset
 latitude = 47.571
