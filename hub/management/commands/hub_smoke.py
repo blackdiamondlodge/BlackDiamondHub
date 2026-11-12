@@ -50,8 +50,9 @@ class Command(BaseCommand):
 
         problems = []
         for spec in selected:
-            for name in DOTTED_FIELDS:
-                path = getattr(spec, name)
+            hooks = [(name, getattr(spec, name)) for name in DOTTED_FIELDS]
+            hooks += [(f"provides[{cap}]", path) for cap, path in (spec.provides or {}).items()]
+            for name, path in hooks:
                 if path:
                     try:
                         _resolve(path)
