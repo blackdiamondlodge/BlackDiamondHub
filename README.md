@@ -107,6 +107,23 @@ The image is built with `--build-arg HUB_SITE=<site>`, which also sets
 To add a site: create `sites/<site>/site.toml` and `apps.txt`, then add it to
 the matrices in `.github/workflows/docker-publish.yml` and `tests.yml`.
 
+### Events
+
+Apps subscribe to events with `bdh_sdk.events` (MQTT-style topics, `+` and `#`
+wildcards). The hub feeds that bus from the sources in `[events.sources.<name>]`,
+and every topic starts with the source name:
+
+- `type = "home_assistant"`: one websocket to Home Assistant, watching only the
+  entities that apps subscribe to. Publishes `<name>/state/<entity_id>` with
+  `{entity_id, old, new, attributes}`. Uses `HOMEASSISTANT_URL` and
+  `HOMEASSISTANT_ACCESS_TOKEN`; set `url_env`/`token_env` to read a second
+  instance from other variables.
+- `type = "webhook"`: `POST /hub/api/events/hook/<name>/<topic>` with a JSON
+  body and an `X-Hub-Secret` header matching the variable named by
+  `secret_env`. Publishes `<name>/<topic>`.
+
+Set `HUB_EVENTS=off` to start no sources.
+
 ## Deploying a hub server
 
 A hub server is an Ubuntu VM running the compose stack (hub, go2rtc,

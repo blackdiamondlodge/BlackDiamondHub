@@ -1,10 +1,15 @@
 """Homepage JSON API: status lines and quick-action shortcuts."""
+import hmac
+import json
 import logging
+import os
 
+from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from . import status
@@ -87,3 +92,27 @@ def og_image(request):
     response["Cache-Control"] = "public, max-age=86400"
     return response
 
+
+
+@csrf_exempt
+@require_POST
+def event_hook(request, source, topic):
+    """Publish ``<source>/<topic>`` from a ``webhook`` event source (see hub/events.py)."""
+    from bdh_sdk import events
+
+    conf = settings.HUB_EVENT_SOURCES.get(source)
+    if not conf or conf["type"] != "webhook":
+        raise Http404
+    secret = os.environ.get(conf["secret_env"], "")
+    given = request.headers.get("X-Hub-Secret", "")
+    if not secret or not hmac.compare_digest(given.encode(), secret.encode()):
+        return JsonResponse({"error": "forbidden"}, status=403)
+    try:
+        data = json.loads(request.body) if request.body else None
+    except ValueError:
+        return JsonResponse({"error": "body must be JSON"}, status=400)
+    try:
+        events.publish(f"{source}/{topic}", data)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    return JsonResponse({"ok": True})

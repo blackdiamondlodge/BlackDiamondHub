@@ -36,7 +36,7 @@ class LoadSiteTests(SimpleTestCase):
 
     def test_site_without_toml_gets_empty_sections(self):
         self.assertEqual(self.site("bare"),
-                         {"name": "bare", "brand": {}, "location": {}, "features": {}, "apps": {}})
+                         {"name": "bare", "brand": {}, "location": {}, "features": {}, "apps": {}, "events": {}})
 
     def test_app_tables_become_namespaced_django_settings(self):
         site = self.site("home", '[apps.sonos_control]\nmodels = "*"\n'

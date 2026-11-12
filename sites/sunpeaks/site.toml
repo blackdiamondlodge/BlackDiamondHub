@@ -15,6 +15,11 @@ timezone = "Etc/GMT+7"  # BC keeps UTC-7 all year (the sign is inverted in Etc/ 
 [features]
 mountain_weather = true  # the Sun Peaks Resort temperatures tile
 
+# Event sources for bdh_sdk.events (see the README). "ha" topics look like
+# ha/state/<entity_id>; nothing is watched until an app subscribes.
+[events.sources.ha]
+type = "home_assistant"
+
 # Per-app settings, read by each app as BDH_<APP>_<KEY> (the Settings page and
 # the environment still win). See each app's README.
 [apps.sonos_control]
