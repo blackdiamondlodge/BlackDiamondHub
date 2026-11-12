@@ -396,7 +396,7 @@
         <span class="hub-dot">&middot;</span>
         <span class="hub-clock" id="hub-clock"></span>
     </div>
-    <button type="button" class="unit-seg toggle-button" data-unit="C" onclick="toggleUnits()"
+    <button type="button" class="unit-seg toggle-button" data-unit="{% if hub_imperial %}F{% else %}C{% endif %}" data-url="{% url 'hub_units' %}" onclick="toggleUnits()"
             aria-label="Switch between Celsius and Fahrenheit">
         <span class="u-c">°C</span><span class="u-f">°F</span>
     </button>
@@ -418,7 +418,7 @@
     <section class="hub-pane hub-section-{{ key }}" id="hub-pane-{{ key }}" data-label="{{ title }}">
         <h2>{{ title }}
             {% if hub_welcome and key == hub_welcome_key %}<span class="hub-pane-sub hub-welcome">Welcome{% if hub_welcome.guest %}, {{ hub_welcome.guest }}{% endif %}{% if hub_welcome.checkout %} · Checkout {{ hub_welcome.checkout }}{% endif %}</span>
-            {% elif key == hub_weather_key and hub_weather_top %}<span class="hub-pane-sub"><span class="temperature" data-metric="{{ hub_weather_top.temperature }}" data-unit="C">{{ hub_weather_top.temperature }}°C</span> up top</span>{% endif %}
+            {% elif key == hub_weather_key and hub_weather_top %}<span class="hub-pane-sub"><span class="temperature" data-metric="{{ hub_weather_top.temperature }}">{{ hub_weather_top.temp_text }}</span> up top</span>{% endif %}
         </h2>
         <div class="hub-tiles">
             {% for tile in tiles %}
@@ -427,16 +427,16 @@
                 <div class="hub-wx-in">
                     <div class="hub-wx-head"><i class="fa-solid fa-mountain"></i>{{ tile.title }}</div>
                     {% if hub_weather_top %}
-                    <div class="hub-wx-big temperature" data-metric="{{ hub_weather_top.temperature }}" data-unit="C">{{ hub_weather_top.temperature }}°C</div>
-                    <div class="hub-wx-sub">{{ hub_weather_top.location }} · <span class="elevation" data-metric="{{ hub_weather_top.elevation }}" data-unit="m">{{ hub_weather_top.elevation }} m</span></div>
+                    <div class="hub-wx-big temperature" data-metric="{{ hub_weather_top.temperature }}">{{ hub_weather_top.temp_text }}</div>
+                    <div class="hub-wx-sub">{{ hub_weather_top.location }} · <span class="elevation" data-metric="{{ hub_weather_top.elevation }}">{{ hub_weather_top.elev_text }}</span></div>
                     {% else %}
-                    <div class="hub-wx-big temperature" data-metric="" data-unit="C">–</div>
+                    <div class="hub-wx-big temperature" data-metric="">–</div>
                     <div class="hub-wx-sub">Weather unavailable</div>
                     {% endif %}
                     {% if hub_weather_rest %}
                     <div class="hub-wx-mini">
                         {% for weather in hub_weather_rest %}
-                        <div><span class="temperature" data-metric="{{ weather.temperature }}" data-unit="C">{{ weather.temperature }}°C</span><span>{{ weather.location }}</span></div>
+                        <div><span class="temperature" data-metric="{{ weather.temperature }}">{{ weather.temp_text }}</span><span>{{ weather.location }}</span></div>
                         {% endfor %}
                     </div>
                     {% endif %}
@@ -849,23 +849,39 @@
         setInterval(tick, 15000);
     })();
 
-    function toggleUnits() {
-        var toggleButton = document.querySelector('.toggle-button');
-        var toImperial = toggleButton.dataset.unit === 'C';
-
+    // Hub-wide: converts what's on screen now, then saves it so every app
+    // (weather, screensaver, cards) follows. Reverts if the save fails.
+    function showUnits(imperial) {
         document.querySelectorAll('.elevation').forEach(function (el) {
             var m = parseFloat(el.getAttribute('data-metric'));
             if (isNaN(m)) return;
-            el.textContent = toImperial ? Math.round(m * 3.28084) + ' ft' : Math.round(m) + ' m';
-            el.setAttribute('data-unit', toImperial ? 'ft' : 'm');
+            el.textContent = (imperial ? Math.round(m * 3.28084) : Math.round(m)).toLocaleString('en-US') +
+                (imperial ? ' ft' : ' m');
         });
         document.querySelectorAll('.temperature').forEach(function (el) {
             var c = parseFloat(el.getAttribute('data-metric'));
             if (isNaN(c)) return;
-            el.textContent = toImperial ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
-            el.setAttribute('data-unit', toImperial ? 'F' : 'C');
+            el.textContent = imperial ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
+            el.setAttribute('data-unit', imperial ? 'F' : 'C');
         });
-        toggleButton.dataset.unit = toImperial ? 'F' : 'C';
+        document.querySelector('.toggle-button').dataset.unit = imperial ? 'F' : 'C';
+    }
+
+    function toggleUnits() {
+        var toggleButton = document.querySelector('.toggle-button');
+        var toImperial = toggleButton.dataset.unit === 'C';
+        showUnits(toImperial);
+        var token = document.querySelector('[name=csrfmiddlewaretoken]');
+        var body = new URLSearchParams({ units: toImperial ? 'imperial' : 'metric' });
+        fetch(toggleButton.dataset.url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': token ? token.value : '' },
+            body: body,
+        }).then(function (r) {
+            if (!r.ok) throw new Error(r.status);
+        }).catch(function () {
+            showUnits(!toImperial);
+        });
     }
 </script>
 {% endblock %}

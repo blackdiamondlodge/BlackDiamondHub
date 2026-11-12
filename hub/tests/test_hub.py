@@ -610,6 +610,45 @@ class StatusActionApiTests(TestCase):
         with self.assertRaisesMessage(PluginError, "run_action without status"):
             validate([PluginSpec(id="a", app="a", run_action="a.homepage.act")])
 
+
+@override_settings(HUB_PLUGINS=ROWS_PLUGINS, BDH_HUB_UNITS="metric")
+class HubUnitsApiTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        HOOK_STATE.clear()
+        patcher = patch.object(hub_store, "TTL", 0)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def saved(self):
+        return AppSetting.objects.filter(app_id="hub", key="units").values_list("value", flat=True).first()
+
+    def test_guest_sets_hub_units(self):
+        strict = Client(enforce_csrf_checks=True)
+        self.assertEqual(strict.post("/hub/api/units/", {"units": "imperial"}).status_code, 403)
+        strict.get("/")
+        token = strict.cookies["csrftoken"].value
+        response = strict.post("/hub/api/units/", {"units": "imperial"}, HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.json(), {"ok": True, "units": "imperial"})
+        self.assertEqual(self.saved(), "imperial")
+        self.assertIsNone(AppSetting.objects.get(app_id="hub", key="units").updated_by)
+
+    def test_rejects_bad_units(self):
+        for bad in ("", "kelvin", "IMPERIAL"):
+            self.assertEqual(self.client.post("/hub/api/units/", {"units": bad}).status_code, 400, bad)
+        self.assertEqual(self.client.get("/hub/api/units/").status_code, 405)
+        self.assertIsNone(self.saved())
+
+    def test_change_refreshes_cached_status(self):
+        home_data(DASHBOARD)
+        calls = HOOK_STATE["status_calls"]
+        self.client.post("/hub/api/units/", {"units": "metric"})
+        home_data(DASHBOARD)
+        self.assertEqual(HOOK_STATE["status_calls"], calls, "an unchanged value keeps the cache")
+        self.client.post("/hub/api/units/", {"units": "imperial"})
+        home_data(DASHBOARD)
+        self.assertEqual(HOOK_STATE["status_calls"], calls + 1)
+
 def demo_stay():
     if HOOK_STATE.get("stay_fails"):
         raise RuntimeError("HA down")
