@@ -7,6 +7,7 @@ from bdh_sdk.qr import qr_svg
 from bdh_sdk.storage import app_state
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
@@ -19,12 +20,16 @@ from . import catalog, options
 from .library import photo_json, season_photos
 from .models import SaverPhoto, UploadLink
 from .photos import BadPhoto, add_photo
-from .options import APP, SEASON_IDS, SEASONS, SLOTS, SOURCES, value
+from .options import APP, SEASON_IDS, SEASONS, SLOTS, SOURCES, STOCK_STYLES, value
 from .schedule import is_night, lodge_minute, parse_hhmm, window
 from .season import by_date, lodge_today, parse_mmdd, resolve
 from .stats import collect
 
 SOURCE_LAYERS = {"stock": ["stock"], "photos": ["photos"], "cam": ["cam"], "mix": ["stock", "photos", "cam"]}
+
+
+def stock_art(season):
+    return [static(f"display/stock/{season}/{style}.webp") for style in STOCK_STYLES]
 
 
 def season_signal():
@@ -91,6 +96,7 @@ def saver_api(request):
         "rotate_seconds": preview.get("rotate", value("rotate_seconds")),
         "cam": cam,
         "photos": photos,
+        "stock": stock_art(season),
         "burn_in": value("burn_in"),
         "idle_minutes": value("idle_minutes"),
         "night": window(),
@@ -201,6 +207,7 @@ def settings_page(request):
         cams=cams, cam_ids={c["slug"] for c in cams}, season_apps=catalog.season_apps(),
         default_cam=chosen["label"] if chosen else "",
         photos=[photo_json(p) for p in photos], season_choices=SEASONS,
+        stock={sid: stock_art(sid) for sid in SEASON_IDS},
         has_errors=bool(errors), just_saved=request.GET.get("saved") == "1", status=status,
     )
 

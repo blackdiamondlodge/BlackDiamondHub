@@ -11,6 +11,7 @@ from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
+from django.contrib.staticfiles import finders
 from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings, tag
@@ -24,7 +25,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from hub.plugins import PluginSpec
 from hub_settings import store
 from tests.selenium_helpers import SeleniumTestCase
-from . import catalog
+from . import catalog, views
 from hub_settings.models import AppSetting
 from .models import SaverPhoto, UploadLink
 from .options import DEFAULT_STARTS
@@ -150,6 +151,14 @@ class ViewTests(TestCase):
         self.assertEqual(body["season"], "winter")
         self.assertEqual(body["sources"], ["stock"])
         self.assertEqual([s["label"] for s in body["stats"]], ["Up top", "At the lodge", "48h snow", "Runs open"])
+
+    def test_saver_api_stock_art(self):
+        body = self.client.get(reverse("display_saver_api"), {"season": "fall"}).json()
+        self.assertEqual(len(body["stock"]), 8)
+        self.assertTrue(all(u.startswith(settings.STATIC_URL + "display/stock/fall/") for u in body["stock"]))
+        for season in ("winter", "spring", "summer", "fall"):
+            for url in views.stock_art(season):
+                self.assertTrue(finders.find(url[len(settings.STATIC_URL):]), url)
 
     def test_saver_api_cam(self):
         AppSetting.objects.create(app_id="display", key="source_summer", value="mix")
@@ -515,6 +524,13 @@ class SaverBrokenPhotoSeleniumTest(SeleniumTestCase):
         self.open_saver()
         WebDriverWait(self.browser, 20).until(lambda d: "on" in self.layer("stock").get_attribute("class"))
         self.assertNotIn("on", self.layer("photos").get_attribute("class"))
+
+    def test_stock_rotates_season_paintings(self):
+        self.open_saver()  # no photos yet: the stock layer shows
+        frame = (By.CSS_SELECTOR, ".bdh-saver .layer.stock.on .frame.in")
+        WebDriverWait(self.browser, 20).until(EC.presence_of_element_located(frame))
+        self.assertIn("/display/stock/summer/", self.browser.find_element(*frame).get_attribute("data-src"))
+        self.assertTrue(self.browser.find_elements(By.CSS_SELECTOR, ".bdh-saver .layer.stock > svg"))
 
     def test_broken_photos_are_skipped(self):
         for n in range(3):

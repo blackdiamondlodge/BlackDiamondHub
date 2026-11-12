@@ -26,7 +26,7 @@
     .dsp-src small { display: block; color: var(--mut); font-size: 13px; margin: 4px 0 0 24px; }
     .dsp-bg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
     .dsp-prev { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; }
-    .dsp-prev svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .dsp-prev svg, .dsp-prev img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .dsp-prev .tag {
         position: absolute; left: 10px; top: 10px; padding: 3px 9px; border-radius: 8px; font-size: 12.5px;
         background: rgba(0, 0, 0, .55); color: #eef3fa;
@@ -90,7 +90,7 @@
                         {% for v, l in sources %}
                         <label>
                             <b><input type="radio" name="source_{{ s.id }}" value="{{ v }}"{% if v == s.source %} checked{% endif %}>{{ l }}</b>
-                            <small{% if v == 'photos' %} data-photo-count="{{ s.id }}" data-label="{{ s.label|lower }}"{% endif %}>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'photos' %}{{ s.photo_count }} photo{{ s.photo_count|pluralize }} for {{ s.label|lower }}{% elif v == 'cam' %}{{ default_cam|default:'Live image' }}{% else %}Rotate scene, photos &amp; cam{% endif %}</small>
+                            <small{% if v == 'photos' %} data-photo-count="{{ s.id }}" data-label="{{ s.label|lower }}"{% endif %}>{% if v == 'stock' %}Built-in {{ s.label|lower }} paintings{% elif v == 'photos' %}{{ s.photo_count }} photo{{ s.photo_count|pluralize }} for {{ s.label|lower }}{% elif v == 'cam' %}{{ default_cam|default:'Live image' }}{% else %}Rotate paintings, photos &amp; cam{% endif %}</small>
                         </label>
                         {% endfor %}
                     </div>
@@ -98,7 +98,7 @@
                     <div class="dsp-bg">
                         <div class="dsp-prev" id="dsp-prev"><span class="tag" id="dsp-prev-tag">Preview</span></div>
                         <div class="dsp-ctl">
-                            <p>Images drift slowly to protect the screen and crossfade between each other. Portrait photos show whole over a soft blurred fill. With <b>Mix</b>, the background rotates between the scene, your photos and the live cam.</p>
+                            <p>Images drift slowly to protect the screen and crossfade between each other. Portrait photos show whole over a soft blurred fill. With <b>Mix</b>, the background rotates between the paintings, your photos and the live cam.</p>
                             <label class="dsp-line">
                                 <span>Change every</span>
                                 <input type="range" name="rotate_seconds" min="30" max="600" step="30" value="{{ v.rotate_seconds }}" id="dsp-rot">
@@ -240,12 +240,14 @@
 
 {{ photos|json_script:"dsp-photos" }}
 {{ season_choices|json_script:"dsp-seasons" }}
+{{ stock|json_script:"dsp-stock" }}
 <script src="{% static 'display/library.js' %}" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const labels = {};
     document.querySelectorAll('[data-tab]').forEach(b => { labels[b.dataset.tab] = b.textContent.trim(); });
     const prev = document.getElementById('dsp-prev');
+    const stock = JSON.parse(document.getElementById('dsp-stock').textContent);
     function select(season) {
         document.querySelectorAll('[data-tab]').forEach(b => {
             const on = b.dataset.tab === season;
@@ -257,8 +259,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('dsp-strip-season').textContent = labels[season];
         document.getElementById('dsp-prev-tag').textContent = 'Preview \u00b7 ' + labels[season];
         document.getElementById('dsp-preview').href = '/?saver=1&saver_season=' + season;
-        prev.querySelector('svg')?.remove();
+        prev.querySelectorAll('svg, img').forEach(el => el.remove());
         if (window.BDHSaver) prev.insertAdjacentHTML('afterbegin', window.BDHSaver.scene(season));
+        // A painting from the season's set, over the drawn scene in case it doesn't load.
+        const art = stock[season] || [];
+        if (art.length) {
+            const img = new Image();
+            img.alt = '';
+            img.onerror = () => img.remove();
+            img.src = art[Math.floor(Math.random() * art.length)];
+            prev.querySelector('svg') ? prev.querySelector('svg').after(img) : prev.prepend(img);
+        }
     }
     // Preview what's on the form right now, saved or not.
     document.getElementById('dsp-preview').addEventListener('click', e => {

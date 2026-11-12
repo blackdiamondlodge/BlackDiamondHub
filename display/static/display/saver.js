@@ -152,12 +152,15 @@
     function applyNight() { if (root) root.classList.toggle('night', isNight()); }
 
     let showing = 'stock';
-    let order = [], orderKey = '', pos = 0;
-    // Photos that failed to load are skipped for a while, so one bad file can't leave the screen black.
+    // Photos and stock art each rotate through their own shuffled deck.
+    const decks = {photos: {order: [], key: '', pos: 0}, stock: {order: [], key: '', pos: 0}};
+    // Images that failed to load are skipped for a while, so one bad file can't leave the screen black.
     const broken = new Map();
     const BROKEN_MS = 10 * 60 * 1000;
     const isBroken = url => broken.has(url) && Date.now() - broken.get(url) < BROKEN_MS;
     function photoList() { return ((data && data.photos) || []).filter(p => !isBroken(p.url)); }
+    function stockList() { return ((data && data.stock) || []).filter(u => !isBroken(u)).map(url => ({url})); }
+    const items = kind => kind === 'stock' ? stockList() : photoList();
     const byUrl = url => photoList().find(p => p.url === url);
     const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
@@ -172,18 +175,26 @@
         return a;
     }
 
-    // Reshuffles only when the set of photos changes, so a refresh doesn't restart the cycle.
-    function syncOrder() {
-        const urls = photoList().map(p => p.url);
+    // Reshuffles only when the set of images changes, so a refresh doesn't restart the cycle.
+    function syncOrder(kind) {
+        const deck = decks[kind];
+        const urls = items(kind).map(p => p.url);
         const key = urls.slice().sort().join('\n');
-        if (key !== orderKey) {
-            orderKey = key;
-            order = shuffle(urls);
-            pos = 0;
+        if (key !== deck.key) {
+            deck.key = key;
+            deck.order = shuffle(urls);
+            deck.pos = 0;
         }
     }
 
-    function currentFrame() { return $('.layer.photos').lastElementChild; }
+    function currentFrame(kind = 'photos') {
+        const frames = $('.layer.' + kind).querySelectorAll('.frame');
+        return frames[frames.length - 1] || null;
+    }
+
+    function clearFrames(kind, keep) {
+        $('.layer.' + kind).querySelectorAll('.frame').forEach(f => { if (f !== keep) f.remove(); });
+    }
 
     function showCaption() {
         const frame = currentFrame();
@@ -227,21 +238,23 @@
         frame.style.animationName = '';
     }
 
-    // Brings in the next library photo, crossfading over the current one if it's on screen.
-    function nextPhoto(fade) {
-        const list = photoList();
-        const layer = $('.layer.photos');
-        if (!list.length) { layer.replaceChildren(); showCaption(); return; }
-        syncOrder();
-        const current = currentFrame();
-        if (pos >= order.length) {
-            order = shuffle(order, current && current.dataset.src);
-            pos = 0;
+    // Brings in the next photo or stock painting, crossfading over the current one if it's on screen.
+    // The stock layer keeps its drawn scene underneath, so it shows if no painting loads.
+    function nextFrame(kind, fade) {
+        const list = items(kind);
+        const layer = $('.layer.' + kind);
+        if (!list.length) { clearFrames(kind); showCaption(); return; }
+        syncOrder(kind);
+        const deck = decks[kind];
+        const current = currentFrame(kind);
+        if (deck.pos >= deck.order.length) {
+            deck.order = shuffle(deck.order, current && current.dataset.src);
+            deck.pos = 0;
         }
-        let url = order[pos++];
+        let url = deck.order[deck.pos++];
         if (current && current.dataset.src === url) {
-            if (order.length < 2) return;
-            url = order[pos++ % order.length];
+            if (deck.order.length < 2) return;
+            url = deck.order[deck.pos++ % deck.order.length];
         }
         const frame = document.createElement('div');
         frame.className = 'frame';
@@ -255,19 +268,19 @@
             const ratio = (fg.naturalWidth / fg.naturalHeight) / (window.innerWidth / window.innerHeight);
             frame.classList.toggle('fill', ratio > 0.8 && ratio < 1.25);
             kenBurns(frame);
+            layer.append(frame);
             if (!fade) {
                 frame.classList.add('in');
-                layer.replaceChildren(frame);
+                clearFrames(kind, frame);
             } else {
-                layer.append(frame);
                 requestAnimationFrame(() => requestAnimationFrame(() => frame.classList.add('in')));
-                setTimeout(() => { while (layer.firstElementChild && layer.firstElementChild !== frame) layer.firstElementChild.remove(); }, 3200);
+                setTimeout(() => clearFrames(kind, frame), 3200);
             }
             showCaption();
         };
         fg.onerror = () => {
             broken.set(url, Date.now());
-            // Try another photo, or switch to another source if none are left.
+            // Try another image, or fall back (another source, or the drawn scene) if none are left.
             if (data) render(data);
         };
         frame.append(bg, fg);
@@ -275,14 +288,18 @@
         fg.src = url;
     }
 
+    const DECKS = ['photos', 'stock'];
+
     function showLayer(name) {
-        const leaving = showing === 'photos' && name !== 'photos';
-        const entering = showing !== 'photos' && name === 'photos';
+        const was = showing;
         showing = name;
         $('.layer.stock').classList.toggle('on', name === 'stock');
         $('.layer.photos').classList.toggle('on', name === 'photos');
-        if (leaving) setTimeout(() => nextPhoto(false), 3500);
-        if (entering) restartKenBurns(currentFrame());
+        DECKS.forEach(kind => {
+            // Swap in the next image once it's faded out, and restart the pan for the one coming back.
+            if (was === kind && name !== kind) setTimeout(() => nextFrame(kind, false), 3500);
+            if (was !== kind && name === kind) restartKenBurns(currentFrame(kind));
+        });
         $('.layer.cam').classList.toggle('on', name === 'cam');
         $('.cam-name').classList.toggle('on', name === 'cam');
         showCaption();
@@ -328,11 +345,12 @@
             clearInterval(camTimer); camTimer = null; camEvery = 0;
             camLayer.replaceChildren();
         }
-        const photosLayer = $('.layer.photos');
-        const loaded = currentFrame();
-        syncOrder();
-        if (!photoList().length) photosLayer.replaceChildren();
-        else if (!loaded || !byUrl(loaded.dataset.src)) nextPhoto(false);
+        DECKS.forEach(kind => {
+            const loaded = currentFrame(kind);
+            syncOrder(kind);
+            if (!items(kind).length) clearFrames(kind);
+            else if (!loaded || !items(kind).some(p => p.url === loaded.dataset.src)) nextFrame(kind, false);
+        });
         showCaption();
         const sources = d.sources || ['stock'];
         const empty = name => (name === 'cam' && !camLayer.firstChild) || (name === 'photos' && !photoList().length);
@@ -354,7 +372,7 @@
     function rotate() {
         const sources = (data && data.sources) || ['stock'];
         if (sources.length < 2) {
-            if (showing === 'photos' && photoList().length > 1) nextPhoto(true);
+            if (DECKS.includes(showing) && items(showing).length > 1) nextFrame(showing, true);
             return;
         }
         const next = sources[(sources.indexOf(showing) + 1) % sources.length];
