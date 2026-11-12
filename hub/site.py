@@ -37,7 +37,27 @@ def load_site(name=None, sites_dir=SITES_DIR):
             raise ValueError(f"site {name!r}: [apps.{app_id}] must be a table")
     return {"name": name, "brand": brand, "location": dict(conf.get("location", {})),
             "features": dict(conf.get("features", {})),
-            "apps": {app_id: dict(values) for app_id, values in apps.items()}}
+            "apps": {app_id: dict(values) for app_id, values in apps.items()},
+            "events": event_sources(name, conf.get("events", {}).get("sources", {}))}
+
+
+def event_sources(site, sources):
+    """Validated ``[events.sources.<name>]`` tables (see ``hub/events.py``)."""
+    from .events import TYPES
+
+    out = {}
+    for source, conf in sources.items():
+        where = f"site {site!r}: [events.sources.{source}]"
+        if not isinstance(conf, dict):
+            raise ValueError(f"{where} must be a table")
+        if not source or any(c in source for c in "/+#"):
+            raise ValueError(f"{where}: bad source name")
+        if conf.get("type") not in TYPES:
+            raise ValueError(f"{where}: type must be one of {', '.join(TYPES)}")
+        if conf["type"] == "webhook" and not conf.get("secret_env"):
+            raise ValueError(f"{where}: webhook needs secret_env")
+        out[source] = dict(conf)
+    return out
 
 
 def app_settings(apps):

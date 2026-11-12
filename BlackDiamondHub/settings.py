@@ -29,6 +29,7 @@ HUB_SITE = _SITE['name']
 HUB_BRAND = _SITE['brand']  # read by bdh_sdk.branding (name, subtitle, monograms)
 HUB_LOCATION = _SITE['location']  # latitude, longitude, timezone
 HUB_FEATURES = _SITE['features']
+HUB_EVENT_SOURCES = _SITE['events']  # [events.sources.<name>]: see hub/events.py
 # Per-site app settings ([apps.<app_id>] in site.toml) as BDH_<APP>_<KEY>.
 globals().update(app_settings(_SITE['apps']))
 
