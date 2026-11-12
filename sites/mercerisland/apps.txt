@@ -12,4 +12,4 @@
 #
 # Same pins as sites/sunpeaks/apps.txt; bump both together.
 
-bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.3.4/bdh_app_cameras-1.3.4-py3-none-any.whl --hash=sha256:0168c955d0dfe485cec012d22554907436ed9e62c4f17d519247561e5a7eb7a1
+bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.3.5/bdh_app_cameras-1.3.5-py3-none-any.whl --hash=sha256:5cfc86f953c9731a4b44f4e478c79c06cee805baa2816d980bff5420672e2db6
