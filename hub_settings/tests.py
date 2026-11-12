@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from hub.loader import PluginError, validate
-from hub.plugins import PluginSpec, Setting
+from hub.plugins import PluginSpec, Setting, SettingsPage
 
 from . import store
 from .models import AppSetting, AppState
@@ -129,6 +129,35 @@ class SettingsPageTests(TestCase):
             AppSetting.objects.filter(app_id="multi", key="rooms").update(value=["gone"])
             page = self.client.get(url)
             self.assertContains(page, 'value="gone" checked')
+
+    def test_app_with_only_settings_pages(self):
+        spec = PluginSpec(id="pages", app="pages", settings_pages=(
+            SettingsPage("Feeds", "hub_settings_home", subtitle="iCal links", icon="fas fa-rss"),
+            SettingsPage("Broken", "no_such_url"),
+        ))
+        self.client.force_login(self.staff)
+        with self.settings(HUB_PLUGINS=PLUGINS + (spec,)):
+            page = self.client.get("/settings/app/pages/")
+            self.assertContains(page, 'href="/settings/app/pages/"')
+            self.assertContains(page, f'href="{reverse("hub_settings_home")}"')
+            self.assertContains(page, "iCal links")
+            self.assertNotContains(page, "Broken")
+            self.assertNotContains(page, 'class="hst-btn">Save')
+
+    def test_layout_nav_available_to_app_pages(self):
+        from django.template.loader import render_to_string
+        from django.contrib.sessions.middleware import SessionMiddleware
+        from django.test import RequestFactory
+
+        spec = PluginSpec(id="pages", app="pages",
+                          settings_pages=(SettingsPage("Feeds", "hub_settings_home"),))
+        request = RequestFactory().get("/pages/settings/")
+        SessionMiddleware(lambda r: None).process_request(request)
+        request.user = self.staff
+        with self.settings(HUB_PLUGINS=PLUGINS + (spec,)):
+            html = render_to_string("hub_settings/_layout.html", {"active": "pages"}, request=request)
+        self.assertIn('href="/settings/app/pages/" class="on"', html)
+        self.assertIn(reverse("hub_settings_apps"), html)
 
     def test_menu_link_for_staff(self):
         self.client.force_login(self.staff)

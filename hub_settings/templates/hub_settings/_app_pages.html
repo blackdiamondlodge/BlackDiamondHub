@@ -1,0 +1,11 @@
+{% if pages %}
+<section class="hst-card hst-pages">
+    {% for p in pages %}
+    <a class="hst-row hst-link" href="{{ p.url }}">
+        <i class="{{ p.icon }}" aria-hidden="true"></i>
+        <span class="lbl"><b>{{ p.title }}</b>{% if p.subtitle %}<small>{{ p.subtitle }}</small>{% endif %}</span>
+        <i class="fas fa-chevron-right go" aria-hidden="true"></i>
+    </a>
+    {% endfor %}
+</section>
+{% endif %}
