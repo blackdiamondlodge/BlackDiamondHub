@@ -106,6 +106,41 @@ class LandingPageNoScrollTest(SeleniumTestCase):
 
 
 @tag('selenium')
+class LandingPageSectionNavTest(SeleniumTestCase):
+    """The section selector only shows when the sections don't all fit on screen."""
+
+    def _nav_state(self, width):
+        self.browser.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {
+            'width': width, 'height': 1080, 'deviceScaleFactor': 1, 'mobile': False,
+        })
+        self.browser.get(self.live_server_url)
+        WebDriverWait(self.browser, 20).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "hub-sections"))
+        )
+        return self.browser.execute_script("""
+            var view = document.getElementById('hub-view');
+            return [document.getElementById('hub-nav').hidden,
+                    view.scrollWidth > view.clientWidth + 4,
+                    document.querySelectorAll('.hub-pane').length];
+        """)
+
+    def tearDown(self):
+        self.browser.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride', {})
+        super().tearDown()
+
+    def test_selector_hidden_when_everything_fits(self):
+        hidden, overflows, panes = self._nav_state(12000)
+        self.assertGreater(panes, 1)
+        self.assertFalse(overflows)
+        self.assertTrue(hidden)
+
+    def test_selector_shown_when_sections_scroll(self):
+        hidden, overflows, _ = self._nav_state(900)
+        self.assertTrue(overflows)
+        self.assertFalse(hidden)
+
+
+@tag('selenium')
 class LandingPageTileFitTest(SeleniumTestCase):
     """Tile icons and titles stay inside their tiles on kiosk and laptop sizes."""
 
