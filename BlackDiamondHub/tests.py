@@ -135,7 +135,8 @@ class LandingPageSectionNavTest(SeleniumTestCase):
         self.assertTrue(hidden)
 
     def test_selector_shown_when_sections_scroll(self):
-        hidden, overflows, _ = self._nav_state(900)
+        # Narrowest panorama layout; at <=1100px the sections stack vertically.
+        hidden, overflows, _ = self._nav_state(1200)
         self.assertTrue(overflows)
         self.assertFalse(hidden)
 
