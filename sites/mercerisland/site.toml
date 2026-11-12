@@ -21,6 +21,10 @@ type = "home_assistant"
 
 # Per-app settings, read by each app as BDH_<APP>_<KEY> (the Settings page and
 # the environment still win). See each app's README.
+[apps.cameras]
+# Pop up the Front Door camera when the door opens or a person is seen there.
+event_popups = { "ha/state/binary_sensor.storage_room_alarm_panel_pro_front_door" = "Front Door", "ha/state/binary_sensor.front_door_camera_person_detected" = "Front Door" }
+
 [apps.sonos_control]
 models = "*"  # every Sonos
 presets = [
