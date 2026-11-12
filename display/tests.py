@@ -91,9 +91,13 @@ class StatTests(TestCase):
         self.assertEqual(stat("runs_open", DATA, today, STARTS)["value"], "112 of 138")
         self.assertEqual(stat("days_until_lifts", DATA, today, STARTS)["value"], "10 days")
 
-    def test_missing_data_is_skipped(self):
+    @mock.patch("hub.provides.stats", return_value={})
+    @mock.patch("hub.provides.stat_owners", return_value=set())
+    def test_missing_data_is_skipped(self, _owners, stats):
+        # Isolated from the installed apps' providers, which would fetch live data.
         keys = ["snow_report.temp_top", "none", "snow_report.base", "snow_report.wind_top", "lift_status.groomed"]
         self.assertEqual(collect(keys, {}, date(2026, 11, 11), STARTS), [])
+        stats.assert_not_called()
 
     def test_sun_times_are_plausible(self):
         rise, sets = sun_times(date(2026, 6, 21), 50.884, -119.885)
