@@ -28,9 +28,9 @@ type = "home_assistant"
 # the environment still win). See each app's README.
 [apps.display]  # the screensaver's info strip until it's set on the Settings page
 slots_winter = ["snow_report.temp_top", "snow_report.temp_village", "snow_report.snow_48h", "lift_status.runs_open"]
-slots_spring = ["snow_report.temp_top", "snow_report.temp_village", "snow_report.base", "snow_report.sunset"]
-slots_summer = ["snow_report.temp_top", "snow_report.temp_village", "lift_status.lifts_open", "snow_report.sunset"]
-slots_fall = ["snow_report.temp_top", "snow_report.temp_village", "days_until_lifts", "snow_report.sunset"]
+slots_spring = ["snow_report.temp_top", "snow_report.temp_village", "snow_report.base", "snow_report.sun"]
+slots_summer = ["snow_report.temp_top", "snow_report.temp_village", "lift_status.lifts_open", "snow_report.sun"]
+slots_fall = ["snow_report.temp_top", "snow_report.temp_village", "days_until_lifts", "snow_report.sun"]
 
 [apps.sonos_control]
 models = "Amp"  # the in-wall amps; the soundbars are left to the TVs
