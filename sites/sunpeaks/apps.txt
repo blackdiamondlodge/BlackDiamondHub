@@ -11,11 +11,9 @@
 # Installed apps register through the "blackdiamondhub.plugins" entry point.
 
 bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.1.3/bdh_app_wifi-1.1.3-py3-none-any.whl --hash=sha256:c768ad36197beb35b22b9682d02e1fa5eb618e3ccd20bfe74bce8ac8b50fd923
-bdh-app-sunpeaks-webcams @ https://github.com/blackdiamondlodge/bdh-app-sunpeaks-webcams/releases/download/v1.1.0/bdh_app_sunpeaks_webcams-1.1.0-py3-none-any.whl \
-    --hash=sha256:65884955aec6613999083973f23a1884729a802d4f6815d394845431a42e20ac
-bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.1.0/bdh_app_lift_status-1.1.0-py3-none-any.whl \
-    --hash=sha256:02d05cd293b23b182a1144abbb64470ce7779a3f7a2830129134e5499ee000bf
-bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.1.2/bdh_app_snow_report-2.1.2-py3-none-any.whl --hash=sha256:7bfb6cb9aaff30c05afb74329dd7065aabd1834dbf42d257142c96a1193720b1
+bdh-app-sunpeaks-webcams @ https://github.com/blackdiamondlodge/bdh-app-sunpeaks-webcams/releases/download/v1.2.0/bdh_app_sunpeaks_webcams-1.2.0-py3-none-any.whl --hash=sha256:39ab4e917de9bd2c6745d19fa8c5a333bfc67dd12dab5b4f08cdf09562cb72b9
+bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.2.0/bdh_app_lift_status-1.2.0-py3-none-any.whl --hash=sha256:ceb449245de2b8e31a30575923f0c4e44e2a05819aa6324d964d87894ae68226
+bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.2.0/bdh_app_snow_report-2.2.0-py3-none-any.whl --hash=sha256:3c3006961d8b770de4b4909f13001d477358459f7e402429ee6be96c603a54ba
 bdh-app-radiant @ https://github.com/blackdiamondlodge/bdh-app-radiant/releases/download/v1.2.0/bdh_app_radiant-1.2.0-py3-none-any.whl --hash=sha256:09fca19fe1b1057dc5848cf1d9d6d7d3adad65fe872879ac8d3157bbf354d702
 bdh-app-device-control @ https://github.com/blackdiamondlodge/bdh-app-device-control/releases/download/v1.3.0/bdh_app_device_control-1.3.0-py3-none-any.whl --hash=sha256:56a1f0316719eef11d8561171ba202dd97bb43b377aa31e7d87a3aff84f4dbaa
 bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.4.0/bdh_app_cameras-1.4.0-py3-none-any.whl --hash=sha256:174581f44b49dd9f6289e168eead83c06a3c6148a9634303a98c44b37ab6a408
