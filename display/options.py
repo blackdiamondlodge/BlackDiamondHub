@@ -18,7 +18,7 @@ SLOTS = 4
 
 # Info-strip stats a slot shows until it's set. A site picks its own per season
 # in site.toml: [apps.display] slots_<season> = ["<app>.<key>", ...].
-DEFAULT_SLOTS = ("weather.temp", "weather.sunrise", "weather.sunset", "none")
+DEFAULT_SLOTS = ("weather.temp", "weather.feels_like", "weather.sun", "none")
 DEFAULT_STARTS = {"winter": "11-21", "spring": "03-15", "summer": "06-01", "fall": "09-15"}
 DEFAULT_NIGHT = {"from": "23:00", "until": "06:00"}
 

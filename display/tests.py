@@ -97,7 +97,8 @@ PROVIDED = {}
 
 
 def weather_stats():
-    return [Stat("temp", "Outside", value="12°C"), Stat("sunset", "Sunset", value="4:30 PM")]
+    return [Stat("temp", "Outside", value="12°C"), Stat("feels_like", "Feels like", value="10°C"),
+            Stat("sun", "Sunset", value="4:30 PM")]
 
 
 def snow_stats():
@@ -128,7 +129,7 @@ CAMS = PluginSpec(id="sunpeaks_webcams", app="sunpeaks_webcams", provides={BACKG
 MOUNTAIN = BASE + (SNOW, LIFTS, CAMS)
 MOUNTAIN_SLOTS = ["snow_report.temp_top", "snow_report.temp_village", "snow_report.snow_48h", "lift_status.runs_open"]
 WEATHER = PluginSpec(id="weather", app="weather", provides={STATS: P + "weather_stats"},
-                     stat_keys=(("temp", "Outside"), ("sunrise", "Sunrise"), ("sunset", "Sunset")))
+                     stat_keys=(("temp", "Outside"), ("feels_like", "Feels like"), ("sun", "Next sunrise or sunset")))
 # No site slot defaults: the display's generic ones apply.
 NO_SITE_SLOTS = {f"BDH_DISPLAY_SLOTS_{s}": None for s in ("WINTER", "SPRING", "SUMMER", "FALL")}
 
@@ -195,6 +196,7 @@ class ViewTests(TestCase):
         with override_settings(HUB_PLUGINS=BASE + (WEATHER,), **NO_SITE_SLOTS):
             body = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
             self.assertEqual(body["stats"], [{"label": "Outside", "value": "12°C"},
+                                             {"label": "Feels like", "value": "10°C"},
                                              {"label": "Sunset", "value": "4:30 PM"}])
             self.client.force_login(self.staff)
             page = self.client.get(reverse("display_settings"))
@@ -304,7 +306,8 @@ class CatalogTests(TestCase):
     def test_groups(self):
         with override_settings(HUB_PLUGINS=BASE + (WEATHER,)):
             self.assertEqual(catalog.stat_groups(["weather.temp", "gone.x"]), [
-                ("Weather", [("weather.temp", "Outside"), ("weather.sunrise", "Sunrise"), ("weather.sunset", "Sunset")]),
+                ("Weather", [("weather.temp", "Outside"), ("weather.feels_like", "Feels like"),
+                             ("weather.sun", "Next sunrise or sunset")]),
                 ("Unavailable", [("gone.x", "gone.x (unavailable)")]),
             ])
         with override_settings(HUB_PLUGINS=MOUNTAIN):
