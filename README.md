@@ -94,7 +94,9 @@ Each site folder has:
   from `bdh-sdk` when none is given), `[location]` latitude, longitude and IANA
   time zone (screensaver season, night mode, sunrise/sunset), `[features]`
   such as `mountain_weather`, `[sections]` homepage section titles (`mountain`,
-  `lodge` and `more`; "Outside", "Inside" and "More" unless set), and `[apps.<app_id>]` tables of per-site app
+  `lodge` and `more`; "Outside", "Inside" and "More" unless set; staff can
+  rename, add, remove and reorder groups and drag apps between them on
+  Settings → Home layout), and `[apps.<app_id>]` tables of per-site app
   settings. Each key becomes the Django setting `BDH_<APP_ID>_<KEY>`, read by
   the app with `bdh_sdk.settings.app_setting` (a value on the Settings page or
   in the environment wins). For example `[apps.sonos_control]` sets which

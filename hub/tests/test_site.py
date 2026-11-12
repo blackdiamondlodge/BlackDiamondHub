@@ -11,6 +11,8 @@ from display.schedule import lodge_minute, window
 from hub.context_processors import _brand, brand
 from hub.modes import builtin_tiles
 from hub.site import SITES_DIR, app_settings, load_site, section_titles
+from hub_settings import store as hub_store
+from hub_settings.models import AppSetting
 
 
 class LoadSiteTests(SimpleTestCase):
@@ -160,6 +162,27 @@ class MountainWeatherTests(TestCase):
         self.assertContains(response, "MERCER ISLAND")
         self.assertContains(response, "In the home")
         self.assertNotContains(response, "In the lodge")
+
+    def test_renamed_groups_show_on_home_with_the_weather_heading_its_group(self):
+        reading = {"location": "Top", "elevation": 2080, "temperature": "-4"}
+        self.enterContext(patch("BlackDiamondHub.views.mountain_weather", return_value=[reading]))
+        # Hooks run in threads with their own DB connection, which can't see this
+        # test's unsaved layout and would cache the store empty.
+        self.enterContext(patch("hub.status.current_stay", return_value=None))
+        self.enterContext(patch("BlackDiamondHub.views.lodge_card", return_value=None))
+        self.enterContext(patch("BlackDiamondHub.views.home_data", return_value={}))
+        hub_store.clear()
+        self.addCleanup(hub_store.clear)
+        AppSetting.objects.create(app_id="hub", key="home_layout", value={"groups": [
+            # Apps the layout doesn't place go to the last group, so the empty one leads.
+            {"key": "spare", "title": "Empty now", "tiles": []},
+            {"key": "g-out", "title": "Up the hill", "tiles": [{"id": "hub:weather", "size": "l"}]},
+        ]})
+        response = self.client.get("/")
+        self.assertEqual(response.context["hub_weather_key"], "g-out")
+        self.assertContains(response, 'id="hub-pane-g-out" data-label="Up the hill"')
+        self.assertContains(response, "up top")
+        self.assertNotContains(response, "Empty now")
 
 
 class LocationTests(SimpleTestCase):
