@@ -297,6 +297,9 @@
         requestAnimationFrame(() => {
             const h = kb.offsetHeight;
             document.body.style.paddingBottom = h + 'px';
+            // Fixed-position dialogs ignore the body padding; they can size to
+            // the space above the keyboard with calc(100vh - var(--hub-kb-h, 0px)).
+            document.documentElement.style.setProperty('--hub-kb-h', h + 'px');
             const r = el.getBoundingClientRect();
             if (r.bottom > window.innerHeight - h - 16 || r.top < 0) {
                 el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -312,6 +315,7 @@
         field = null;
         kb.classList.remove('open');
         document.body.style.paddingBottom = '';
+        document.documentElement.style.removeProperty('--hub-kb-h');
     }
 
     // ---- wiring --------------------------------------------------------
