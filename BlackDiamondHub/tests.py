@@ -290,3 +290,77 @@ class FeedbackModalTest(SeleniumTestCase):
         wait.until(EC.invisibility_of_element_located((By.ID, 'feedback-modal')))
         # A successful send refreshes the badge without waiting for the poll.
         wait.until(lambda d: [b.text for b in d.find_elements(*self.BADGE)] == ['1'])
+
+
+@tag('selenium')
+class OnScreenKeyboardTest(SeleniumTestCase):
+    """The hub-screen keyboard types into fields, moves on with Next and closes."""
+
+    KB_OPEN = (By.CSS_SELECTOR, '.hub-kb.open')
+
+    def load_login(self, kb):
+        browser = self.browser
+        browser.get(f'{self.live_server_url}/accounts/login/')
+        if kb is None:
+            browser.execute_script("localStorage.removeItem('hub-kb')")
+        else:
+            browser.execute_script("localStorage.setItem('hub-kb', arguments[0])", kb)
+        self.addCleanup(browser.execute_script, "localStorage.removeItem('hub-kb')")
+        browser.refresh()
+        wait_for_paint(browser)
+
+    def wait_open(self):
+        # .open is visible to Selenium as soon as it's added, but the keyboard
+        # is still sliding up from off-screen; wait until it's fully in view.
+        WebDriverWait(self.browser, 10).until(lambda d: d.execute_script(
+            "const k = document.querySelector('.hub-kb.open');"
+            "return !!k && k.getBoundingClientRect().bottom <= window.innerHeight + 1;"))
+
+    def tap(self, char):
+        locator = (By.CSS_SELECTOR, f'.hub-kb-key[data-c="{char}"]')
+        WebDriverWait(self.browser, 10).until(EC.element_to_be_clickable(locator)).click()
+
+    def test_types_into_fields(self):
+        browser = self.browser
+        self.load_login('on')
+        wait = WebDriverWait(browser, 10)
+        browser.find_element(By.ID, 'id_username').click()
+        self.wait_open()
+        username = browser.find_element(By.ID, 'id_username')
+        self.assertEqual(username.get_attribute('inputmode'), 'none')
+
+        for ch in 'abc':
+            self.tap(ch)
+        self.assertEqual(username.get_attribute('value'), 'abc')
+        self.assertEqual(browser.switch_to.active_element.get_attribute('id'), 'id_username')
+
+        go = browser.find_element(By.CSS_SELECTOR, '.hub-kb-key.go')
+        self.assertEqual(go.text, 'Next')
+        go.click()
+        wait.until(lambda d: d.switch_to.active_element.get_attribute('id') == 'id_password')
+        wait.until(lambda d: d.find_element(By.CSS_SELECTOR, '.hub-kb-key.go').text == 'Sign in')
+        self.assertTrue(browser.find_element(By.CSS_SELECTOR, '.hub-kb-show').is_displayed())
+
+        self.tap('x')
+        self.assertEqual(browser.find_element(By.ID, 'id_password').get_attribute('value'), 'x')
+
+        # Tapping outside the field and keyboard closes it.
+        browser.find_element(By.CSS_SELECTOR, '.login-sub').click()
+        wait.until(EC.invisibility_of_element_located(self.KB_OPEN))
+
+    def test_hide_button_closes(self):
+        browser = self.browser
+        self.load_login('on')
+        browser.find_element(By.ID, 'id_username').click()
+        wait = WebDriverWait(browser, 10)
+        self.wait_open()
+        browser.find_element(By.CSS_SELECTOR, '.hub-kb-hide').click()
+        wait.until(EC.invisibility_of_element_located(self.KB_OPEN))
+
+    def test_off_on_desktop(self):
+        # Headless Chrome has a mouse (hover), so it isn't treated as the hub screen.
+        browser = self.browser
+        self.load_login(None)
+        browser.find_element(By.ID, 'id_username').click()
+        self.assertEqual(browser.find_elements(By.CSS_SELECTOR, '.hub-kb'), [])
+        self.assertNotEqual(browser.find_element(By.ID, 'id_username').get_attribute('inputmode'), 'none')

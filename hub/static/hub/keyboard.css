@@ -1,0 +1,71 @@
+/* On-screen keyboard for the hub's own touch display (see keyboard.js). */
+.hub-kb {
+    --kb-top: rgba(29, 43, 69, .92); --kb-bot: rgba(18, 28, 44, .97);
+    --kb-fg: #eef3fa; --kb-mut: #8fa3bd; --kb-acc: #5ba4e6; --kb-acc2: #7cc4ff; --kb-glow: rgba(91, 164, 230, .35);
+    --kb-key: clamp(44px, 6.4vh, 70px);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147482000;
+    padding: 12px 16px 18px;
+    background: linear-gradient(180deg, var(--kb-top), var(--kb-bot));
+    -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+    border-top: 1px solid rgba(255, 255, 255, .14); border-radius: 26px 26px 0 0;
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, .45);
+    color: var(--kb-fg); font-family: "Segoe UI", Inter, system-ui, sans-serif;
+    transform: translateY(105%); transition: transform .22s ease-out;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+.hub-kb.open { transform: none; }
+body.theme-night .hub-kb {
+    --kb-top: rgba(35, 27, 19, .93); --kb-bot: rgba(18, 14, 10, .97);
+    --kb-fg: #f3e3cc; --kb-mut: #a28f74; --kb-acc: #f2a65a; --kb-acc2: #ffc489; --kb-glow: rgba(242, 166, 90, .3);
+}
+.hub-kb-bar, .hub-kb-keys { max-width: 1240px; margin: 0 auto; }
+.hub-kb-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; padding: 0 6px; color: var(--kb-mut); font-size: 16px;
+}
+.hub-kb-bar .t { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hub-kb-chip {
+    border: 1px solid rgba(255, 255, 255, .14); border-radius: 999px; padding: 4px 14px; color: var(--kb-fg);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw;
+}
+.hub-kb-bar button {
+    display: flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 8px 18px;
+    background: rgba(255, 255, 255, .06); color: var(--kb-fg); font: inherit;
+}
+.hub-kb-bar button.hub-kb-show { background: none; color: var(--kb-mut); padding: 8px 10px; }
+.hub-kb-bar button.hub-kb-show.on { color: var(--kb-acc2); }
+.hub-kb-keys { display: flex; flex-direction: column; gap: 10px; }
+.hub-kb-keys.num { max-width: 620px; }
+.hub-kb-row { display: flex; gap: 10px; }
+.hub-kb-gap { flex: .5 1 0; }
+.hub-kb-key {
+    flex: 1 1 0; min-width: 0; height: var(--kb-key); position: relative;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 14px; border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .08); box-shadow: 0 2px 0 rgba(0, 0, 0, .35);
+    color: var(--kb-fg); font-size: 27px; line-height: 1; cursor: pointer;
+}
+.hub-kb-key.fn { background: rgba(255, 255, 255, .035); color: var(--kb-mut); font-size: 20px; }
+.hub-kb-key.w15 { flex-grow: 1.5; }
+.hub-kb-key.w2 { flex-grow: 2.1; }
+.hub-kb-key.sp { flex-grow: 4.6; }
+.hub-kb-key.on { background: var(--kb-acc2); color: #0c1622; border-color: transparent; }
+.hub-kb-key.lock::after {
+    content: ""; position: absolute; bottom: 9px; width: 26px; height: 3px; border-radius: 2px; background: #0c1622;
+}
+.hub-kb-key.go {
+    background: linear-gradient(135deg, var(--kb-acc2), var(--kb-acc)); color: #0c1622;
+    font-weight: 600; font-size: 21px; border: 0; box-shadow: 0 8px 20px var(--kb-glow);
+    white-space: nowrap; overflow: hidden;
+}
+.hub-kb-key.press { background: var(--kb-acc); color: #0c1622; transform: translateY(1px); }
+.hub-kb-key.press.ch:not(.sp):not(.fn)::before {
+    content: attr(data-c); position: absolute; bottom: calc(100% - 8px); width: 92px; height: 96px;
+    display: flex; align-items: center; justify-content: center; border-radius: 16px;
+    background: var(--kb-acc2); color: #0c1622; font-size: 44px; box-shadow: 0 12px 30px rgba(0, 0, 0, .5);
+    pointer-events: none;
+}
+.hub-kb-field {
+    border-color: var(--kb-acc, #5ba4e6) !important; box-shadow: 0 0 0 4px rgba(91, 164, 230, .35) !important;
+}
+body.theme-night .hub-kb-field { border-color: #f2a65a !important; box-shadow: 0 0 0 4px rgba(242, 166, 90, .3) !important; }
