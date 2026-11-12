@@ -1,6 +1,6 @@
 import json
 
-from bdh_sdk.plugins import BOOL, CHOICE, INT, TIME
+from bdh_sdk.plugins import BOOL, CHOICE, INT, MULTI, TIME
 from bdh_sdk.settings import app_setting
 from bdh_sdk.storage import app_state
 from django.conf import settings
@@ -26,6 +26,10 @@ DEMO = PluginSpec(
     ),
 )
 PLUGINS = tuple(settings.HUB_PLUGINS) + (DEMO,)
+
+
+def _rooms():
+    return [("u1", "Kitchen"), ("u2", "Den")]
 
 
 @override_settings(HUB_PLUGINS=PLUGINS)
@@ -96,6 +100,35 @@ class SettingsPageTests(TestCase):
         with self.settings(BDH_DEMO_TITLE="From env"):
             response = self.client.get(self.url)
         self.assertContains(response, 'value="From env"')
+
+    def test_multi_setting_checkboxes(self):
+        spec = PluginSpec(id="multi", app="multi", settings=(
+            Setting("rooms", "Rooms", type=MULTI, default=None, choices_from="hub_settings.tests._rooms"),
+            Setting("idle", "Idle after", type=INT, default=5),
+        ))
+        url = "/settings/app/multi/"
+        self.client.force_login(self.staff)
+        with self.settings(HUB_PLUGINS=PLUGINS + (spec,)):
+            page = self.client.get(url)
+            self.assertContains(page, 'value="u1"')
+            self.assertContains(page, "Kitchen")
+            self.assertContains(page, 'name="rooms__unset"')
+
+            # Saving another setting doesn't turn "never picked" into "none".
+            self.client.post(url, {"idle": "9", "rooms__unset": "1"})
+            self.assertFalse(AppSetting.objects.filter(app_id="multi", key="rooms").exists())
+
+            self.client.post(url, {"idle": "9", "rooms": ["u2", "u1"], "rooms__unset": "1"})
+            self.assertEqual(app_setting("multi", "rooms", None), ["u2", "u1"])
+
+            # Once saved, ticking nothing saves an empty list.
+            self.client.post(url, {"idle": "9"})
+            self.assertEqual(AppSetting.objects.get(app_id="multi", key="rooms").value, [])
+
+            # A picked value no longer offered stays listed and ticked.
+            AppSetting.objects.filter(app_id="multi", key="rooms").update(value=["gone"])
+            page = self.client.get(url)
+            self.assertContains(page, 'value="gone" checked')
 
     def test_menu_link_for_staff(self):
         self.client.force_login(self.staff)

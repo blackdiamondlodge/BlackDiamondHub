@@ -15,6 +15,28 @@
     <section class="hst-card">
         <h3>{{ label }}</h3>
         {% for r in rows %}
+        {% if r.s.type == 'multi' %}
+        <div class="hst-row multi" role="group" aria-labelledby="hs-{{ r.s.key }}">
+            <div class="lbl" id="hs-{{ r.s.key }}">
+                <b>{{ r.s.label }}</b>
+                {% if r.error %}<small class="err">{{ r.error }}</small>{% elif r.s.help %}<small>{{ r.s.help }}</small>{% endif %}
+            </div>
+            <div class="ctl">
+                {% if r.saved %}
+                <button type="submit" name="reset" value="{{ r.s.key }}" class="hst-reset" formnovalidate title="Use the default">Reset</button>
+                {% else %}
+                <input type="hidden" name="{{ r.s.key }}__unset" value="1">
+                {% endif %}
+            </div>
+            <div class="hst-picks">
+                {% for v, l, on in r.picks %}
+                <label class="hst-pick"><input type="checkbox" name="{{ r.s.key }}" value="{{ v }}"{% if on %} checked{% endif %}> {{ l }}</label>
+                {% empty %}
+                <span class="hst-none">Nothing to pick from right now.</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
         <div class="hst-row">
             <label class="lbl" for="hs-{{ r.s.key }}">
                 <b>{{ r.s.label }}</b>
@@ -47,6 +69,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
         {% endfor %}
     </section>
 </form>

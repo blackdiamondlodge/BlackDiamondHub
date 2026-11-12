@@ -8,7 +8,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from hub.modes import LAYOUT_APP, LAYOUT_KEY, SIZES, plugins, tiles_for_mode
-from bdh_sdk.plugins import BOOL
+from bdh_sdk.plugins import BOOL, MULTI
 
 from . import store
 from .models import AppSetting
@@ -164,7 +164,19 @@ def _rows(spec, saved, posted=None, errors=None):
             "s": setting, "value": value, "default": default, "saved": setting.key in saved,
             "error": (errors or {}).get(setting.key, ""),
         })
+        if setting.type == MULTI:
+            rows[-1]["picks"] = _picks(setting, value)
     return rows
+
+
+def _picks(setting, value):
+    """Checkbox ``(value, label, checked)`` rows, keeping picked values no longer offered."""
+    picked = [str(v) for v in value or ()]
+    options = [(str(v), label) for v, label in setting.options]
+    offered = {v for v, _label in options}
+    return [(v, label, v in picked) for v, label in options] + [
+        (v, v, True) for v in picked if v not in offered
+    ]
 
 
 def _save(request, spec, saved, values):
@@ -195,6 +207,14 @@ def app_settings(request, app_id):
         for setting in spec.settings:
             if setting.type == BOOL:
                 raw[setting.key] = setting.key in request.POST
+            elif setting.type == MULTI:
+                raw[setting.key] = request.POST.getlist(setting.key)
+                if not raw[setting.key] and request.POST.get(f"{setting.key}__unset"):
+                    # Never picked and still nothing ticked: saving other settings
+                    # mustn't turn "not chosen yet" into "none".
+                    raw[setting.key] = store.fallback(spec.id, setting)
+                    values[setting.key] = raw[setting.key]
+                    continue
             else:
                 raw[setting.key] = request.POST.get(setting.key, "")
             try:

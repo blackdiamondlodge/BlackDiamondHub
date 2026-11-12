@@ -74,6 +74,16 @@
     .hst-tog input:checked + span { background: var(--acc); }
     .hst-tog input:checked + span::after { transform: translateX(24px); }
     .hst-tog input:focus-visible + span { outline: 2px solid var(--acc2); outline-offset: 2px; }
+    .hst-row.multi { flex-wrap: wrap; }
+    .hst-row.multi .ctl { order: 1; }
+    .hst-picks { order: 2; flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+    .hst-pick {
+        display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: 12px;
+        background: var(--card2); border: 1px solid var(--line); cursor: pointer; font-size: 15px;
+    }
+    .hst-pick input { width: 22px; height: 22px; accent-color: var(--acc); flex: none; margin: 0; }
+    .hst-pick:has(input:checked) { border-color: var(--acc); }
+    .hst-none { color: var(--mut); font-size: 14px; }
     .hst-reset { border: 0; background: none; color: var(--dim); font-size: 13px; cursor: pointer; padding: 6px; }
     .hst-reset:hover { color: var(--acc2); }
     .hst-note { padding: 12px 18px; border-radius: 14px; margin-bottom: 16px; font-size: 14.5px; }
