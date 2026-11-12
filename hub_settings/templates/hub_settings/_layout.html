@@ -43,6 +43,7 @@
     }
     .hst-btn.ghost { background: rgba(255,255,255,.05); color: var(--mut); }
     .hst-btn.ghost:hover { color: var(--acc2); background: rgba(91,164,230,.14); }
+    .hst-btn:disabled { opacity: .4; cursor: default; }
     .hst-card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; margin-bottom: 18px; overflow: hidden; }
     .hst-card h3 {
         margin: 0; padding: 16px 22px 12px; font-size: 12.5px; letter-spacing: .14em; color: var(--dim);
@@ -134,4 +135,32 @@
         {% block section %}{% endblock %}
     </main>
 </div>
+<script>
+    // Save stays disabled until the form differs from how the page loaded.
+    // A page whose state lives in the DOM rather than in fields sets form.bdhState.
+    // Fields marked data-clean (e.g. the open tab) don't count; data-dirty on the
+    // form (a failed save) keeps Save enabled.
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('button[data-save]').forEach(function (btn) {
+            var form = btn.form;
+            if (!form) return;
+            function state() {
+                if (form.bdhState) return form.bdhState();
+                var data = new FormData(form);
+                form.querySelectorAll('[data-clean][name]').forEach(function (el) { data.delete(el.name); });
+                data.delete('csrfmiddlewaretoken');
+                return new URLSearchParams(data).toString();
+            }
+            var start = state();
+            var always = form.hasAttribute('data-dirty');
+            function check() { btn.disabled = !always && state() === start; }
+            form.addEventListener('input', check);
+            form.addEventListener('change', check);
+            new MutationObserver(check).observe(form, {
+                subtree: true, childList: true, attributes: true, attributeFilter: ['data-size', 'data-key'],
+            });
+            check();
+        });
+    });
+</script>
 {% endblock %}

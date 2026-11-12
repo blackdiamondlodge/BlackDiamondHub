@@ -5,14 +5,14 @@
 <div class="hst-head"><div><h2>{{ label }}</h2></div></div>
 {% include 'hub_settings/_app_pages.html' %}
 {% else %}
-<form method="post" novalidate>
+<form method="post" novalidate{% if has_errors %} data-dirty{% endif %}>
     {% csrf_token %}
     <div class="hst-head">
         <div>
             <h2>{{ label }}</h2>
             <p>Saved here, these override the server's environment.</p>
         </div>
-        <div class="act"><button type="submit" class="hst-btn">Save</button></div>
+        <div class="act"><button type="submit" class="hst-btn" data-save>Save</button></div>
     </div>
     {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
     {% if has_errors %}<div class="hst-note bad" role="alert">Some values need fixing.</div>{% endif %}
