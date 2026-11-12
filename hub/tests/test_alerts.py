@@ -1,14 +1,19 @@
 import asyncio
 import importlib
+import time
 from unittest import mock
 
 from asgiref.sync import async_to_sync
 from bdh_sdk.alerts import Alert, push
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import User
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, tag
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from hub import alerts
+from tests.selenium_helpers import SeleniumTestCase, wait_for_paint
 
 HEADERS = [(b"origin", b"http://testserver"), (b"host", b"testserver")]
 
@@ -75,3 +80,32 @@ class AlertTestHookTests(TestCase):
         self.client.force_login(User.objects.create_user("owner", is_staff=True))
         response = self.client.get("/hub/api/alerts/test/?embed=//evil.example/")
         self.assertEqual(response.status_code, 400)
+
+
+@tag("selenium")
+class AlertKeepOpenTest(SeleniumTestCase):
+    SHOWN = (By.CSS_SELECTOR, ".hub-alert.on")
+
+    def show(self, ttl):
+        self.browser.execute_script(
+            "BDHAlerts.show({key: 'k', title: 'Door', embed_url: '/hub/api/alerts/sample/',"
+            " ttl: arguments[0]})", ttl)
+
+    def test_keep_open_stops_the_countdown_until_closed(self):
+        browser = self.browser
+        browser.get(f"{self.live_server_url}/accounts/login/")
+        wait_for_paint(browser)
+        self.show(1)
+        keep = WebDriverWait(browser, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, ".hub-alert-keep")))
+        keep.click()
+        self.assertEqual(keep.get_attribute("aria-pressed"), "true")
+        self.show(1)  # a repeat (another ring) must not restart the countdown
+        time.sleep(2)
+        self.assertTrue(browser.find_elements(*self.SHOWN))
+
+        browser.find_element(By.CSS_SELECTOR, ".hub-alert-close").click()
+        WebDriverWait(browser, 5).until(EC.invisibility_of_element_located(self.SHOWN))
+        self.show(1)  # a fresh alert counts down again
+        self.assertEqual(keep.get_attribute("aria-pressed"), "false")
+        WebDriverWait(browser, 5).until(EC.invisibility_of_element_located(self.SHOWN))
