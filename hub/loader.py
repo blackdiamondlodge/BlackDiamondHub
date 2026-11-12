@@ -31,6 +31,18 @@ def _entry_point_specs():
     return [ep.load() for ep in entry_points(group=ENTRY_POINT_GROUP)]
 
 
+def _validate_provides(spec):
+    provides = getattr(spec, "provides", None) or {}
+    if not isinstance(provides, dict):
+        raise PluginError(f"plugin {spec.id!r} provides must be a dict")
+    for name, path in provides.items():
+        if not isinstance(name, str) or not (isinstance(path, str) and _DOTTED.fullmatch(path)):
+            raise PluginError(
+                f"plugin {spec.id!r} provides {name!r} must be a dotted "
+                f"'module.attribute' path, got {path!r}"
+            )
+
+
 def validate(specs):
     ids, prefixes = set(), set()
     for spec in specs:
@@ -63,6 +75,7 @@ def validate(specs):
                     f"plugin {spec.id!r} {name} must be a dotted "
                     f"'module.attribute' path, got {value!r}"
                 )
+        _validate_provides(spec)
         for tile in spec.tiles:
             if tile.section not in SECTIONS:
                 raise PluginError(
