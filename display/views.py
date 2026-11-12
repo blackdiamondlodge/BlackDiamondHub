@@ -226,7 +226,7 @@ def settings_page(request):
         default_cam=chosen["label"] if chosen else "",
         photos=[photo_json(p) for p in photos], season_choices=SEASONS,
         stock={sid: stock_art(sid) for sid in SEASON_IDS},
-        home_bgs=options.HOME_BACKGROUNDS, home_tiles=options.HOME_TILES,
+        home_bgs=options.HOME_BACKGROUNDS, home_tiles=options.HOME_TILES, home_pictures=home_pictures(),
         unit_choices=UNIT_CHOICES, hub_units=request.POST.get("units") or units.system(),
         has_errors=bool(errors), just_saved=request.GET.get("saved") == "1", status=status,
     )
@@ -350,23 +350,39 @@ def current_season_safe():
 HOME_DEFAULT = {"bg": None, "tiles": "solid", "dim": 45, "shade": "0.45"}
 
 
+def home_picture(mode, today=None):
+    """Today's home-screen picture for a background mode; None for the drawn ridge.
+
+    The picture changes once a day: seasonal art, or the owner's photos for the
+    season (art when there are none).
+    """
+    if mode not in ("art", "photos"):
+        return None
+    season = current_season_safe()
+    pics = [p["url"] for p in season_photos(season)] if mode == "photos" else []
+    pics = pics or stock_art(season)
+    day = (today or lodge_today()).toordinal()
+    return pics[day % len(pics)] if pics else None
+
+
+def home_pictures():
+    """What each background choice would show today, for the Settings preview."""
+    try:
+        return {mode: home_picture(mode) for mode, _ in options.HOME_BACKGROUNDS}
+    except Exception:
+        log.exception("home preview pictures failed")
+        return {}
+
+
 def home_theme(today=None):
     """What the home screen draws behind its tiles, and how the tiles look.
 
-    The picture changes once a day: seasonal art, or the owner's photos for the
-    season (art when there are none). Never raises, so the home page always renders.
+    Never raises, so the home page always renders.
     """
     try:
         tiles = value("home_tiles")
         dim = max(0, min(80, int(value("home_dim"))))
-        mode = value("home_bg")
-        bg = None
-        if mode in ("art", "photos"):
-            season = current_season_safe()
-            pics = [p["url"] for p in season_photos(season)] if mode == "photos" else []
-            pics = pics or stock_art(season)
-            day = (today or lodge_today()).toordinal()
-            bg = pics[day % len(pics)] if pics else None
+        bg = home_picture(value("home_bg"), today)
         return {"bg": bg, "tiles": tiles if tiles in dict(options.HOME_TILES) else "solid", "dim": dim,
                 "shade": f"{dim / 100:.2f}"}
     except Exception:

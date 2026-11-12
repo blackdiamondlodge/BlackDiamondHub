@@ -371,6 +371,27 @@ class ViewTests(TestCase):
             with mock.patch("display.views.season_photos", return_value=[{"url": "/media/a.jpg", "caption": ""}]):
                 self.assertEqual(views.home_theme(date(2026, 7, 1))["bg"], "/media/a.jpg")
 
+    def test_settings_previews_each_home_background(self):
+        AppSetting.objects.create(app_id="display", key="home_tiles", value="frosted")
+        self.client.force_login(self.staff)
+        with mock.patch("display.views.current_season_safe", return_value="summer"), \
+                mock.patch("display.views.season_photos", return_value=[{"url": "/media/a.jpg", "caption": ""}]), \
+                mock.patch.object(store, "TTL", 0):
+            page = self.client.get(reverse("display_settings"))
+        self.assertContains(page, '<div class="dsp-mini tiles-frosted" id="dsp-mini"')
+        pics = page.context["home_pictures"]
+        self.assertEqual(pics["mountains"], None)
+        self.assertIn(pics["art"], views.stock_art("summer"))
+        self.assertEqual(pics["photos"], "/media/a.jpg")
+        self.assertContains(page, 'id="dsp-home-pics"')
+
+    def test_home_preview_never_breaks_settings(self):
+        self.client.force_login(self.staff)
+        with mock.patch("display.views.home_picture", side_effect=RuntimeError), \
+                mock.patch.object(store, "TTL", 0):
+            page = self.client.get(reverse("display_settings"))
+        self.assertEqual(page.context["home_pictures"], {})
+
     def test_home_theme_never_breaks_home(self):
         AppSetting.objects.create(app_id="display", key="home_bg", value="art")
         with mock.patch("display.views.stock_art", side_effect=RuntimeError), \

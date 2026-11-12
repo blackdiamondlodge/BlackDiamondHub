@@ -54,6 +54,71 @@
     .dsp-home { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
     .dsp-home label { min-height: 0; }
     .dsp-note { margin: 12px 0 0; color: var(--mut); font-size: 13.5px; }
+    /* Mini home screen: the home page's background and tile styles, scaled down. */
+    .dsp-mini {
+        position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; margin-bottom: 16px;
+        border: 1px solid var(--line); container-type: inline-size;
+        --tile: #18243a; --edge: #26354f;
+        background: radial-gradient(60% 55% at 15% -10%, #1b2d4a 0%, transparent 60%), linear-gradient(180deg, #121c2c, #0d1420);
+    }
+    .dsp-mini .sky { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .55; }
+    .dsp-mini .sky .r1 { fill: #14203a; }
+    .dsp-mini .sky .r2 { fill: #111b30; }
+    .dsp-mini.has-pic .sky { display: none; }
+    .dsp-mini .pic { position: absolute; inset: 0; background: center / cover no-repeat; }
+    .dsp-mini .pic::after { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, var(--dim, .45)); }
+    .dsp-mini .pic[hidden] { display: none; }
+    .dsp-mini .bar {
+        position: absolute; left: 0; right: 0; top: 0; height: 8%; display: flex; align-items: center; gap: 2cqw;
+        padding: 0 3cqw; background: #121c2c; border-bottom: 1px solid var(--edge);
+    }
+    .dsp-mini .bar i { width: 16cqw; height: 1.6cqw; border-radius: 1cqw; background: rgba(255, 255, 255, .55); }
+    .dsp-mini .bar i + i { margin-left: auto; width: 9cqw; opacity: .7; }
+    .dsp-mini .head { position: absolute; left: 4cqw; top: 13%; width: 20cqw; height: 2.6cqw; border-radius: 1cqw; background: rgba(255, 255, 255, .75); }
+    .dsp-mini .grid {
+        position: absolute; left: 4cqw; top: 22%; display: grid; gap: 1.6cqw;
+        grid-template-columns: repeat(6, 13cqw); grid-auto-rows: 13cqw;
+    }
+    .dsp-mini .grid i, .dsp-mini .quick i { position: relative; background: var(--tile); border: 1px solid var(--edge); }
+    .dsp-mini .grid i { border-radius: 1.8cqw; }
+    .dsp-mini .grid .big { grid-column: span 2; grid-row: span 2; }
+    .dsp-mini .grid .wide { grid-column: span 2; }
+    .dsp-mini .grid i::before {
+        content: ""; position: absolute; left: 1.5cqw; top: 1.5cqw; width: 3.4cqw; height: 3.4cqw;
+        border-radius: 50%; background: var(--acc); opacity: .85;
+    }
+    .dsp-mini .grid i::after {
+        content: ""; position: absolute; left: 1.5cqw; bottom: 1.6cqw; width: 55%; height: 1.3cqw;
+        border-radius: 1cqw; background: rgba(255, 255, 255, .7);
+    }
+    .dsp-mini .quick { position: absolute; left: 4cqw; bottom: 6%; display: flex; gap: 1.4cqw; }
+    .dsp-mini .quick i { width: 13cqw; height: 4.4cqw; border-radius: 999px; }
+    .dsp-mini .tag {
+        position: absolute; right: 2cqw; bottom: 5%; padding: 3px 9px; border-radius: 8px; font-size: 12.5px;
+        background: rgba(0, 0, 0, .55); color: #eef3fa;
+    }
+    /* Same glass as the home page; blur scaled down with the preview. */
+    .dsp-mini:not(.tiles-solid) {
+        --glass: linear-gradient(135deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .05));
+        --glass-edge: rgba(255, 255, 255, .3); --blur: 5px;
+    }
+    .dsp-mini.tiles-frosted {
+        --glass: linear-gradient(135deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .12));
+        --glass-edge: rgba(255, 255, 255, .38); --blur: 10px;
+    }
+    .dsp-mini.tiles-dark {
+        --glass: linear-gradient(135deg, rgba(10, 16, 28, .58), rgba(10, 16, 28, .42));
+        --glass-edge: rgba(255, 255, 255, .16); --blur: 8px;
+    }
+    .dsp-mini:not(.tiles-solid) .grid i, .dsp-mini:not(.tiles-solid) .quick i {
+        background: var(--glass); border-color: var(--glass-edge);
+        -webkit-backdrop-filter: blur(var(--blur)) saturate(170%); backdrop-filter: blur(var(--blur)) saturate(170%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 4px 12px rgba(0, 0, 0, .25);
+    }
+    .dsp-mini:not(.tiles-solid) .bar {
+        background: rgba(13, 20, 32, .45); border-color: rgba(255, 255, 255, .22);
+        -webkit-backdrop-filter: blur(7px) saturate(160%); backdrop-filter: blur(7px) saturate(160%);
+    }
     @media (max-width: 1100px) { .dsp, .dsp-bg { grid-template-columns: 1fr; } }
     @media (max-width: 760px) { .dsp-src, .dsp-dates { grid-template-columns: 1fr 1fr; } }
 </style>
@@ -139,6 +204,18 @@
             <section class="hst-card">
                 <h3>Home screen</h3>
                 <div class="dsp-body">
+                    <div class="dsp-mini tiles-{{ v.home_tiles }}" id="dsp-mini" aria-hidden="true">
+                        <svg class="sky" viewBox="0 0 1600 1020" preserveAspectRatio="none">
+                            <path class="r1" d="M0 1020 L0 700 L260 520 L420 610 L640 420 L860 600 L1040 480 L1300 640 L1520 430 L1600 485 L1600 1020Z"/>
+                            <path class="r2" d="M0 1020 L0 820 L300 700 L520 780 L760 650 L1000 790 L1240 690 L1500 800 L1600 750 L1600 1020Z"/>
+                        </svg>
+                        <div class="pic" id="dsp-mini-pic" hidden></div>
+                        <div class="bar"><i></i><i></i></div>
+                        <b class="head"></b>
+                        <div class="grid"><i class="big"></i><i></i><i></i><i></i><i></i><i></i><i class="wide"></i><i></i></div>
+                        <div class="quick"><i></i><i></i><i></i></div>
+                        <span class="tag">Preview</span>
+                    </div>
                     <div class="dsp-src dsp-home" role="radiogroup" aria-label="Home background">
                         {% for val, l in home_bgs %}
                         <label>
@@ -279,6 +356,7 @@
 {{ photos|json_script:"dsp-photos" }}
 {{ season_choices|json_script:"dsp-seasons" }}
 {{ stock|json_script:"dsp-stock" }}
+{{ home_pictures|json_script:"dsp-home-pics" }}
 <script src="{% static 'display/library.js' %}" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -330,6 +408,22 @@ document.addEventListener('DOMContentLoaded', () => {
     showRot();
     const dim = document.getElementById('dsp-dim');
     dim.addEventListener('input', () => { document.getElementById('dsp-dim-out').textContent = dim.value + '%'; });
+    // The mini home screen follows the Home screen controls before they're saved.
+    const mini = document.getElementById('dsp-mini');
+    const miniPic = document.getElementById('dsp-mini-pic');
+    const homePics = JSON.parse(document.getElementById('dsp-home-pics').textContent);
+    function paintMini() {
+        const bg = document.querySelector('input[name="home_bg"]:checked');
+        const tiles = document.querySelector('input[name="home_tiles"]:checked');
+        const url = bg ? homePics[bg.value] : null;
+        mini.className = 'dsp-mini tiles-' + (tiles ? tiles.value : 'solid') + (url ? ' has-pic' : '');
+        miniPic.hidden = !url;
+        if (url) miniPic.style.backgroundImage = 'url("' + url + '")';
+        mini.style.setProperty('--dim', dim.value / 100);
+    }
+    document.querySelectorAll('input[name="home_bg"], input[name="home_tiles"]').forEach(r => r.addEventListener('change', paintMini));
+    dim.addEventListener('input', paintMini);
+    paintMini();
     select(document.getElementById('dsp-tab').value);
 });
 </script>
