@@ -75,6 +75,10 @@
     .hst-tog input:checked + span::after { transform: translateX(24px); }
     .hst-tog input:focus-visible + span { outline: 2px solid var(--acc2); outline-offset: 2px; }
     .hst-row.multi { flex-wrap: wrap; }
+    .hst-link { color: inherit; text-decoration: none; }
+    .hst-link:hover { background: rgba(91,164,230,.08); }
+    .hst-link > i:first-child { width: 22px; text-align: center; color: var(--acc2); font-size: 18px; }
+    .hst-link .go { color: var(--mut); }
     .hst-row.multi .ctl { order: 1; }
     .hst-picks { order: 2; flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
     .hst-pick {

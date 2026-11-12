@@ -1,6 +1,10 @@
 {% extends 'hub_settings/_layout.html' %}
 
 {% block section %}
+{% if not rows %}
+<div class="hst-head"><div><h2>{{ label }}</h2></div></div>
+{% include 'hub_settings/_app_pages.html' %}
+{% else %}
 <form method="post" novalidate>
     {% csrf_token %}
     <div class="hst-head">
@@ -72,5 +76,7 @@
         {% endif %}
         {% endfor %}
     </section>
+    {% include 'hub_settings/_app_pages.html' %}
 </form>
+{% endif %}
 {% endblock %}

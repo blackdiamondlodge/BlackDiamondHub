@@ -92,5 +92,9 @@ pytz
 websockets
 whitenoise==6.8.2
 pygemstone==0.0.3
+# Calendar app (bdh-app-calendar) - site app wheels install with --no-deps.
+icalendar==7.3.0
+recurring-ical-events==3.8.2
+x-wr-timezone==2.0.1
 # Hub plugin contract; apps in their own repos depend on it too.
-bdh-sdk @ https://github.com/blackdiamondlodge/bdh-sdk/releases/download/v0.13.0/bdh_sdk-0.13.0-py3-none-any.whl
+bdh-sdk @ https://github.com/blackdiamondlodge/bdh-sdk/releases/download/v0.14.0/bdh_sdk-0.14.0-py3-none-any.whl
