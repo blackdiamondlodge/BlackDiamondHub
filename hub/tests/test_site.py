@@ -10,7 +10,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, override_setti
 from display.schedule import lodge_minute, window
 from hub.context_processors import _brand, brand
 from hub.modes import builtin_tiles
-from hub.site import SITES_DIR, app_settings, load_site
+from hub.site import SITES_DIR, app_settings, load_site, section_titles
 
 
 class LoadSiteTests(SimpleTestCase):
@@ -35,7 +35,26 @@ class LoadSiteTests(SimpleTestCase):
 
     def test_site_without_toml_gets_empty_sections(self):
         self.assertEqual(self.site("bare"),
-                         {"name": "bare", "brand": {}, "location": {}, "features": {}, "apps": {}, "events": {}})
+                         {"name": "bare", "brand": {}, "location": {}, "features": {}, "sections": {},
+                          "apps": {}, "events": {}})
+
+    def test_section_titles_default_to_site_neutral_words(self):
+        self.assertEqual(section_titles(self.site("bare")["sections"]),
+                         {"mountain": "Outside", "lodge": "Inside", "more": "More"})
+
+    def test_site_renames_a_section(self):
+        site = self.site("home", '[sections]\nlodge = "In the home"\n')
+        self.assertEqual(section_titles(site["sections"])["lodge"], "In the home")
+
+    def test_unknown_or_empty_section_fails(self):
+        with self.assertRaisesRegex(ValueError, r"\[sections\] 'garage'"):
+            self.site("a", '[sections]\ngarage = "Garage"\n')
+        with self.assertRaisesRegex(ValueError, r"\[sections\] 'lodge'"):
+            self.site("b", '[sections]\nlodge = " "\n')
+
+    def test_section_ids_match_the_sdk(self):
+        from hub.plugins import SECTIONS
+        self.assertEqual(list(section_titles({})), list(SECTIONS))
 
     def test_app_tables_become_namespaced_django_settings(self):
         site = self.site("home", '[apps.sonos_control]\nmodels = "*"\n'
@@ -126,10 +145,11 @@ class MountainWeatherTests(TestCase):
 
     def test_sun_peaks_has_the_weather_tile(self):
         self.assertIn("weather", [t["kind"] for t in builtin_tiles()])
-        self.client.get("/")
+        response = self.client.get("/")
         self.assertTrue(self.scraped())
+        self.assertContains(response, "In the lodge")
 
-    @override_settings(HUB_FEATURES={"mountain_weather": False},
+    @override_settings(HUB_FEATURES={"mountain_weather": False}, HUB_SECTIONS={"lodge": "In the home"},
                        HUB_BRAND={"name": "Slivinski Hub", "subtitle": "Mercer Island"})
     def test_site_without_it_has_no_tile_and_no_scrape(self):
         self.assertNotIn("weather", [t["kind"] for t in builtin_tiles()])
@@ -138,6 +158,8 @@ class MountainWeatherTests(TestCase):
         self.assertNotContains(response, "hub-cell hub-wx-tile")
         self.assertContains(response, "<title>Slivinski Hub</title>", html=False)
         self.assertContains(response, "MERCER ISLAND")
+        self.assertContains(response, "In the home")
+        self.assertNotContains(response, "In the lodge")
 
 
 class LocationTests(SimpleTestCase):
