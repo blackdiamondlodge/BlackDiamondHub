@@ -3,6 +3,7 @@ from django.conf import settings
 from django.urls import NoReverseMatch, reverse
 
 from .plugins import DASHBOARD, GUEST, OWNER, SECTIONS
+from .site import section_titles
 
 
 def current_stay(request):
@@ -126,7 +127,7 @@ def tiles_for_mode(mode=None):
     """
     grouped, layout = _catalog(mode), home_layout()
     sections = []
-    for key, title in SECTIONS.items():
+    for key, title in section_titles().items():
         items = arrange(grouped[key], layout.get(key))
         # The lodge card alone doesn't make a section: it's often empty.
         if any(t["kind"] != "lodge" for t in items):

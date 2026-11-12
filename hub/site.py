@@ -11,6 +11,17 @@ from pathlib import Path
 SITES_DIR = Path(__file__).resolve().parent.parent / "sites"
 DEFAULT_SITE = "sunpeaks"
 BRAND_FILES = ("monogram", "monogram_light", "og_image")
+# Homepage section titles unless the site's [sections] table renames them.
+# The keys are the bdh_sdk section ids apps put their tiles in.
+SECTION_TITLES = {"mountain": "Outside", "lodge": "Inside", "more": "More"}
+
+
+def section_titles(sections=None):
+    """``{section_id: title}``, the site's titles over the defaults, in display order."""
+    if sections is None:
+        from django.conf import settings
+        sections = getattr(settings, "HUB_SECTIONS", {})
+    return {key: sections.get(key, title) for key, title in SECTION_TITLES.items()}
 
 
 def load_site(name=None, sites_dir=SITES_DIR):
@@ -35,8 +46,13 @@ def load_site(name=None, sites_dir=SITES_DIR):
     for app_id, values in apps.items():
         if not isinstance(values, dict):
             raise ValueError(f"site {name!r}: [apps.{app_id}] must be a table")
+    sections = dict(conf.get("sections", {}))
+    for key, title in sections.items():
+        if key not in SECTION_TITLES or not isinstance(title, str) or not title.strip():
+            raise ValueError(f"site {name!r}: [sections] {key!r} must be one of "
+                             f"{', '.join(SECTION_TITLES)} with a title")
     return {"name": name, "brand": brand, "location": dict(conf.get("location", {})),
-            "features": dict(conf.get("features", {})),
+            "features": dict(conf.get("features", {})), "sections": sections,
             "apps": {app_id: dict(values) for app_id, values in apps.items()},
             "events": event_sources(name, conf.get("events", {}).get("sources", {}))}
 

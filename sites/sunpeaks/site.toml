@@ -15,6 +15,10 @@ timezone = "Etc/GMT+7"  # BC keeps UTC-7 all year (the sign is inverted in Etc/ 
 [features]
 mountain_weather = true  # the Sun Peaks Resort temperatures tile
 
+[sections]  # homepage section titles
+mountain = "On the mountain"
+lodge = "In the lodge"
+
 # Event sources for bdh_sdk.events (see the README). "ha" topics look like
 # ha/state/<entity_id>; nothing is watched until an app subscribes.
 [events.sources.ha]
