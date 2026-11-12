@@ -153,7 +153,11 @@
 
     let showing = 'stock';
     let order = [], orderKey = '', pos = 0;
-    function photoList() { return (data && data.photos) || []; }
+    // Photos that failed to load are skipped for a while, so one bad file can't leave the screen black.
+    const broken = new Map();
+    const BROKEN_MS = 10 * 60 * 1000;
+    const isBroken = url => broken.has(url) && Date.now() - broken.get(url) < BROKEN_MS;
+    function photoList() { return ((data && data.photos) || []).filter(p => !isBroken(p.url)); }
     const byUrl = url => photoList().find(p => p.url === url);
     const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
@@ -247,6 +251,11 @@
                 setTimeout(() => { while (layer.firstElementChild && layer.firstElementChild !== frame) layer.firstElementChild.remove(); }, 3200);
             }
             showCaption();
+        };
+        fg.onerror = () => {
+            broken.set(url, Date.now());
+            // Try another photo, or switch to another source if none are left.
+            if (data) render(data);
         };
         frame.append(bg, fg);
         bg.src = url;

@@ -11,13 +11,17 @@ from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase, override_settings
+from django.test import Client, TestCase, override_settings, tag
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from hub.plugins import PluginSpec
 from hub_settings import store
+from tests.selenium_helpers import SeleniumTestCase
 from . import catalog
 from hub_settings.models import AppSetting
 from .models import SaverPhoto, UploadLink
@@ -446,3 +450,46 @@ class PhotoTests(TestCase):
         body = self.client.get(api, preview).json()
         self.assertEqual(body["sources"], ["stock"])
         self.assertEqual(body["photos"], [])
+
+@tag("selenium")
+@override_settings(HUB_PLUGINS=BASE)
+class SaverBrokenPhotoSeleniumTest(SeleniumTestCase):
+    """A photo that fails to load must not leave the screensaver black (regression)."""
+
+    GOOD = "android-chrome-512x512.png"  # a real file in static/, served by the live server
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(store.clear)
+        storage = FileSystemStorage(os.path.join(settings.BASE_DIR, "static"), base_url=settings.STATIC_URL)
+        for name in ("image", "thumb"):
+            patcher = mock.patch.object(SaverPhoto._meta.get_field(name), "storage", storage)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        AppSetting.objects.create(app_id="display", key="source_summer", value="photos")
+        self.browser.get("about:blank")
+
+    def add(self, name):
+        SaverPhoto.objects.create(image=name, thumb=name)
+
+    def open_saver(self):
+        self.browser.get(self.live_server_url + "/?saver=1&saver_season=summer")
+
+    def layer(self, name):
+        return self.browser.find_element(By.CSS_SELECTOR, f".bdh-saver .layer.{name}")
+
+    def test_only_broken_photos_fall_back_to_stock(self):
+        self.add("missing-1.jpg")
+        self.add("missing-2.jpg")
+        self.open_saver()
+        WebDriverWait(self.browser, 20).until(lambda d: "on" in self.layer("stock").get_attribute("class"))
+        self.assertNotIn("on", self.layer("photos").get_attribute("class"))
+
+    def test_broken_photos_are_skipped(self):
+        for n in range(3):
+            self.add(f"missing-{n}.jpg")
+        self.add(self.GOOD)
+        self.open_saver()
+        frame = (By.CSS_SELECTOR, ".bdh-saver .layer.photos.on .frame")
+        WebDriverWait(self.browser, 20).until(EC.presence_of_element_located(frame))
+        self.assertTrue(self.browser.find_element(*frame).get_attribute("data-src").endswith(self.GOOD))
