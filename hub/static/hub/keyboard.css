@@ -58,12 +58,9 @@ body.theme-night .hub-kb {
     font-weight: 600; font-size: 21px; border: 0; box-shadow: 0 8px 20px var(--kb-glow);
     white-space: nowrap; overflow: hidden;
 }
-.hub-kb-key.press { background: var(--kb-acc); color: #0c1622; transform: translateY(1px); }
-.hub-kb-key.press.ch:not(.sp):not(.fn)::before {
-    content: attr(data-c); position: absolute; bottom: calc(100% - 8px); width: 92px; height: 96px;
-    display: flex; align-items: center; justify-content: center; border-radius: 16px;
-    background: var(--kb-acc2); color: #0c1622; font-size: 44px; box-shadow: 0 12px 30px rgba(0, 0, 0, .5);
-    pointer-events: none;
+.hub-kb-key.press {
+    background: var(--kb-acc); color: #0c1622; border-color: transparent; transform: translateY(1px);
+    box-shadow: 0 0 0 3px var(--kb-glow), 0 0 22px 4px var(--kb-glow);
 }
 .hub-kb-field {
     border-color: var(--kb-acc, #5ba4e6) !important; box-shadow: 0 0 0 4px rgba(91, 164, 230, .35) !important;
