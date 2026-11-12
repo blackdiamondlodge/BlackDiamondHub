@@ -67,7 +67,10 @@ def landing_page(request):
     # The weather tile leads with the highest reading; the rest are mini stats.
     top = max(weather_data, key=lambda w: w['elevation'], default=None)
     sections = tiles_for_mode(mode)
-    keys = [key for key, _, _ in sections]
+
+    def holding(kind):
+        return next((key for key, _, tiles in sections if any(t['kind'] == kind for t in tiles)), None)
+
     context = {
         'sunpeaks_weather': weather_data,
         'hub_weather_top': top,
@@ -79,8 +82,10 @@ def landing_page(request):
         'hub_home': home_data(mode, timeout=PAGE_TIMEOUT),
         # Without a card app, guests still get the plain welcome line.
         'hub_welcome': welcome(current_stay(request)) if mode == GUEST and not card else None,
-        # It heads the lodge pane, or the first pane when there's no lodge pane.
-        'hub_welcome_key': 'lodge' if 'lodge' in keys else next(iter(keys), None),
+        # It heads the pane with the lodge card, else the first pane.
+        'hub_welcome_key': holding('lodge') or next((key for key, _, _ in sections), None),
+        # The pane with the weather tile shows the temperature up top.
+        'hub_weather_key': holding('weather'),
     }
     return render(request, 'index.html', context)
 
