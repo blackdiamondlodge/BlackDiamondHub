@@ -4,7 +4,7 @@
 
 {% block title %}{{ hub_brand.name }}{% endblock %}
 
-{% block body_class %}hub-home mode-{{ hub_mode }}{% endblock %}
+{% block body_class %}hub-home mode-{{ hub_mode }} tiles-{{ hub_theme.tiles|default:'solid' }}{% if hub_theme.bg %} has-bg{% endif %}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -342,6 +342,50 @@
         .hub-quick-btn { font-size: 17px; padding: 12px 16px; }
         .hub-date, .hub-dot { display: none; }
     }
+
+    /* Home theme (Settings → Display → Home screen): a picture behind the
+       panorama, dimmed so the tiles stay readable, and glass tiles over it. */
+    .hub-bg {
+        position: fixed; inset: 0; z-index: -1; pointer-events: none;
+        background-size: cover; background-position: center;
+    }
+    .hub-bg::after { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, var(--dim, .45)); }
+    body.hub-home.has-bg .hub-sky { display: none; }
+    body.hub-home.has-bg .hub-pane h2, body.hub-home.has-bg .hub-quick-label { text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }
+    body.hub-home:not(.tiles-solid) {
+        --line: rgba(255, 255, 255, .22); --card2: rgba(255, 255, 255, .1); --mut: #c3d0e0;
+        --glass: linear-gradient(135deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .05));
+        --glass-edge: rgba(255, 255, 255, .3); --blur: 14px;
+    }
+    body.hub-home.tiles-frosted {
+        --glass: linear-gradient(135deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .12));
+        --glass-edge: rgba(255, 255, 255, .38); --blur: 30px;
+    }
+    body.hub-home.tiles-dark {
+        --glass: linear-gradient(135deg, rgba(10, 16, 28, .58), rgba(10, 16, 28, .42));
+        --glass-edge: rgba(255, 255, 255, .16); --blur: 22px; --card2: rgba(255, 255, 255, .07);
+    }
+    body.hub-home:not(.tiles-solid) .hub-cell:not(.hub-lodge),
+    body.hub-home:not(.tiles-solid) .hub-card,
+    body.hub-home:not(.tiles-solid) .hub-quick-btn,
+    body.hub-home:not(.tiles-solid) .hub-nav {
+        background: var(--glass); border-color: var(--glass-edge);
+        -webkit-backdrop-filter: blur(var(--blur)) saturate(170%);
+        backdrop-filter: blur(var(--blur)) saturate(170%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 8px 24px rgba(0, 0, 0, .25);
+    }
+    body.hub-home:not(.tiles-solid) .hub-tile:hover, body.hub-home:not(.tiles-solid) .hub-tile:focus-visible,
+    body.hub-home:not(.tiles-solid) a.hub-card:hover, body.hub-home:not(.tiles-solid) a.hub-card:focus-visible {
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, .08), 0 8px 24px rgba(0, 0, 0, .25);
+    }
+    body.hub-home:not(.tiles-solid) .hub-tile.has-rows,
+    body.hub-home:not(.tiles-solid) .hub-card.lvl-on { border-color: var(--acc); }
+    body.hub-home:not(.tiles-solid) .hub-card.lvl-warn { border-color: #f0b429; }
+    body.hub-home:not(.tiles-solid) .hub-row-art { background: rgba(255, 255, 255, .12); }
+    body.hub-home:not(.tiles-solid) .navbar.bg-dark {
+        background: rgba(13, 20, 32, .45) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+    }
 </style>
 {% endblock %}
 
@@ -362,6 +406,7 @@
 {% block content %}
 {{ hub_card|json_script:"hub-card-data" }}
 {{ hub_home|json_script:"hub-home-data" }}
+{% if hub_theme.bg %}<div class="hub-bg" id="hub-bg" aria-hidden="true" style="--dim: {{ hub_theme.shade }}; background-image: url('{{ hub_theme.bg }}');"></div>{% endif %}
 <svg class="hub-sky" id="hub-sky" viewBox="0 0 3200 1020" preserveAspectRatio="none" aria-hidden="true">
     <path class="r1" d="M0 1020 L0 700 L260 520 L420 610 L640 420 L860 600 L1040 480 L1300 640 L1520 430 L1760 590 L1980 470 L2240 620 L2480 450 L2700 600 L2960 500 L3200 620 L3200 1020Z"/>
     <path class="r2" d="M0 1020 L0 820 L300 700 L520 780 L760 650 L1000 790 L1240 690 L1500 800 L1760 680 L2000 800 L2300 700 L2560 810 L2840 690 L3200 800 L3200 1020Z"/>
@@ -764,7 +809,7 @@
         function update() {
             queued = false;
             var x = view.scrollLeft;
-            sky.style.transform = 'translateX(' + (-x * 0.35) + 'px)';
+            if (sky) sky.style.transform = 'translateX(' + (-x * 0.35) + 'px)';
             var active = 0;
             if (x + view.clientWidth >= view.scrollWidth - 4) {
                 active = panes.length - 1;

@@ -51,6 +51,9 @@
     .dsp-foot { padding: 6px 22px 18px; color: var(--mut); font-size: 13px; }
     .dsp-foot .err { color: var(--red); }
     [data-season][hidden] { display: none !important; }
+    .dsp-home { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
+    .dsp-home label { min-height: 0; }
+    .dsp-note { margin: 12px 0 0; color: var(--mut); font-size: 13.5px; }
     @media (max-width: 1100px) { .dsp, .dsp-bg { grid-template-columns: 1fr; } }
     @media (max-width: 760px) { .dsp-src, .dsp-dates { grid-template-columns: 1fr 1fr; } }
 </style>
@@ -61,7 +64,7 @@
     <div class="hst-head">
         <div>
             <h2>Display</h2>
-            <p>Screensaver, background &amp; schedule</p>
+            <p>Screensaver, home screen &amp; schedule</p>
         </div>
         <div class="act">
             <a class="hst-btn ghost" id="dsp-preview" href="/?saver=1&amp;saver_season={{ selected }}"
@@ -133,6 +136,34 @@
         </div>
 
         <div>
+            <section class="hst-card">
+                <h3>Home screen</h3>
+                <div class="dsp-body">
+                    <div class="dsp-src dsp-home" role="radiogroup" aria-label="Home background">
+                        {% for val, l in home_bgs %}
+                        <label>
+                            <b><input type="radio" name="home_bg" value="{{ val }}"{% if val == v.home_bg %} checked{% endif %}>{{ l }}</b>
+                            <small>{% if val == 'mountains' %}Drawn ridge{% elif val == 'art' %}A painting a day{% else %}A photo a day{% endif %}</small>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <div class="dsp-src dsp-home" role="radiogroup" aria-label="Tile style">
+                        {% for val, l in home_tiles %}
+                        <label>
+                            <b><input type="radio" name="home_tiles" value="{{ val }}"{% if val == v.home_tiles %} checked{% endif %}>{{ l }}</b>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <label class="dsp-line">
+                        <span>Dim picture</span>
+                        <input type="range" name="home_dim" min="0" max="80" step="5" value="{{ v.home_dim }}" id="dsp-dim">
+                        <output for="dsp-dim" id="dsp-dim-out">{{ v.home_dim }}%</output>
+                    </label>
+                    {% if errors.home_dim %}<small style="color:var(--red)">{{ errors.home_dim }}</small>{% endif %}
+                    <p class="dsp-note">Photos use the current season's library, or its paintings when it has none.</p>
+                </div>
+            </section>
+
             <section class="hst-card">
                 <h3>Info strip <span id="dsp-strip-season">{% for s in seasons %}{% if s.id == selected %}{{ s.label }}{% endif %}{% endfor %}</span></h3>
                 {% for s in seasons %}
@@ -290,6 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     rot.addEventListener('input', showRot);
     showRot();
+    const dim = document.getElementById('dsp-dim');
+    dim.addEventListener('input', () => { document.getElementById('dsp-dim-out').textContent = dim.value + '%'; });
     select(document.getElementById('dsp-tab').value);
 });
 </script>

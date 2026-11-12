@@ -1,3 +1,4 @@
+import logging
 import re
 import secrets
 from datetime import timedelta
@@ -26,6 +27,7 @@ from .season import by_date, lodge_today, parse_mmdd, resolve
 from .stats import collect
 
 SOURCE_LAYERS = {"stock": ["stock"], "photos": ["photos"], "cam": ["cam"], "mix": ["stock", "photos", "cam"]}
+log = logging.getLogger(__name__)
 
 
 def stock_art(season):
@@ -208,6 +210,7 @@ def settings_page(request):
         default_cam=chosen["label"] if chosen else "",
         photos=[photo_json(p) for p in photos], season_choices=SEASONS,
         stock={sid: stock_art(sid) for sid in SEASON_IDS},
+        home_bgs=options.HOME_BACKGROUNDS, home_tiles=options.HOME_TILES,
         has_errors=bool(errors), just_saved=request.GET.get("saved") == "1", status=status,
     )
 
@@ -325,3 +328,30 @@ def current_season_safe():
         return current_season()
     except Exception:
         return by_date(lodge_today(), options.starts())
+
+
+HOME_DEFAULT = {"bg": None, "tiles": "solid", "dim": 45, "shade": "0.45"}
+
+
+def home_theme(today=None):
+    """What the home screen draws behind its tiles, and how the tiles look.
+
+    The picture changes once a day: seasonal art, or the owner's photos for the
+    season (art when there are none). Never raises, so the home page always renders.
+    """
+    try:
+        tiles = value("home_tiles")
+        dim = max(0, min(80, int(value("home_dim"))))
+        mode = value("home_bg")
+        bg = None
+        if mode in ("art", "photos"):
+            season = current_season_safe()
+            pics = [p["url"] for p in season_photos(season)] if mode == "photos" else []
+            pics = pics or stock_art(season)
+            day = (today or lodge_today()).toordinal()
+            bg = pics[day % len(pics)] if pics else None
+        return {"bg": bg, "tiles": tiles if tiles in dict(options.HOME_TILES) else "solid", "dim": dim,
+                "shade": f"{dim / 100:.2f}"}
+    except Exception:
+        log.exception("home theme failed; using the default")
+        return dict(HOME_DEFAULT)

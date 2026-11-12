@@ -8,6 +8,7 @@ import re
 from social_django.utils import load_strategy
 from social_core.backends.spotify import SpotifyOAuth2
 
+from display.views import home_theme
 from hub.modes import current_stay, resolve_mode, tiles_for_mode, welcome
 from hub.plugins import GUEST
 from hub.status import lodge_card
@@ -86,6 +87,7 @@ def landing_page(request):
         'hub_welcome_key': holding('lodge') or next((key for key, _, _ in sections), None),
         # The pane with the weather tile shows the temperature up top.
         'hub_weather_key': holding('weather'),
+        'hub_theme': home_theme(),
     }
     return render(request, 'index.html', context)
 

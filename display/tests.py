@@ -226,7 +226,7 @@ class ViewTests(TestCase):
     def test_settings_page_and_nav(self):
         self.client.force_login(self.staff)
         response = self.client.get(reverse("display_settings"))
-        self.assertContains(response, "Screensaver, background &amp; schedule")
+        self.assertContains(response, "Screensaver, home screen &amp; schedule")
         self.assertContains(response, f'href="{reverse("display_settings")}"')
         self.assertContains(response, 'name="slot_fall_4"')
 
@@ -244,7 +244,8 @@ class ViewTests(TestCase):
             data[f"source_{s['id']}"] = s["source"]
             data.update({slot["key"]: slot["value"] for slot in s["slots"]})
         data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_seconds="180", cam="", tab="fall",
-                    night="on", night_from="23:00", night_until="06:00")
+                    night="on", night_from="23:00", night_until="06:00",
+                    home_bg="mountains", home_tiles="solid", home_dim="45")
         data.update(overrides)
         return data
 
@@ -289,6 +290,67 @@ class ViewTests(TestCase):
         self.client.post(reverse("display_settings"), {k: v for k, v in self.form().items() if k != "night"})
         body = self.client.get(reverse("display_schedule_api")).json()
         self.assertEqual(body, {"enabled": False, "from": None, "until": None, "dark": False})
+
+    def home(self):
+        # Hook threads (this test's or ones left over from earlier tests) use their own
+        # DB connection, can't see this test's uncommitted settings and cache them
+        # empty; a zero TTL makes the page read through this test's connection.
+        empty = {"status": {}, "shortcuts": [], "refreshing": False}
+        with mock.patch("BlackDiamondHub.views.mountain_weather", return_value=[]), \
+                mock.patch("BlackDiamondHub.views.home_data", return_value=empty), \
+                mock.patch("BlackDiamondHub.views.lodge_card", return_value=None), \
+                mock.patch.object(store, "TTL", 0):
+            return self.client.get(reverse("landing_page"))
+
+    def test_home_theme_settings(self):
+        self.client.force_login(self.staff)
+        page = self.client.get(reverse("display_settings"))
+        self.assertContains(page, '<input type="radio" name="home_bg" value="mountains" checked>')
+        self.assertContains(page, '<input type="radio" name="home_tiles" value="solid" checked>')
+        self.assertContains(page, 'name="home_dim" min="0" max="80" step="5" value="45"')
+
+        for bad in ({"home_tiles": "neon"}, {"home_bg": "video"}, {"home_dim": "90"}):
+            self.assertEqual(self.client.post(reverse("display_settings"), self.form(**bad)).status_code, 400, bad)
+        self.client.post(reverse("display_settings"), self.form(home_bg="art", home_tiles="frosted", home_dim="60"))
+        saved = store.saved("display")
+        self.assertEqual((saved["home_bg"], saved["home_tiles"], saved["home_dim"]), ("art", "frosted", 60))
+        page = self.client.get(reverse("display_settings"))
+        self.assertContains(page, '<input type="radio" name="home_tiles" value="frosted" checked>')
+
+    def test_home_defaults_unchanged(self):
+        page = self.home()
+        self.assertContains(page, 'class="hub-home mode-')
+        self.assertContains(page, " tiles-solid\">")
+        self.assertNotContains(page, 'id="hub-bg"')
+        self.assertContains(page, 'id="hub-sky"')
+
+    def test_home_seasonal_art_and_glass(self):
+        AppSetting.objects.create(app_id="display", key="home_bg", value="art")
+        AppSetting.objects.create(app_id="display", key="home_tiles", value="dark")
+        AppSetting.objects.create(app_id="display", key="home_dim", value=30)
+        today = date(2026, 1, 10)
+        with mock.patch("display.views.lodge_today", return_value=today), \
+                mock.patch("display.views.current_season_safe", return_value="winter"):
+            page = self.home()
+        art = views.stock_art("winter")
+        self.assertContains(page, " tiles-dark has-bg")
+        self.assertContains(page, f"--dim: 0.30; background-image: url('{art[today.toordinal() % len(art)]}')")
+
+    def test_home_photos_fall_back_to_art(self):
+        AppSetting.objects.create(app_id="display", key="home_bg", value="photos")
+        with mock.patch("display.views.current_season_safe", return_value="summer"), \
+                mock.patch.object(store, "TTL", 0):
+            theme = views.home_theme(date(2026, 7, 1))
+            self.assertIn(theme["bg"], views.stock_art("summer"))
+            with mock.patch("display.views.season_photos", return_value=[{"url": "/media/a.jpg", "caption": ""}]):
+                self.assertEqual(views.home_theme(date(2026, 7, 1))["bg"], "/media/a.jpg")
+
+    def test_home_theme_never_breaks_home(self):
+        AppSetting.objects.create(app_id="display", key="home_bg", value="art")
+        with mock.patch("display.views.stock_art", side_effect=RuntimeError), \
+                mock.patch.object(store, "TTL", 0):
+            self.assertEqual(views.home_theme(), views.HOME_DEFAULT)
+            self.assertEqual(self.home().status_code, 200)
 
 
 class RotateMigrationTests(TestCase):
