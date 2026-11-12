@@ -5,7 +5,7 @@ from importlib.metadata import packages_distributions, version
 from django.contrib.auth.decorators import user_passes_test
 from django.http import Http404
 from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 
 from hub.modes import (
     GROUP_KEY, LAYOUT_APP, LAYOUT_KEY, MAX_GROUPS, MAX_TITLE, SIZES, plugins, tiles_for_mode,
@@ -57,8 +57,12 @@ def _custom_url(app_id):
     return ""
 
 
+def _has_settings(spec):
+    return bool(spec.settings or spec.settings_pages)
+
+
 def _settings_url(spec):
-    if not spec.settings:
+    if not _has_settings(spec):
         return ""
     return _custom_url(spec.id) or reverse("hub_settings_app", args=[spec.id])
 
@@ -80,8 +84,20 @@ def _app_sections():
     return [
         {"id": spec.id, "label": _label(spec), "img": _icon(spec),
          "url": reverse("hub_settings_app", args=[spec.id])}
-        for spec in plugins() if spec.settings and spec.id not in CUSTOM_PAGES
+        for spec in plugins() if _has_settings(spec) and spec.id not in CUSTOM_PAGES
     ]
+
+
+def _pages(spec):
+    """Links to the app's own settings pages; ones that don't resolve are skipped."""
+    pages = []
+    for page in spec.settings_pages:
+        try:
+            url = reverse(page.url_name)
+        except NoReverseMatch:
+            continue
+        pages.append({"title": page.title, "subtitle": page.subtitle, "icon": page.icon, "url": url})
+    return pages
 
 
 def _render(request, template, active, **context):
@@ -163,7 +179,7 @@ def home_layout(request):
 
 
 def _spec(app_id):
-    spec = next((s for s in plugins() if s.id == app_id and s.settings), None)
+    spec = next((s for s in plugins() if s.id == app_id and _has_settings(s)), None)
     if spec is None:
         raise Http404("No settings for that app")
     return spec
@@ -242,7 +258,9 @@ def app_settings(request, app_id):
             _save(request, spec, saved, values)
             return redirect(f"{request.path}?saved=1")
         return _render(request, "hub_settings/app.html", spec.id, spec=spec, label=_label(spec),
-                       rows=_rows(spec, saved, raw, errors), has_errors=True, status=400)
+                       rows=_rows(spec, saved, raw, errors), pages=_pages(spec), has_errors=True,
+                       status=400)
 
     return _render(request, "hub_settings/app.html", spec.id, spec=spec, label=_label(spec),
-                   rows=_rows(spec, saved), just_saved=request.GET.get("saved") == "1")
+                   rows=_rows(spec, saved), pages=_pages(spec),
+                   just_saved=request.GET.get("saved") == "1")

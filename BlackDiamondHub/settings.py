@@ -132,6 +132,7 @@ TEMPLATES = [
                 'hub.context_processors.nav_title',
                 'hub.context_processors.stay_key',
                 'hub.context_processors.brand',
+                'hub_settings.context_processors.settings_nav',
             ],
         },
     },
