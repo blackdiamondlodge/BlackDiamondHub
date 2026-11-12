@@ -3,6 +3,7 @@ import re
 import secrets
 from datetime import timedelta
 
+from bdh_sdk import units
 from bdh_sdk.plugins import BOOL
 from bdh_sdk.qr import qr_svg
 from bdh_sdk.storage import app_state
@@ -14,7 +15,9 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from hub import provides
+from hub import status as hub_status
 from hub_settings import store
+from hub_settings.models import AppSetting
 from hub_settings.views import _render, _save, staff_page
 
 from . import catalog, options
@@ -168,6 +171,18 @@ def _current(spec, saved):
     return {s.key: saved.get(s.key, store.fallback(spec.id, s)) for s in spec.settings}
 
 
+UNIT_CHOICES = ((units.METRIC, "Metric (°C)"), (units.IMPERIAL, "Imperial (°F)"))
+
+
+def _save_units(request):
+    """The hub-wide units (the home screen's °C/°F switch) live with the hub, not this app."""
+    system = request.POST.get("units")
+    if system in (units.METRIC, units.IMPERIAL) and system != units.system():
+        AppSetting.objects.update_or_create(
+            app_id="hub", key="units", defaults={"value": system, "updated_by": request.user})
+        hub_status.forget_units()
+
+
 @staff_page
 def settings_page(request):
     spec = _spec()
@@ -178,6 +193,7 @@ def settings_page(request):
         values, errors, raw = _form_values(request.POST)
         if not errors:
             _save(request, spec, saved, values)
+            _save_units(request)
             tab = request.POST.get("tab")
             return redirect(f"{request.path}?saved=1" + (f"&season={tab}" if tab in SEASON_IDS else ""))
         current, status = {**_current(spec, saved), **raw}, 400
@@ -211,6 +227,7 @@ def settings_page(request):
         photos=[photo_json(p) for p in photos], season_choices=SEASONS,
         stock={sid: stock_art(sid) for sid in SEASON_IDS},
         home_bgs=options.HOME_BACKGROUNDS, home_tiles=options.HOME_TILES,
+        unit_choices=UNIT_CHOICES, hub_units=request.POST.get("units") or units.system(),
         has_errors=bool(errors), just_saved=request.GET.get("saved") == "1", status=status,
     )
 

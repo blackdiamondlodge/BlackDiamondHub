@@ -28,7 +28,7 @@ type = "home_assistant"
 # Pop up the Front Door camera when the door opens or a person is seen there.
 event_popups = { "ha/state/binary_sensor.storage_room_alarm_panel_pro_front_door" = "Front Door Camera", "ha/state/binary_sensor.front_door_camera_person_detected" = "Front Door Camera" }
 
-[apps.weather]
+[apps.hub]
 units = "imperial"
 
 [apps.sonos_control]

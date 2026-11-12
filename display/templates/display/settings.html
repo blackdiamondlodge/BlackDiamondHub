@@ -154,13 +154,20 @@
                         </label>
                         {% endfor %}
                     </div>
+                    <div class="dsp-src dsp-home" role="radiogroup" aria-label="Units">
+                        {% for val, l in unit_choices %}
+                        <label>
+                            <b><input type="radio" name="units" value="{{ val }}"{% if val == hub_units %} checked{% endif %}>{{ l }}</b>
+                        </label>
+                        {% endfor %}
+                    </div>
                     <label class="dsp-line">
                         <span>Dim picture</span>
                         <input type="range" name="home_dim" min="0" max="80" step="5" value="{{ v.home_dim }}" id="dsp-dim">
                         <output for="dsp-dim" id="dsp-dim-out">{{ v.home_dim }}%</output>
                     </label>
                     {% if errors.home_dim %}<small style="color:var(--red)">{{ errors.home_dim }}</small>{% endif %}
-                    <p class="dsp-note">Photos use the current season's library, or its paintings when it has none.</p>
+                    <p class="dsp-note">Photos use the current season's library, or its paintings when it has none. Units are the same as the °C/°F switch on the home screen and apply to every app.</p>
                 </div>
             </section>
 

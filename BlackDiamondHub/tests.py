@@ -206,9 +206,9 @@ class WeatherUnitToggleTest(SeleniumTestCase):
     def test_elevation_conversion_m_to_ft(self):
         self._set('elevation', '1000', '1000 m')
         self._toggle('F')
-        self.assertEqual(self._text('elevation'), '3281 ft')  # 1000 meters -> 3281 feet
+        self.assertEqual(self._text('elevation'), '3,281 ft')  # 1000 meters -> 3281 feet
         self._toggle('C')
-        self.assertEqual(self._text('elevation'), '1000 m')
+        self.assertEqual(self._text('elevation'), '1,000 m')
 
 @tag('selenium')
 class NavbarLoginButtonTest(SeleniumTestCase):

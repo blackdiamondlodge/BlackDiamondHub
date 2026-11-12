@@ -400,6 +400,18 @@ def run_shortcut(plugin_id, shortcut_id, mode, timeout=TIMEOUT):
     return message
 
 
+def forget_units():
+    """Drop cached answers that show temperatures etc., after the hub's units change.
+
+    The next request refreshes them; until then the last good answer is served.
+    """
+    keys = []
+    for spec in plugins():
+        keys += [_fresh_key("status", spec.id, m) for m in (None, *ALL_MODES)]
+        keys += [_fresh_key("card", spec.id), _fresh_key("provide:stats", spec.id)]
+    cache.delete_many(keys)
+
+
 def run_action(plugin_id, row_id, action_id, mode, timeout=TIMEOUT):
     """Run a button from ``plugin_id``'s status as shown in ``mode``.
 
