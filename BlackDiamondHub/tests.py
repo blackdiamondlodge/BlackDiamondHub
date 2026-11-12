@@ -309,6 +309,13 @@ class OnScreenKeyboardTest(SeleniumTestCase):
         browser.refresh()
         wait_for_paint(browser)
 
+    def wait_open(self):
+        # .open is visible to Selenium as soon as it's added, but the keyboard
+        # is still sliding up from off-screen; wait until it's fully in view.
+        WebDriverWait(self.browser, 10).until(lambda d: d.execute_script(
+            "const k = document.querySelector('.hub-kb.open');"
+            "return !!k && k.getBoundingClientRect().bottom <= window.innerHeight + 1;"))
+
     def tap(self, char):
         locator = (By.CSS_SELECTOR, f'.hub-kb-key[data-c="{char}"]')
         WebDriverWait(self.browser, 10).until(EC.element_to_be_clickable(locator)).click()
@@ -318,7 +325,7 @@ class OnScreenKeyboardTest(SeleniumTestCase):
         self.load_login('on')
         wait = WebDriverWait(browser, 10)
         browser.find_element(By.ID, 'id_username').click()
-        wait.until(EC.visibility_of_element_located(self.KB_OPEN))
+        self.wait_open()
         username = browser.find_element(By.ID, 'id_username')
         self.assertEqual(username.get_attribute('inputmode'), 'none')
 
@@ -346,7 +353,7 @@ class OnScreenKeyboardTest(SeleniumTestCase):
         self.load_login('on')
         browser.find_element(By.ID, 'id_username').click()
         wait = WebDriverWait(browser, 10)
-        wait.until(EC.visibility_of_element_located(self.KB_OPEN))
+        self.wait_open()
         browser.find_element(By.CSS_SELECTOR, '.hub-kb-hide').click()
         wait.until(EC.invisibility_of_element_located(self.KB_OPEN))
 
