@@ -90,7 +90,7 @@
                         {% for v, l in sources %}
                         <label>
                             <b><input type="radio" name="source_{{ s.id }}" value="{{ v }}"{% if v == s.source %} checked{% endif %}>{{ l }}</b>
-                            <small{% if v == 'photos' %} data-photo-count="{{ s.id }}" data-label="{{ s.label|lower }}"{% endif %}>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'photos' %}{{ s.photo_count }} photo{{ s.photo_count|pluralize }} for {{ s.label|lower }}{% elif v == 'cam' %}{{ default_cam|default:'Resort webcam' }}{% else %}Rotate scene, photos &amp; cam{% endif %}</small>
+                            <small{% if v == 'photos' %} data-photo-count="{{ s.id }}" data-label="{{ s.label|lower }}"{% endif %}>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'photos' %}{{ s.photo_count }} photo{{ s.photo_count|pluralize }} for {{ s.label|lower }}{% elif v == 'cam' %}{{ default_cam|default:'Live image' }}{% else %}Rotate scene, photos &amp; cam{% endif %}</small>
                         </label>
                         {% endfor %}
                     </div>
@@ -105,14 +105,16 @@
                                 <output for="dsp-rot" id="dsp-rot-out">{{ v.rotate_minutes }} min</output>
                             </label>
                             {% if errors.rotate_minutes %}<small style="color:var(--red)">{{ errors.rotate_minutes }}</small>{% endif %}
+                            {% if cams or v.cam %}
                             <label class="dsp-line">
                                 <span>Live cam</span>
                                 <select class="hst-in" name="cam" id="dsp-cam">
                                     <option value="">Automatic{% if default_cam and not v.cam %} ({{ default_cam }}){% endif %}</option>
                                     {% for c in cams %}<option value="{{ c.slug }}"{% if c.slug == v.cam %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
-                                    {% if v.cam and not cams %}<option value="{{ v.cam }}" selected>{{ v.cam }}</option>{% endif %}
+                                    {% if v.cam and v.cam not in cam_ids %}<option value="{{ v.cam }}" selected>{{ v.cam }} (unavailable)</option>{% endif %}
                                 </select>
                             </label>
+                            {% else %}<input type="hidden" id="dsp-cam" value="">{% endif %}
                         </div>
                     </div>
                 </div>
@@ -139,7 +141,10 @@
                     <label>
                         <small>Slot {{ slot.n }}</small>
                         <select class="hst-in" name="{{ slot.key }}" aria-label="{{ s.label }} slot {{ slot.n }}">
-                            {% for val, l in slot_choices %}<option value="{{ val }}"{% if val == slot.value %} selected{% endif %}>{{ l }}</option>{% endfor %}
+                            {% for group, items in slot_groups %}<optgroup label="{{ group }}">
+                                {% for val, l in items %}<option value="{{ val }}"{% if val == slot.value %} selected{% endif %}>{{ l }}</option>{% endfor %}
+                            </optgroup>{% endfor %}
+                            <option value="none"{% if slot.value == 'none' %} selected{% endif %}>Nothing</option>
                         </select>
                     </label>
                     {% endfor %}
@@ -182,14 +187,16 @@
 
             <section class="hst-card">
                 <h3>Seasons</h3>
+                {% if season_apps %}
                 <div class="hst-row">
-                    <label class="lbl" for="dsp-lifts"><b>Winter starts when lifts open</b><small>Otherwise use the dates below</small></label>
+                    <label class="lbl" for="dsp-lifts"><b>Let apps bring winter forward</b><small>{{ season_apps|join:", " }}. Otherwise use the dates below</small></label>
                     <div class="ctl"><span class="hst-tog"><input type="checkbox" role="switch" id="dsp-lifts" name="winter_on_lifts"{% if v.winter_on_lifts %} checked{% endif %}><span></span></span></div>
                 </div>
+                {% elif v.winter_on_lifts %}<input type="hidden" name="winter_on_lifts" value="on">{% endif %}
                 <div class="dsp-dates">
                     {% for s in seasons %}
                     <label class="{% if s.start_error %}bad{% endif %}">
-                        <b>{{ s.label }}{% if s.id == 'winter' %}*{% endif %}</b>
+                        <b>{{ s.label }}{% if s.id == 'winter' and season_apps %}*{% endif %}</b>
                         <input type="text" name="{{ s.start_key }}" value="{{ s.start }}" placeholder="MM-DD" maxlength="5"
                                inputmode="numeric" aria-label="{{ s.label }} starts (MM-DD)">
                     </label>
@@ -197,7 +204,7 @@
                 </div>
                 <div class="dsp-foot">
                     {% for s in seasons %}{% if s.start_error %}<div class="err">{{ s.label }}: {{ s.start_error }}</div>{% endif %}{% endfor %}
-                    Starts are month-day, e.g. 11-21. * Up to 30 days earlier if the lifts open first.
+                    Starts are month-day, e.g. 11-21.{% if season_apps %} * Up to 30 days earlier if an app says winter has started.{% endif %}
                 </div>
             </section>
         </div>
