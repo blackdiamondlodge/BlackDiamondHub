@@ -133,6 +133,12 @@ Watchtower) against a PostgreSQL server elsewhere on the LAN.
     stack. Re-run it after changing `.env` or `docker-compose.yml`; Watchtower
     only picks up new images.
 
+3. Admin login (admins see settings and admin-only app features):
+
+    ```sh
+    sudo docker compose exec djangoapp python manage.py createsuperuser
+    ```
+
 ## Running Tests
 
 To run the tests, use the following command:
