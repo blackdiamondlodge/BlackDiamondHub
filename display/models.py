@@ -21,6 +21,7 @@ class SaverPhoto(models.Model):
     seasons = models.JSONField(default=list, blank=True)
     enabled = models.BooleanField(default=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    taken_at = models.DateTimeField(null=True, blank=True)
     link = models.ForeignKey("UploadLink", null=True, blank=True, on_delete=models.SET_NULL,
                              related_name="photos")
 

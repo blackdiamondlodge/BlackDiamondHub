@@ -206,12 +206,14 @@ class ScheduleTests(TestCase):
                 parse_hhmm(bad)
 
 
-def jpeg(size=(800, 600), orientation=None, name="p.jpg"):
+def jpeg(size=(800, 600), orientation=None, name="p.jpg", taken=None):
     img = Image.new("RGB", size, (200, 30, 30))
     buf = io.BytesIO()
     exif = img.getexif()
     if orientation:
         exif[0x0112] = orientation
+    if taken:
+        exif[0x8769] = {36867: taken}  # Exif IFD: DateTimeOriginal
     exif[0x010F] = "SecretCam"  # Make: must not survive processing
     img.save(buf, "JPEG", exif=exif)
     return SimpleUploadedFile(name, buf.getvalue(), content_type="image/jpeg")
@@ -315,9 +317,36 @@ class PhotoTests(TestCase):
         self.client.post(reverse("display_photo_add"), {"photo": jpeg(), "seasons": "summer"})
         summer = self.client.get(reverse("display_saver_api"), {"season": "summer"}).json()
         self.assertEqual(summer["sources"], ["photos"])
-        self.assertEqual(len(summer["photos"]), 1)
+        self.assertEqual(summer["photos"], [{"url": SaverPhoto.objects.get().image.url, "caption": ""}])
         winter = self.client.get(reverse("display_saver_api"), {"season": "winter"}).json()
         self.assertEqual(winter["sources"], ["stock"])  # no winter photos: fall back to the scene
         SaverPhoto.objects.update(enabled=False)
         summer = self.client.get(reverse("display_saver_api"), {"season": "summer"}).json()
         self.assertEqual(summer["sources"], ["stock"])
+
+    def test_caption_from_exif_date(self):
+        AppSetting.objects.create(app_id="display", key="source_summer", value="photos")
+        self.client.post(reverse("display_photo_add"), {"photo": jpeg(taken="2024:03:31 23:30:00")})
+        self.client.post(reverse("display_photo_add"), {"photo": jpeg(name="q.jpg")})
+        dated = SaverPhoto.objects.exclude(taken_at=None).get()
+        self.assertEqual((dated.taken_at.year, dated.taken_at.month, dated.taken_at.day), (2024, 3, 31))
+        api = reverse("display_saver_api")
+        off = self.client.get(api, {"season": "summer"}).json()["photos"]
+        self.assertEqual({p["caption"] for p in off}, {""})
+        AppSetting.objects.create(app_id="display", key="photo_caption", value=True)
+        store.clear()
+        on = self.client.get(api, {"season": "summer"}).json()["photos"]
+        self.assertEqual(sorted(p["caption"] for p in on), ["", "March 2024"])
+
+    def test_preview_overrides_are_staff_only(self):
+        self.client.post(reverse("display_photo_add"), {"photo": jpeg(taken="2023:12:25 08:00:00")})
+        api = reverse("display_saver_api")
+        preview = {"season": "summer", "source": "photos", "rotate": "99", "caption": "1"}
+        body = self.client.get(api, preview).json()
+        self.assertEqual(body["sources"], ["photos"])
+        self.assertEqual(body["rotate_seconds"], 60 * 60)  # clamped to the slider's range
+        self.assertEqual(body["photos"][0]["caption"], "December 2023")
+        self.client.force_login(self.guest)
+        body = self.client.get(api, preview).json()
+        self.assertEqual(body["sources"], ["stock"])
+        self.assertEqual(body["photos"], [])

@@ -106,7 +106,7 @@
         root.className = 'bdh-saver';
         root.innerHTML = '<div class="layer stock"></div><div class="layer photos"></div><div class="layer cam"></div><div class="shade"></div>'
             + '<div class="info"><div class="clock"></div><div class="date"></div><div class="row"></div></div>'
-            + '<div class="cam-name"></div><div class="season"></div><div class="hint">Tap anywhere</div>';
+            + '<div class="cam-name"></div><div class="caption"></div><div class="season"></div><div class="hint">Tap anywhere</div>';
         // Swallow the tap that wakes the display so it doesn't land on what's underneath.
         ['pointerdown', 'touchstart', 'mousedown'].forEach(type => root.addEventListener(type, e => {
             e.preventDefault();
@@ -151,36 +151,119 @@
     }
     function applyNight() { if (root) root.classList.toggle('night', isNight()); }
 
-    let showing = 'stock', photoIndex = 0;
+    let showing = 'stock';
+    let order = [], orderKey = '', pos = 0;
     function photoList() { return (data && data.photos) || []; }
+    const byUrl = url => photoList().find(p => p.url === url);
+    const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
-    // Loads the next library photo into the photos layer, fading through if it's on screen.
+    function shuffle(urls, avoidFirst) {
+        const a = urls.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        // Don't show the same photo twice in a row across a reshuffle.
+        if (a.length > 1 && a[0] === avoidFirst) [a[0], a[1]] = [a[1], a[0]];
+        return a;
+    }
+
+    // Reshuffles only when the set of photos changes, so a refresh doesn't restart the cycle.
+    function syncOrder() {
+        const urls = photoList().map(p => p.url);
+        const key = urls.slice().sort().join('\n');
+        if (key !== orderKey) {
+            orderKey = key;
+            order = shuffle(urls);
+            pos = 0;
+        }
+    }
+
+    function currentFrame() { return $('.layer.photos').lastElementChild; }
+
+    function showCaption() {
+        const frame = currentFrame();
+        const photo = frame && byUrl(frame.dataset.src);
+        const text = (photo && photo.caption) || '';
+        $('.caption').textContent = text;
+        $('.caption').classList.toggle('on', showing === 'photos' && !!text);
+    }
+
+    // Slow random pan and zoom; it lasts as long as the photo stays up.
+    function kenBurns(frame) {
+        const every = Math.max(60, (data && data.rotate_seconds) || 180);
+        const zoomIn = Math.random() < 0.5;
+        const [s0, s1] = zoomIn ? [rand(1.04, 1.07), rand(1.12, 1.16)] : [rand(1.12, 1.16), rand(1.04, 1.07)];
+        // Small enough that the zoom always hides the frame's edges.
+        const p = () => rand(-1.5, 1.5).toFixed(2) + '%';
+        frame.style.setProperty('--s0', s0.toFixed(3));
+        frame.style.setProperty('--s1', s1.toFixed(3));
+        [['--x0', p()], ['--y0', p()], ['--x1', p()], ['--y1', p()]].forEach(([k, v]) => frame.style.setProperty(k, v));
+        frame.style.animationDuration = (every + 4) + 's';
+    }
+
+    function restartKenBurns(frame) {
+        if (!frame) return;
+        kenBurns(frame);
+        frame.style.animationName = 'none';
+        void frame.offsetWidth;
+        frame.style.animationName = '';
+    }
+
+    // Brings in the next library photo, crossfading over the current one if it's on screen.
     function nextPhoto(fade) {
         const list = photoList();
         const layer = $('.layer.photos');
-        if (!list.length) { layer.replaceChildren(); return; }
-        const url = list[photoIndex++ % list.length];
-        const current = layer.querySelector('img');
-        if (current && current.dataset.src === url) return;
-        const img = new Image();
-        img.alt = '';
-        img.dataset.src = url;
-        img.onload = () => {
-            if (!fade) { layer.replaceChildren(img); return; }
-            layer.classList.remove('on');
-            setTimeout(() => { layer.replaceChildren(img); if (showing === 'photos') layer.classList.add('on'); }, 3000);
+        if (!list.length) { layer.replaceChildren(); showCaption(); return; }
+        syncOrder();
+        const current = currentFrame();
+        if (pos >= order.length) {
+            order = shuffle(order, current && current.dataset.src);
+            pos = 0;
+        }
+        let url = order[pos++];
+        if (current && current.dataset.src === url) {
+            if (order.length < 2) return;
+            url = order[pos++ % order.length];
+        }
+        const frame = document.createElement('div');
+        frame.className = 'frame';
+        frame.dataset.src = url;
+        const bg = new Image(), fg = new Image();
+        bg.alt = fg.alt = '';
+        bg.className = 'bg';
+        fg.className = 'fg';
+        fg.onload = () => {
+            // Close to the screen's shape: fill it. Otherwise (portraits) show it whole over a blurred copy.
+            const ratio = (fg.naturalWidth / fg.naturalHeight) / (window.innerWidth / window.innerHeight);
+            frame.classList.toggle('fill', ratio > 0.8 && ratio < 1.25);
+            kenBurns(frame);
+            if (!fade) {
+                frame.classList.add('in');
+                layer.replaceChildren(frame);
+            } else {
+                layer.append(frame);
+                requestAnimationFrame(() => requestAnimationFrame(() => frame.classList.add('in')));
+                setTimeout(() => { while (layer.firstElementChild && layer.firstElementChild !== frame) layer.firstElementChild.remove(); }, 3200);
+            }
+            showCaption();
         };
-        img.src = url;
+        frame.append(bg, fg);
+        bg.src = url;
+        fg.src = url;
     }
 
     function showLayer(name) {
         const leaving = showing === 'photos' && name !== 'photos';
+        const entering = showing !== 'photos' && name === 'photos';
         showing = name;
         $('.layer.stock').classList.toggle('on', name === 'stock');
         $('.layer.photos').classList.toggle('on', name === 'photos');
         if (leaving) setTimeout(() => nextPhoto(false), 3500);
+        if (entering) restartKenBurns(currentFrame());
         $('.layer.cam').classList.toggle('on', name === 'cam');
         $('.cam-name').classList.toggle('on', name === 'cam');
+        showCaption();
     }
 
     function render(d) {
@@ -209,17 +292,24 @@
             camLayer.replaceChildren();
         }
         const photosLayer = $('.layer.photos');
-        const loaded = photosLayer.querySelector('img');
+        const loaded = currentFrame();
+        syncOrder();
         if (!photoList().length) photosLayer.replaceChildren();
-        else if (!loaded || !photoList().includes(loaded.dataset.src)) nextPhoto(false);
+        else if (!loaded || !byUrl(loaded.dataset.src)) nextPhoto(false);
+        showCaption();
         const sources = d.sources || ['stock'];
         const empty = name => (name === 'cam' && !camLayer.firstChild) || (name === 'photos' && !photoList().length);
         if (!sources.includes(showing) || empty(showing)) showLayer(sources.find(s => !empty(s)) || 'stock');
     }
 
     function load() {
-        const forced = params.get('saver_season');
-        const url = cfg.api + (forced ? `?season=${encodeURIComponent(forced)}` : '');
+        // The settings page's Preview passes its unsaved values (the API only honours them for staff).
+        const q = new URLSearchParams();
+        [['saver_season', 'season'], ['saver_source', 'source'], ['saver_cam', 'cam'],
+         ['saver_rotate', 'rotate'], ['saver_caption', 'caption']].forEach(([from, to]) => {
+            if (params.has(from)) q.set(to, params.get(from));
+        });
+        const url = cfg.api + (q.toString() ? '?' + q : '');
         return fetch(url, {cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(render)
             .catch(() => { if (!data) render({season: 'winter', label: 'Winter', sources: ['stock'], stats: []}); });
     }

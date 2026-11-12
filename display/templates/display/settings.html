@@ -90,7 +90,7 @@
                         {% for v, l in sources %}
                         <label>
                             <b><input type="radio" name="source_{{ s.id }}" value="{{ v }}"{% if v == s.source %} checked{% endif %}>{{ l }}</b>
-                            <small>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'photos' %}{{ s.photo_count }} photo{{ s.photo_count|pluralize }} for {{ s.label|lower }}{% elif v == 'cam' %}{{ default_cam|default:'Resort webcam' }}{% else %}Rotate scene, photos &amp; cam{% endif %}</small>
+                            <small{% if v == 'photos' %} data-photo-count="{{ s.id }}" data-label="{{ s.label|lower }}"{% endif %}>{% if v == 'stock' %}Built-in {{ s.label|lower }} scene{% elif v == 'photos' %}{{ s.photo_count }} photo{{ s.photo_count|pluralize }} for {{ s.label|lower }}{% elif v == 'cam' %}{{ default_cam|default:'Resort webcam' }}{% else %}Rotate scene, photos &amp; cam{% endif %}</small>
                         </label>
                         {% endfor %}
                     </div>
@@ -98,7 +98,7 @@
                     <div class="dsp-bg">
                         <div class="dsp-prev" id="dsp-prev"><span class="tag" id="dsp-prev-tag">Preview</span></div>
                         <div class="dsp-ctl">
-                            <p>Each image slowly pans and zooms to protect the screen. With <b>Mix</b>, the background rotates between the scene, your photos and the live cam.</p>
+                            <p>Images drift slowly to protect the screen and crossfade between each other. Portrait photos show whole over a soft blurred fill. With <b>Mix</b>, the background rotates between the scene, your photos and the live cam.</p>
                             <label class="dsp-line">
                                 <span>Change every</span>
                                 <input type="range" name="rotate_minutes" min="1" max="60" value="{{ v.rotate_minutes }}" id="dsp-rot">
@@ -107,7 +107,7 @@
                             {% if errors.rotate_minutes %}<small style="color:var(--red)">{{ errors.rotate_minutes }}</small>{% endif %}
                             <label class="dsp-line">
                                 <span>Live cam</span>
-                                <select class="hst-in" name="cam">
+                                <select class="hst-in" name="cam" id="dsp-cam">
                                     <option value="">Automatic{% if default_cam and not v.cam %} ({{ default_cam }}){% endif %}</option>
                                     {% for c in cams %}<option value="{{ c.slug }}"{% if c.slug == v.cam %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
                                     {% if v.cam and not cams %}<option value="{{ v.cam }}" selected>{{ v.cam }}</option>{% endif %}
@@ -160,6 +160,10 @@
                 <div class="hst-row">
                     <label class="lbl" for="dsp-burn"><b>Burn-in protection</b><small>Slow pixel shift on every screen</small></label>
                     <div class="ctl"><span class="hst-tog"><input type="checkbox" role="switch" id="dsp-burn" name="burn_in"{% if v.burn_in %} checked{% endif %}><span></span></span></div>
+                </div>
+                <div class="hst-row">
+                    <label class="lbl" for="dsp-caption"><b>Show photo date</b><small>Month and year in the corner of your photos</small></label>
+                    <div class="ctl"><span class="hst-tog"><input type="checkbox" role="switch" id="dsp-caption" name="photo_caption"{% if v.photo_caption %} checked{% endif %}><span></span></span></div>
                 </div>
                                     <div class="hst-row">
                                         <label class="lbl" for="dsp-night"><b>Dark overnight</b><small>Screensaver goes fully black; touch still wakes it</small></label>
@@ -249,6 +253,17 @@ document.addEventListener('DOMContentLoaded', () => {
         prev.querySelector('svg')?.remove();
         if (window.BDHSaver) prev.insertAdjacentHTML('afterbegin', window.BDHSaver.scene(season));
     }
+    // Preview what's on the form right now, saved or not.
+    document.getElementById('dsp-preview').addEventListener('click', e => {
+        const season = document.getElementById('dsp-tab').value;
+        const q = new URLSearchParams({ saver: '1', saver_season: season });
+        const src = document.querySelector(`input[name="source_${season}"]:checked`);
+        if (src) q.set('saver_source', src.value);
+        q.set('saver_cam', document.getElementById('dsp-cam').value);
+        q.set('saver_rotate', document.getElementById('dsp-rot').value);
+        q.set('saver_caption', document.getElementById('dsp-caption').checked ? '1' : '0');
+        e.currentTarget.href = '/?' + q;
+    });
     document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => select(b.dataset.tab)));
     const rot = document.getElementById('dsp-rot');
     rot.addEventListener('input', () => { document.getElementById('dsp-rot-out').textContent = rot.value + ' min'; });

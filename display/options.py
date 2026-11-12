@@ -46,6 +46,7 @@ def _settings():
         Setting("idle_minutes", "Screensaver after", INT, 10, "No touches for this long", minimum=1,
                 maximum=120, unit="min"),
         Setting("burn_in", "Burn-in protection", BOOL, True, "Slow pixel shift on every screen"),
+        Setting("photo_caption", "Show photo date", BOOL, False, "Month and year in the corner of your photos"),
         Setting("night", "Dark overnight", BOOL, True, "The screensaver goes black between these times"),
         Setting("night_from", "Dark from", default=DEFAULT_NIGHT["from"], help="HH:MM, 24-hour"),
         Setting("night_until", "Dark until", default=DEFAULT_NIGHT["until"], help="HH:MM, 24-hour"),
