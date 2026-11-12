@@ -11,7 +11,7 @@ from display.schedule import lodge_minute, window
 from display.stats import stat
 from hub.context_processors import _brand, brand
 from hub.modes import builtin_tiles
-from hub.site import SITES_DIR, load_site
+from hub.site import SITES_DIR, app_settings, load_site
 
 
 class LoadSiteTests(SimpleTestCase):
@@ -36,7 +36,23 @@ class LoadSiteTests(SimpleTestCase):
 
     def test_site_without_toml_gets_empty_sections(self):
         self.assertEqual(self.site("bare"),
-                         {"name": "bare", "brand": {}, "location": {}, "features": {}})
+                         {"name": "bare", "brand": {}, "location": {}, "features": {}, "apps": {}})
+
+    def test_app_tables_become_namespaced_django_settings(self):
+        site = self.site("home", '[apps.sonos_control]\nmodels = "*"\n'
+                                 '[apps.sonos_control.rooms]\nKitchen = { icon = "fa-utensils" }\n')
+        self.assertEqual(app_settings(site["apps"]), {
+            "BDH_SONOS_CONTROL_MODELS": "*",
+            "BDH_SONOS_CONTROL_ROOMS": {"Kitchen": {"icon": "fa-utensils"}}})
+
+    def test_app_entry_must_be_a_table(self):
+        with self.assertRaisesRegex(ValueError, r"\[apps.wifi\]"):
+            self.site("home", '[apps]\nwifi = "x"\n')
+
+    def test_site_app_settings_reach_the_apps(self):
+        from bdh_sdk.settings import app_setting
+        self.assertEqual(app_setting("sonos_control", "models"), "Amp")
+        self.assertEqual([p["id"] for p in app_setting("sonos_control", "presets")], ["dining_deck", "whole"])
 
     def test_brand_files_resolve_inside_the_site_folder(self):
         site = self.site("home", '[brand]\nname = "Home"\nmonogram = "brand/m.svg"\n', ["brand/m.svg"])

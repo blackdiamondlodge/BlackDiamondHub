@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
 from hub.loader import load_plugins
-from hub.site import load_site
+from hub.site import app_settings, load_site
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,6 +29,8 @@ HUB_SITE = _SITE['name']
 HUB_BRAND = _SITE['brand']  # read by bdh_sdk.branding (name, subtitle, monograms)
 HUB_LOCATION = _SITE['location']  # latitude, longitude, timezone
 HUB_FEATURES = _SITE['features']
+# Per-site app settings ([apps.<app_id>] in site.toml) as BDH_<APP>_<KEY>.
+globals().update(app_settings(_SITE['apps']))
 
 
 # Quick-start development settings - unsuitable for production

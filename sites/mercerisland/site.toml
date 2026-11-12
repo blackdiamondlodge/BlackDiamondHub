@@ -13,3 +13,19 @@ timezone = "America/Los_Angeles"
 
 [features]
 mountain_weather = false
+
+# Per-app settings, read by each app as BDH_<APP>_<KEY> (the Settings page and
+# the environment still win). See each app's README.
+[apps.sonos_control]
+models = "*"  # every Sonos
+presets = [
+    { id = "kitchen_deck", label = "Kitchen + Deck", icon = "fa-utensils", rooms = ["Kitchen", "Deck"] },
+    { id = "all", label = "Everywhere", icon = "fa-house", rooms = "*" },
+]
+
+# No floors: the room picker is a plain grid. Keys are Sonos room names.
+[apps.sonos_control.rooms]
+"Family Room" = { icon = "fa-tv" }
+"Kitchen" = { icon = "fa-utensils" }
+"Deck" = { icon = "fa-tree" }
+"Living Room" = { icon = "fa-couch" }
