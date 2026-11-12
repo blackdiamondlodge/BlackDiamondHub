@@ -22,11 +22,16 @@ from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
 from .modes import plugins
-from .plugins import ALL_MODES, GUEST, INFO, STATUS_LEVELS, WARN, Card, Reading, Shortcut, Status, Stay
+from .plugins import (
+    ALL_MODES, GUEST, INFO, STATUS_LEVELS, WARN,
+    Action, Card, Reading, Shortcut, Status, StatusRow, Stay,
+)
 
 logger = logging.getLogger(__name__)
 
 STATUS_TTL = 60
+# Fastest a status may ask the homepage to poll (Status.refresh).
+MIN_REFRESH = 2
 SHORTCUTS_TTL = 60
 STAY_TTL = 60
 CARD_TTL = 60
@@ -48,9 +53,32 @@ class ShortcutNotFound(Exception):
     pass
 
 
+class ActionNotFound(Exception):
+    pass
+
+
 def _resolve(path):
     module_path, _, attr = path.rpartition(".")
     return getattr(import_module(module_path), attr)
+
+
+def _image_url(url):
+    """``url`` if the screen's browser may load it as an image, else ""."""
+    url = str(url or "")
+    return url if re.match(r"(https?://|/(?!/))", url) else ""
+
+
+def _actions_value(actions):
+    items = []
+    for a in actions:
+        if not isinstance(a, Action):
+            raise TypeError(f"status action is {type(a).__name__}")
+        if not _SLUG.fullmatch(a.id):
+            logger.warning("Skipping status action with invalid id %r", a.id)
+            continue
+        items.append({"id": a.id, "icon": a.icon, "label": a.label,
+                      "primary": bool(a.primary)})
+    return items
 
 
 def _status_value(result):
@@ -61,7 +89,36 @@ def _status_value(result):
     if not isinstance(result, Status):
         raise TypeError(f"status hook returned {type(result).__name__}")
     level = result.level if result.level in STATUS_LEVELS else INFO
-    return {"text": result.text, "level": level}
+    value = {"text": result.text, "level": level}
+    rows = []
+    for row in result.rows:
+        if not isinstance(row, StatusRow):
+            raise TypeError(f"status row is {type(row).__name__}")
+        if not _SLUG.fullmatch(row.id):
+            logger.warning("Skipping status row with invalid id %r", row.id)
+            continue
+        rows.append({
+            "id": row.id,
+            "title": row.title,
+            "detail": row.detail,
+            "image": _image_url(row.image),
+            "dimmed": bool(row.dimmed),
+            "actions": _actions_value(row.actions),
+        })
+    actions = _actions_value(result.actions)
+    if rows:
+        value["rows"] = rows
+    if actions:
+        value["actions"] = actions
+    if result.refresh:
+        value["refresh"] = max(MIN_REFRESH, int(result.refresh))
+    return value
+
+
+def _status_ttl(value):
+    """Cache a status no longer than it asked the homepage to poll."""
+    refresh = (value or {}).get("refresh")
+    return min(STATUS_TTL, refresh) if refresh else STATUS_TTL
 
 
 def _shortcuts_value(result):
@@ -147,7 +204,8 @@ def _run_hook(kind, plugin_id, path, convert, ttl, mode=None):
         raise
     else:
         entry = {"value": value, "updated": time.time()}
-        cache.set(_fresh_key(kind, plugin_id, mode), entry, ttl)
+        cache.set(_fresh_key(kind, plugin_id, mode), entry,
+                  ttl(value) if callable(ttl) else ttl)
         cache.set(_last_key(kind, plugin_id, mode), entry, LAST_GOOD_TTL)
         cache.delete(_failed_key(kind, plugin_id, mode))
         return entry
@@ -225,6 +283,11 @@ def _offered(shortcuts, mode):
     return [sc for sc in shortcuts if mode in sc["modes"]]
 
 
+def _status_job(spec, mode):
+    return ("status", spec.id, spec.status, _status_value, _status_ttl,
+            mode if _takes_mode(spec.status) else None)
+
+
 def home_data(mode, timeout=TIMEOUT):
     """Status lines and shortcuts for the homepage in ``mode``.
 
@@ -233,9 +296,7 @@ def home_data(mode, timeout=TIMEOUT):
     """
     specs = plugins()
     jobs = [
-        ("status", s.id, s.status, _status_value, STATUS_TTL,
-         mode if _takes_mode(s.status) else None)
-        for s in specs if s.status and _visible(s, mode)
+        _status_job(s, mode) for s in specs if s.status and _visible(s, mode)
     ] + [
         ("shortcuts", s.id, s.shortcuts, _shortcuts_value, SHORTCUTS_TTL)
         for s in specs if s.shortcuts
@@ -336,4 +397,34 @@ def run_shortcut(plugin_id, shortcut_id, mode, timeout=TIMEOUT):
     # The shortcut probably changed the status line and which shortcuts apply.
     cache.delete_many([_fresh_key("status", spec.id, m) for m in (None, *ALL_MODES)])
     cache.delete(_fresh_key("shortcuts", spec.id))
+    return message
+
+
+def run_action(plugin_id, row_id, action_id, mode, timeout=TIMEOUT):
+    """Run a button from ``plugin_id``'s status as shown in ``mode``.
+
+    ``row_id`` is "" for a tile-wide action. Raises ActionNotFound unless
+    the app's current status (cached, as the homepage last saw it) offers
+    that button on a tile visible in ``mode``; anything the app's handler
+    raises propagates.
+    """
+    spec = next((s for s in plugins() if s.id == plugin_id), None)
+    if spec is None or not (spec.status and spec.run_action) or not _visible(spec, mode):
+        raise ActionNotFound(plugin_id)
+    entry = _gather([_status_job(spec, mode)], timeout).get(("status", spec.id))
+    status = (entry or {}).get("value") or {}
+    if row_id:
+        row = next((r for r in status.get("rows", ()) if r["id"] == row_id), None)
+        actions = row["actions"] if row else ()
+    else:
+        actions = status.get("actions", ())
+    if not any(a["id"] == action_id for a in actions):
+        raise ActionNotFound(f"{plugin_id}/{row_id}/{action_id}")
+
+    hook = _resolve(spec.run_action)
+    if _takes_mode(spec.run_action):
+        message = hook(row_id, action_id, mode=mode)
+    else:
+        message = hook(row_id, action_id)
+    cache.delete_many([_fresh_key("status", spec.id, m) for m in (None, *ALL_MODES)])
     return message

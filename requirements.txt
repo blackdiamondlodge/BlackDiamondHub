@@ -93,4 +93,4 @@ websockets
 whitenoise==6.8.2
 pygemstone==0.0.3
 # Hub plugin contract; apps in their own repos depend on it too.
-bdh-sdk @ https://github.com/blackdiamondlodge/bdh-sdk/releases/download/v0.10.0/bdh_sdk-0.10.0-py3-none-any.whl
+bdh-sdk @ https://github.com/blackdiamondlodge/bdh-sdk/releases/download/v0.11.0/bdh_sdk-0.11.0-py3-none-any.whl
