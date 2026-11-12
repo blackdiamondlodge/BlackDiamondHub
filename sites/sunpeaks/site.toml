@@ -14,3 +14,22 @@ timezone = "Etc/GMT+7"  # BC keeps UTC-7 all year (the sign is inverted in Etc/ 
 
 [features]
 mountain_weather = true  # the Sun Peaks Resort temperatures tile
+
+# Per-app settings, read by each app as BDH_<APP>_<KEY> (the Settings page and
+# the environment still win). See each app's README.
+[apps.sonos_control]
+models = "Amp"  # the in-wall amps; the soundbars are left to the TVs
+presets = [
+    { id = "dining_deck", label = "Dining + Top Deck", icon = "fa-utensils", rooms = ["Dining Room", "Top Deck"] },
+    { id = "whole", label = "Whole Lodge", icon = "fa-house", rooms = "*" },
+]
+
+# Where each room sits on the lodge picture: floor = upper / main / lower or
+# outside_main / outside_lower. Keys are Sonos room names.
+[apps.sonos_control.rooms]
+"Master Bedroom En-suite" = { label = "Master En-suite", floor = "upper", icon = "fa-bath" }
+"Dining Room" = { label = "Dining Room", floor = "main", icon = "fa-utensils" }
+"Basement Master En-suite" = { label = "Basement En-suite", floor = "lower", icon = "fa-bath" }
+"Top Deck" = { label = "Top Deck", floor = "outside_main", icon = "fa-tree" }
+"Lower Deck" = { label = "Lower Deck", floor = "outside_lower", icon = "fa-chair" }
+"Hot Tub" = { label = "Hot Tub", floor = "outside_lower", icon = "fa-hot-tub-person" }

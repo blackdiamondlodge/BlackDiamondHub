@@ -14,7 +14,11 @@ BRAND_FILES = ("monogram", "monogram_light", "og_image")
 
 
 def load_site(name=None, sites_dir=SITES_DIR):
-    """``{"name", "brand", "location", "features"}`` for the site. Brand file paths come back absolute."""
+    """``{"name", "brand", "location", "features", "apps"}`` for the site. Brand file paths come back absolute.
+
+    ``apps`` is ``{app_id: {key: value}}`` from the ``[apps.<app_id>]`` tables:
+    per-site settings for installed apps (see :func:`app_settings`).
+    """
     name = name or os.getenv("HUB_SITE") or DEFAULT_SITE
     folder = Path(sites_dir) / name
     if not folder.is_dir():
@@ -27,5 +31,21 @@ def load_site(name=None, sites_dir=SITES_DIR):
             brand[key] = str(folder / brand[key])
             if not Path(brand[key]).is_file():
                 raise ValueError(f"site {name!r}: brand {key} file {brand[key]} not found")
+    apps = conf.get("apps", {})
+    for app_id, values in apps.items():
+        if not isinstance(values, dict):
+            raise ValueError(f"site {name!r}: [apps.{app_id}] must be a table")
     return {"name": name, "brand": brand, "location": dict(conf.get("location", {})),
-            "features": dict(conf.get("features", {}))}
+            "features": dict(conf.get("features", {})),
+            "apps": {app_id: dict(values) for app_id, values in apps.items()}}
+
+
+def app_settings(apps):
+    """Django settings for the site's app config: ``{"BDH_<APP>_<KEY>": value}``.
+
+    Apps read them with ``bdh_sdk.settings.app_setting``, after the Settings
+    page and the environment.
+    """
+    from bdh_sdk.settings import setting_name
+    return {setting_name(app_id, key): value
+            for app_id, values in apps.items() for key, value in values.items()}

@@ -92,8 +92,12 @@ Each site folder has:
 
 - `site.toml`: `[brand]` name, subtitle and monogram SVGs (the "BDH" monogram
   from `bdh-sdk` when none is given), `[location]` latitude, longitude and IANA
-  time zone (screensaver season, night mode, sunrise/sunset), and `[features]`
-  such as `mountain_weather`.
+  time zone (screensaver season, night mode, sunrise/sunset), `[features]`
+  such as `mountain_weather`, and `[apps.<app_id>]` tables of per-site app
+  settings. Each key becomes the Django setting `BDH_<APP_ID>_<KEY>`, read by
+  the app with `bdh_sdk.settings.app_setting` (a value on the Settings page or
+  in the environment wins). For example `[apps.sonos_control]` sets which
+  speakers, rooms and presets the music app shows.
 - `apps.txt`: the hashed app wheels baked into that site's image.
 
 The image is built with `--build-arg HUB_SITE=<site>`, which also sets
