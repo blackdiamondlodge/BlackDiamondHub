@@ -37,6 +37,8 @@ if ! psql -tAq -d postgres -c "SELECT 1 FROM pg_database WHERE datname = '$DB'" 
 fi
 
 psql -v ON_ERROR_STOP=1 -q -d "$DB" -v admin="$ADMIN" -v app="$APP" -v db="$DB" <<'SQL'
+-- PostgreSQL < 15 lets every role create in public; only the owner should.
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT CONNECT, TEMPORARY ON DATABASE :"db" TO :"admin", :"app";
 GRANT USAGE, CREATE ON SCHEMA public TO :"admin";
 GRANT USAGE ON SCHEMA public TO :"app";
