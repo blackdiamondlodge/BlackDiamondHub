@@ -8,6 +8,21 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # One image per site (sites/<site>/). Sun Peaks also owns :latest and the
+        # bare :sha-<commit> tag, which homehub's Watchtower and rollbacks use.
+        include:
+          - site: sunpeaks
+            tags: |
+              latest
+              sunpeaks
+              sha-${{ github.sha }}
+          - site: mercerisland
+            tags: |
+              mercerisland
+              sha-${{ github.sha }}-mercerisland
     permissions:
       contents: read
       packages: write
@@ -30,7 +45,18 @@ jobs:
         id: set_repo
         run: echo "REPO=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV          
 
-      # 4. Build and push the Docker image using the lowercase repository name
+      # 4. Prefix the site's tags with the image name
+      - name: Image tags
+        env:
+          SITE_TAGS: ${{ matrix.tags }}
+        run: |
+          {
+            echo 'TAGS<<EOF'
+            echo "$SITE_TAGS" | sed '/^$/d; s|^|ghcr.io/'"$REPO"'/blackdiamondhub:|'
+            echo EOF
+          } >> "$GITHUB_ENV"
+
+      # 5. Build and push the Docker image using the lowercase repository name
       - name: Build and Push
         uses: docker/build-push-action@v7
         with:
@@ -38,12 +64,6 @@ jobs:
           push: true
           # GHCR intermittently rejects pushes that include attestation manifests.
           provenance: false
-          build-args: HUB_SITE=sunpeaks
-          # :latest is what Watchtower follows; :sha-<commit> allows pinning for rollback.
-          # :sunpeaks is the per-site tag (other sites get their own build).
+          build-args: HUB_SITE=${{ matrix.site }}
           tags: |
-            ghcr.io/${{ env.REPO }}/blackdiamondhub:latest
-            ghcr.io/${{ env.REPO }}/blackdiamondhub:sunpeaks
-            ghcr.io/${{ env.REPO }}/blackdiamondhub:sha-${{ github.sha }}
-
-
+            ${{ env.TAGS }}

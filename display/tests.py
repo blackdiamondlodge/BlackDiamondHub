@@ -92,7 +92,7 @@ class StatTests(TestCase):
         self.assertEqual(collect(keys, {}, date(2026, 11, 11), STARTS), [])
 
     def test_sun_times_are_plausible(self):
-        rise, sets = sun_times(date(2026, 6, 21))
+        rise, sets = sun_times(date(2026, 6, 21), 50.884, -119.885)
         # Sun Peaks summer solstice: about 4:45 and 21:15 local (UTC-7).
         self.assertEqual(((rise.hour - 7) % 24, rise.minute // 15), (4, 3))
         self.assertEqual(((sets.hour - 7) % 24, sets.minute // 15), (21, 1))

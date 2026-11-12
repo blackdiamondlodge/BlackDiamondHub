@@ -1,15 +1,22 @@
 """Which season the screensaver shows."""
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from .options import SEASON_IDS
 
-# Sun Peaks keeps UTC-7 all year.
-LODGE_TZ = timezone(timedelta(hours=-7))
 EARLY_WINDOW = timedelta(days=30)
 
 
+
+def lodge_tz():
+    """The site's time zone (``timezone`` in its site.toml), UTC if it has none."""
+    from django.conf import settings
+
+    return ZoneInfo(settings.HUB_LOCATION.get("timezone") or "UTC")
+
+
 def lodge_today(now=None):
-    return (now or datetime.now(timezone.utc)).astimezone(LODGE_TZ).date()
+    return (now or datetime.now(timezone.utc)).astimezone(lodge_tz()).date()
 
 
 def parse_mmdd(text):

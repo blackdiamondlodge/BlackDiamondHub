@@ -16,11 +16,19 @@ from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
 from hub.loader import load_plugins
+from hub.site import load_site
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv()
+
+# The site this hub serves (HUB_SITE, baked into each site's image): see sites/.
+_SITE = load_site()
+HUB_SITE = _SITE['name']
+HUB_BRAND = _SITE['brand']  # read by bdh_sdk.branding (name, subtitle, monograms)
+HUB_LOCATION = _SITE['location']  # latitude, longitude, timezone
+HUB_FEATURES = _SITE['features']
 
 
 # Quick-start development settings - unsuitable for production
@@ -119,6 +127,7 @@ TEMPLATES = [
                 'hub.spotify_auth.spotify_token',
                 'hub.context_processors.nav_title',
                 'hub.context_processors.stay_key',
+                'hub.context_processors.brand',
             ],
         },
     },

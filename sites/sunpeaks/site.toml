@@ -1,0 +1,15 @@
+# Read at startup by hub/site.py. Brand paths are relative to this folder.
+
+[brand]
+name = "Black Diamond Lodge"
+subtitle = "Sun Peaks · BC"
+monogram = "brand/bdl-monogram.svg"              # dark diamond, for QR codes
+monogram_light = "brand/bdl-monogram-light.svg"  # light diamond, for the navbar
+
+[location]  # for the screensaver's season, night mode and sunrise/sunset
+latitude = 50.884
+longitude = -119.885
+timezone = "Etc/GMT+7"  # BC keeps UTC-7 all year (the sign is inverted in Etc/ names)
+
+[features]
+mountain_weather = true  # the Sun Peaks Resort temperatures tile

@@ -1,0 +1,15 @@
+# Apps installed into the Mercer Island hub image, on top of the built-in apps
+# listed in BlackDiamondHub/settings.py.
+#
+# Each line pins one app wheel from its GitHub release, with its hash
+# (pip installs this file with --require-hashes --no-deps), e.g.
+#
+#   bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.0.0/bdh_app_wifi-1.0.0-py3-none-any.whl \
+#       --hash=sha256:<sha256 from the release notes>
+#
+# An app's third-party dependencies must be in the hub's requirements.txt.
+# Installed apps register through the "blackdiamondhub.plugins" entry point.
+#
+# Same pins as sites/sunpeaks/apps.txt; bump both together.
+
+bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.3.5/bdh_app_cameras-1.3.5-py3-none-any.whl --hash=sha256:5cfc86f953c9731a4b44f4e478c79c06cee805baa2816d980bff5420672e2db6

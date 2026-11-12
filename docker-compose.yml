@@ -2,8 +2,9 @@ version: "3.8"
 
 services:
   djangoapp:
-    # Use the Docker image you’ve published to GHCR (or Docker Hub, etc.)
-    image: ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:latest
+    # One image per site (see sites/ in the README): HUB_IMAGE_TAG=mercerisland for
+    # Mercer Island; unset means :latest, the Sun Peaks image.
+    image: ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:${HUB_IMAGE_TAG:-latest}
     container_name: BlackDiamondHub
     # Pass environment variables (secrets) to Django
     environment:

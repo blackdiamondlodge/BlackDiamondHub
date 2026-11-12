@@ -78,6 +78,31 @@ BlackDiamondHub is a Django-based web application designed to manage inventory, 
 
 8. Access the application at `http://127.0.0.1:8000/`.
 
+## Sites
+
+The same code runs at more than one house. Everything that differs lives in
+`sites/<site>/`, and CI publishes one image per site:
+
+| Site | Folder | Image tag |
+|---|---|---|
+| Sun Peaks (Black Diamond Lodge) | `sites/sunpeaks/` | `:latest` (also `:sunpeaks`, `:sha-<commit>`) |
+| Mercer Island (Slivinski Hub) | `sites/mercerisland/` | `:mercerisland` (also `:sha-<commit>-mercerisland`) |
+
+Each site folder has:
+
+- `site.toml`: `[brand]` name, subtitle and monogram SVGs (the "BDH" monogram
+  from `bdh-sdk` when none is given), `[location]` latitude, longitude and IANA
+  time zone (screensaver season, night mode, sunrise/sunset), and `[features]`
+  such as `mountain_weather`.
+- `apps.txt`: the hashed app wheels baked into that site's image.
+
+The image is built with `--build-arg HUB_SITE=<site>`, which also sets
+`HUB_SITE` at runtime. On a server, pick the site's image with
+`HUB_IMAGE_TAG=<tag>` in `.env` (unset is `:latest`, Sun Peaks).
+
+To add a site: create `sites/<site>/site.toml` and `apps.txt`, then add it to
+the matrices in `.github/workflows/docker-publish.yml` and `tests.yml`.
+
 ## Running Tests
 
 To run the tests, use the following command:

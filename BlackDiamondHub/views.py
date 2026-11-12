@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.shortcuts import render
 import requests
 from requests.exceptions import RequestException
@@ -12,7 +13,8 @@ from hub.plugins import GUEST
 from hub.status import lodge_card
 from hub.views import PAGE_TIMEOUT, home_data
 
-def landing_page(request):
+def mountain_weather():
+    """Sun Peaks Resort temperatures: [{location, elevation, temperature}]."""
     url = 'https://www.sunpeaksresort.com/bike-hike/weather-webcams/weather'  # Replace with the URL you want to fetch
     current_weather = None
     try:
@@ -54,7 +56,12 @@ def landing_page(request):
         
         # Append the entry to the weather_data list
         weather_data.append(weather_entry)    
-    
+    return weather_data
+
+
+def landing_page(request):
+    # Only sites with the mountain weather tile scrape the resort's page.
+    weather_data = mountain_weather() if settings.HUB_FEATURES.get('mountain_weather') else []
     mode = resolve_mode(request)
     card = lodge_card(mode)
     # The weather tile leads with the highest reading; the rest are mini stats.

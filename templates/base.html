@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlackDiamondHub</title>
+    <title>{{ hub_brand.name }}</title>
     <link rel="shortcut icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'apple-touch-icon.png' %}">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon-32x32.png' %}">
@@ -441,10 +441,10 @@
                 </a>
                 {% endif %}
                 <a class="navhub-lodge" href="{{ home_url }}">
-                    <img src="{% static 'hub/bdl-monogram-light.svg' %}" alt="">
+                    <img src="{{ hub_brand.monogram_light }}" alt="">
                     <span>
-                        <span class="navhub-lodge-name">BLACK DIAMOND LODGE</span>
-                        <span class="navhub-lodge-sub">SUN PEAKS · BC</span>
+                        <span class="navhub-lodge-name">{{ hub_brand.name|upper }}</span>
+                        {% if hub_brand.subtitle %}<span class="navhub-lodge-sub">{{ hub_brand.subtitle|upper }}</span>{% endif %}
                     </span>
                 </a>
             </div>

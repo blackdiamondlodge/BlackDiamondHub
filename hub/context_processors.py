@@ -1,12 +1,37 @@
-"""Template context shared by every page: navbar title and stay key."""
+"""Template context shared by every page: brand, navbar title and stay key."""
+import base64
 import hashlib
 import logging
+from functools import lru_cache
 
 from django.urls import NoReverseMatch, reverse
 
 from .modes import current_stay, plugins
 
 log = logging.getLogger(__name__)
+
+
+def _data_uri(svg):
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
+
+
+@lru_cache(maxsize=1)
+def _brand():
+    from bdh_sdk.branding import brand as site_brand, monogram_svg
+
+    info = site_brand()
+    return {
+        "name": info["name"],
+        "subtitle": info["subtitle"],
+        # Inline, so pages outside the static/auth paths (login, upload) can show it.
+        "monogram": _data_uri(monogram_svg()),
+        "monogram_light": _data_uri(monogram_svg(light=True)),
+    }
+
+
+def brand(request):
+    """``hub_brand``: the site's name, subtitle and monograms (as data URIs)."""
+    return {"hub_brand": _brand()}
 
 
 def stay_key(request):

@@ -1,7 +1,7 @@
 """Night mode: the hours the lodge display goes dark."""
 from datetime import datetime, timezone
 
-from .season import LODGE_TZ
+from .season import lodge_tz
 
 
 def parse_hhmm(text):
@@ -25,7 +25,7 @@ def is_night(minute, start, end):
 
 
 def lodge_minute(now=None):
-    local = (now or datetime.now(timezone.utc)).astimezone(LODGE_TZ)
+    local = (now or datetime.now(timezone.utc)).astimezone(lodge_tz())
     return local.hour * 60 + local.minute
 
 
@@ -35,7 +35,9 @@ def window():
 
     if not value("night"):
         return None
-    out = {"offset": int(LODGE_TZ.utcoffset(None).total_seconds() // 60)}
+    # The offset right now; the screen reloads the window often enough to follow DST.
+    offset = datetime.now(timezone.utc).astimezone(lodge_tz()).utcoffset()
+    out = {"offset": int(offset.total_seconds() // 60)}
     for key in ("from", "until"):
         try:
             out[key] = parse_hhmm(value(f"night_{key}"))
