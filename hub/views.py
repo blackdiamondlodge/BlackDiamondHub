@@ -28,6 +28,9 @@ def home_data(mode, timeout=status.TIMEOUT):
     data = status.home_data(mode, timeout=timeout)
     for sc in data["shortcuts"]:
         sc["url"] = reverse("hub_shortcut", args=[sc["plugin"], sc["id"]])
+    for plugin_id, st in data["status"].items():
+        if st.get("rows") or st.get("actions"):
+            st["action_url"] = reverse("hub_action", args=[plugin_id])
     return data
 
 
@@ -48,6 +51,22 @@ def run_shortcut(request, plugin, shortcut):
         return JsonResponse({"ok": False, "error": "Shortcut not available"}, status=404)
     except Exception:
         logger.exception("Shortcut %s/%s failed", plugin, shortcut)
+        return JsonResponse({"ok": False, "error": "That didn't work, please try again"}, status=502)
+    return JsonResponse({"ok": True, "message": message or ""})
+
+
+@never_cache
+@require_POST
+def run_action(request, plugin):
+    """Runs a status button: form fields ``row`` ("" for tile-wide) and ``action``."""
+    mode = resolve_mode(request)
+    row, action = request.POST.get("row", ""), request.POST.get("action", "")
+    try:
+        message = status.run_action(plugin, row, action, mode)
+    except status.ActionNotFound:
+        return JsonResponse({"ok": False, "error": "That isn't available any more"}, status=404)
+    except Exception:
+        logger.exception("Action %s/%s/%s failed", plugin, row, action)
         return JsonResponse({"ok": False, "error": "That didn't work, please try again"}, status=502)
     return JsonResponse({"ok": True, "message": message or ""})
 

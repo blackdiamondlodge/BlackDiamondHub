@@ -12,9 +12,9 @@ from hub.loader import PluginError, load_plugins, validate
 from hub.modes import tiles_for_mode
 from hub.plugins import (
     ALL_MODES, DASHBOARD, GUEST, ON, OWNER, OWNER_ONLY, WARN, Card, PluginSpec, Reading, Shortcut,
-    Status, Stay, Tile,
+    Status, StatusRow, Stay, Tile, Action,
 )
-from hub.status import current_stay, home_data
+from hub.status import _status_value, current_stay, home_data
 from hub_settings import store as hub_store
 from hub_settings.models import AppSetting
 
@@ -454,6 +454,114 @@ class ShortcutApiTests(TestCase):
     def test_loader_requires_shortcut_handler(self):
         with self.assertRaisesMessage(PluginError, "run_shortcut"):
             validate([PluginSpec(id="a", app="a", shortcuts="a.homepage.shortcuts")])
+
+
+def rows_status(mode):
+    HOOK_STATE["status_calls"] = HOOK_STATE.get("status_calls", 0) + 1
+    rows = [StatusRow(id="kitchen", title="Kitchen", detail="Song – Artist",
+                      image="https://art.example/a.jpg",
+                      actions=(Action("pause", "fa-solid fa-pause", primary=True),
+                               Action("next", "fa-solid fa-forward-step")))]
+    return Status("1 playing", ON, rows=rows,
+                  actions=(Action("pause_all", "fa-solid fa-pause"),), refresh=3)
+
+
+def rows_run(row_id, action_id, mode):
+    HOOK_STATE.setdefault("acted", []).append((row_id, action_id, mode))
+    if HOOK_STATE.get("act_fails"):
+        raise RuntimeError("speaker gone")
+    return "Paused"
+
+
+ROWS_PLUGINS = (
+    _spec("music", status="hub.tests.test_hub.rows_status", run_action="hub.tests.test_hub.rows_run"),
+)
+
+
+class StatusRowsValueTests(SimpleTestCase):
+    def test_rows_actions_and_refresh_are_serialized(self):
+        value = _status_value(rows_status(DASHBOARD))
+        self.assertEqual(value["rows"][0], {
+            "id": "kitchen", "title": "Kitchen", "detail": "Song – Artist",
+            "image": "https://art.example/a.jpg", "dimmed": False,
+            "actions": [{"id": "pause", "icon": "fa-solid fa-pause", "label": "", "primary": True},
+                        {"id": "next", "icon": "fa-solid fa-forward-step", "label": "", "primary": False}],
+        })
+        self.assertEqual([a["id"] for a in value["actions"]], ["pause_all"])
+        self.assertEqual(value["refresh"], 3)
+
+    def test_plain_status_has_no_extra_keys(self):
+        self.assertEqual(_status_value(Status("on")), {"text": "on", "level": "info"})
+
+    def test_unsafe_images_and_bad_ids_are_dropped_and_refresh_floored(self):
+        value = _status_value(Status("x", rows=[
+            StatusRow(id="a", title="A", image="javascript:alert(1)"),
+            StatusRow(id="b", title="B", image="//evil.example/x.png"),
+            StatusRow(id="c", title="C", image="/media/art.jpg"),
+            StatusRow(id="bad id", title="Bad"),
+        ], actions=(Action("no good", "fa-x"),), refresh=1))
+        self.assertEqual([(r["id"], r["image"]) for r in value["rows"]],
+                         [("a", ""), ("b", ""), ("c", "/media/art.jpg")])
+        self.assertNotIn("actions", value)
+        self.assertEqual(value["refresh"], 2)
+
+    def test_rows_must_be_status_rows(self):
+        with self.assertRaises(TypeError):
+            _status_value(Status("x", rows=[{"id": "a"}]))
+
+
+@override_settings(HUB_PLUGINS=ROWS_PLUGINS)
+class StatusActionApiTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        HOOK_STATE.clear()
+
+    def test_status_carries_action_url_and_short_cache(self):
+        data = self.client.get("/hub/api/status/").json()
+        self.assertEqual(data["status"]["music"]["action_url"], "/hub/api/action/music/")
+        self.assertEqual(data["status"]["music"]["refresh"], 3)
+        with patch("hub.status.cache.set") as cache_set:
+            cache.clear()
+            home_data(DASHBOARD)
+        ttls = [c.args[2] for c in cache_set.call_args_list if c.args[0] == "hub:status:music:dashboard"]
+        self.assertEqual(ttls, [3])
+
+    def test_runs_row_and_tile_actions(self):
+        response = self.client.post("/hub/api/action/music/", {"row": "kitchen", "action": "next"})
+        self.assertEqual(response.json(), {"ok": True, "message": "Paused"})
+        self.client.post("/hub/api/action/music/", {"row": "", "action": "pause_all"})
+        self.assertEqual(HOOK_STATE["acted"],
+                         [("kitchen", "next", DASHBOARD), ("", "pause_all", DASHBOARD)])
+
+    def test_action_refreshes_status(self):
+        home_data(DASHBOARD)
+        calls = HOOK_STATE["status_calls"]
+        self.client.post("/hub/api/action/music/", {"row": "kitchen", "action": "pause"})
+        home_data(DASHBOARD)
+        self.assertEqual(HOOK_STATE["status_calls"], calls + 1)
+
+    def test_unoffered_action_is_404(self):
+        for row, action in (("kitchen", "pause_all"), ("garage", "pause"), ("", "next")):
+            response = self.client.post("/hub/api/action/music/", {"row": row, "action": action})
+            self.assertEqual(response.status_code, 404, (row, action))
+        self.assertEqual(self.client.post("/hub/api/action/nope/", {"action": "pause"}).status_code, 404)
+        self.assertNotIn("acted", HOOK_STATE)
+
+    def test_requires_post_and_csrf(self):
+        self.assertEqual(self.client.get("/hub/api/action/music/").status_code, 405)
+        strict = Client(enforce_csrf_checks=True)
+        self.assertEqual(strict.post("/hub/api/action/music/", {"action": "pause_all"}).status_code, 403)
+        self.assertNotIn("acted", HOOK_STATE)
+
+    def test_handler_failure_returns_502(self):
+        HOOK_STATE["act_fails"] = True
+        response = self.client.post("/hub/api/action/music/", {"action": "pause_all"})
+        self.assertEqual(response.status_code, 502)
+        self.assertFalse(response.json()["ok"])
+
+    def test_loader_requires_status_for_actions(self):
+        with self.assertRaisesMessage(PluginError, "run_action without status"):
+            validate([PluginSpec(id="a", app="a", run_action="a.homepage.act")])
 
 def demo_stay():
     if HOOK_STATE.get("stay_fails"):

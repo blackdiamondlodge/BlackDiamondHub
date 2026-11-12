@@ -13,7 +13,8 @@ from .plugins import API_VERSION, SECTIONS, PluginSpec, Setting
 ENTRY_POINT_GROUP = "blackdiamondhub.plugins"
 
 # Spec fields holding "module.attribute" paths that are resolved lazily.
-DOTTED_FIELDS = ("status", "shortcuts", "run_shortcut", "websocket_routes", "stay")
+DOTTED_FIELDS = ("status", "shortcuts", "run_shortcut", "run_action",
+                 "websocket_routes", "stay", "card")
 _DOTTED = re.compile(r"[A-Za-z_]\w*(\.[A-Za-z_]\w*)+")
 
 
@@ -51,6 +52,8 @@ def validate(specs):
             raise PluginError(
                 f"plugin {spec.id!r} must set both shortcuts and run_shortcut"
             )
+        if spec.run_action and not spec.status:
+            raise PluginError(f"plugin {spec.id!r} sets run_action without status")
         for name in DOTTED_FIELDS:
             value = getattr(spec, name)
             if value is not None and not (
