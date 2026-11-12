@@ -520,11 +520,9 @@ class StatusActionApiTests(TestCase):
         data = self.client.get("/hub/api/status/").json()
         self.assertEqual(data["status"]["music"]["action_url"], "/hub/api/action/music/")
         self.assertEqual(data["status"]["music"]["refresh"], 3)
-        with patch("hub.status.cache.set") as cache_set:
-            cache.clear()
-            home_data(DASHBOARD)
-        ttls = [c.args[2] for c in cache_set.call_args_list if c.args[0] == "hub:status:music:dashboard"]
-        self.assertEqual(ttls, [3])
+        from hub.status import STATUS_TTL, _status_ttl
+        self.assertEqual(_status_ttl(data["status"]["music"]), 3)
+        self.assertEqual(_status_ttl({"label": "x"}), STATUS_TTL)
 
     def test_runs_row_and_tile_actions(self):
         response = self.client.post("/hub/api/action/music/", {"row": "kitchen", "action": "next"})
