@@ -383,10 +383,13 @@
     const idleMs = Math.max(1, cfg.idle_minutes || 10) * 60 * 1000;
     let idleTimer = null;
     let paused = false;
+    // A page that must stay on screen (e.g. live cameras) opts out with
+    // <meta name="bdh-screensaver" content="off">; alerts' resume() can't undo it.
+    const held = !!document.querySelector('meta[name="bdh-screensaver"][content="off"]');
     const isDisplay = () => window.innerWidth >= 1280;
     function arm() {
         clearTimeout(idleTimer);
-        if (!paused && isDisplay()) idleTimer = setTimeout(show, idleMs);
+        if (!paused && !held && isDisplay()) idleTimer = setTimeout(show, idleMs);
     }
     ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(type =>
         document.addEventListener(type, () => { if (!root || !root.classList.contains('on')) arm(); },
