@@ -17,3 +17,4 @@ bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v2.5.0/bdh_app_sonos_control-2.5.0-py3-none-any.whl --hash=sha256:02be4a3c92aac24e6fb0bbc30768cd3b043e39ddc3bac920605ce2b3ede16c95
 bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.3.0/bdh_app_wifi-1.3.0-py3-none-any.whl --hash=sha256:088a97356790d3050a98e4c1f40681b82d0b119d7b9d765f6994e8c474aa96d5
 bdh-app-weather @ https://github.com/blackdiamondlodge/bdh-app-weather/releases/download/v1.1.0/bdh_app_weather-1.1.0-py3-none-any.whl --hash=sha256:b4b2e7085e3d6f84ead9b86fe45956927b1b4415e2289416a9db8b27bbd34899
+bdh-app-calendar @ https://github.com/blackdiamondlodge/bdh-app-calendar/releases/download/v1.0.0/bdh_app_calendar-1.0.0-py3-none-any.whl --hash=sha256:9b9924d614d54f13c0cb401d4d0b82d06409919d3cfc24eecfcaf7b18908b605
