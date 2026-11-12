@@ -10,7 +10,7 @@
 # An app's third-party dependencies must be in the hub's requirements.txt.
 # Installed apps register through the "blackdiamondhub.plugins" entry point.
 
-bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.2.0/bdh_app_wifi-1.2.0-py3-none-any.whl --hash=sha256:4df78da084ea51f20a7b3376ba890861f529cf191bd3c61dfda7b82880df44ae
+bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.3.0/bdh_app_wifi-1.3.0-py3-none-any.whl --hash=sha256:088a97356790d3050a98e4c1f40681b82d0b119d7b9d765f6994e8c474aa96d5
 bdh-app-sunpeaks-webcams @ https://github.com/blackdiamondlodge/bdh-app-sunpeaks-webcams/releases/download/v1.2.0/bdh_app_sunpeaks_webcams-1.2.0-py3-none-any.whl --hash=sha256:39ab4e917de9bd2c6745d19fa8c5a333bfc67dd12dab5b4f08cdf09562cb72b9
 bdh-app-lift-status @ https://github.com/blackdiamondlodge/bdh-app-lift-status/releases/download/v1.2.0/bdh_app_lift_status-1.2.0-py3-none-any.whl --hash=sha256:ceb449245de2b8e31a30575923f0c4e44e2a05819aa6324d964d87894ae68226
 bdh-app-snow-report @ https://github.com/blackdiamondlodge/bdh-app-snow-report/releases/download/v2.2.0/bdh_app_snow_report-2.2.0-py3-none-any.whl --hash=sha256:3c3006961d8b770de4b4909f13001d477358459f7e402429ee6be96c603a54ba
