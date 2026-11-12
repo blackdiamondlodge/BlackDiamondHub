@@ -242,9 +242,9 @@ class WeatherUnitToggleTest(SeleniumTestCase):
     def test_elevation_conversion_m_to_ft(self):
         self._set('elevation', '1000', '1000 m')
         self._toggle('F')
-        self.assertEqual(self._text('elevation'), '3281 ft')  # 1000 meters -> 3281 feet
+        self.assertEqual(self._text('elevation'), '3,281 ft')  # 1000 meters -> 3281 feet
         self._toggle('C')
-        self.assertEqual(self._text('elevation'), '1000 m')
+        self.assertEqual(self._text('elevation'), '1,000 m')
 
 @tag('selenium')
 class NavbarLoginButtonTest(SeleniumTestCase):
@@ -390,8 +390,13 @@ class OnScreenKeyboardTest(SeleniumTestCase):
         browser.find_element(By.ID, 'id_username').click()
         wait = WebDriverWait(browser, 10)
         self.wait_open()
+        kb_h = "return getComputedStyle(document.documentElement).getPropertyValue('--hub-kb-h')"
+        wait.until(lambda d: d.execute_script(kb_h))
+        self.assertEqual(browser.execute_script(kb_h),
+                         browser.execute_script("return document.querySelector('.hub-kb').offsetHeight + 'px'"))
         browser.find_element(By.CSS_SELECTOR, '.hub-kb-hide').click()
         wait.until(EC.invisibility_of_element_located(self.KB_OPEN))
+        self.assertEqual(browser.execute_script(kb_h), '')
 
     def test_off_on_desktop(self):
         # Headless Chrome has a mouse (hover), so it isn't treated as the hub screen.

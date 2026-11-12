@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+from bdh_sdk import units
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
@@ -11,6 +12,8 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+
+from hub_settings.models import AppSetting
 
 from . import status
 from .modes import resolve_mode
@@ -69,6 +72,24 @@ def run_action(request, plugin):
         logger.exception("Action %s/%s/%s failed", plugin, row, action)
         return JsonResponse({"ok": False, "error": "That didn't work, please try again"}, status=502)
     return JsonResponse({"ok": True, "message": message or ""})
+
+
+@never_cache
+@require_POST
+def set_units(request):
+    """The title-bar °C/°F toggle: saves the hub-wide units every app follows.
+
+    Anyone at the hub can flip it, guests included.
+    """
+    system = request.POST.get("units", "")
+    if system not in (units.METRIC, units.IMPERIAL):
+        return JsonResponse({"ok": False, "error": "units must be metric or imperial"}, status=400)
+    if units.system() != system:
+        user = request.user if request.user.is_authenticated else None
+        AppSetting.objects.update_or_create(
+            app_id="hub", key="units", defaults={"value": system, "updated_by": user})
+        status.forget_units()
+    return JsonResponse({"ok": True, "units": system})
 
 
 SAMPLE_PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>Test alert</title><style>

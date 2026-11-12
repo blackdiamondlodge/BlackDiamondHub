@@ -149,9 +149,11 @@ All pages extend `base.html`, which provides:
 
 A template block in the navbar between the brand and the right-side icon group. Pages that need unit-conversion toggles (or other page-specific navbar controls) fill this block:
 
-- **Landing page** (`index.html`): `°C/°F` button — client-side JS `toggleUnits()` converts temperature/elevation in-place via `data-metric` attributes
+- **Landing page** (`index.html`): `°C/°F` button — the **hub-wide units setting**. `toggleUnits()` converts temperature/elevation in-place via `data-metric` attributes, then POSTs to `hub_units` (`/hub/api/units/`, guests allowed), which saves `AppSetting(app_id="hub", key="units")` and clears cached plugin status/stats (`hub.status.forget_units()`). The same value is on Settings → Display → Home screen. A site's default comes from `[apps.hub] units = "imperial"` in `site.toml`.
 - **Mountain Conditions** (`snow_report/snow_report.html`): `°C, m` / `°F, ft` buttons — server-side reload via `?units=metric` / `?units=imperial` query param
 - **All other pages**: Block is empty, no toggle shown
+
+Apps read the hub units with `bdh_sdk.units.units()` (`temp_text`, `length_text`, …) and must not keep their own units setting; a view-only local switch is fine, but only the hub toggle changes the system value.
 
 Use the `.navbar-toggle-btn` class for toggle buttons in this block. When adding a new page that needs a unit toggle or similar control, fill `{% block navbar_extras %}` with the appropriate buttons — don't add inline toggles to the page body.
 

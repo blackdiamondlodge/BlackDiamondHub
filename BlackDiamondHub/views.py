@@ -1,3 +1,4 @@
+from bdh_sdk.units import units
 from django.conf import settings
 from django.shortcuts import render
 import requests
@@ -60,9 +61,25 @@ def mountain_weather():
     return weather_data
 
 
+def _with_units(weather_data, u):
+    """Adds display text in the hub's units to each mountain reading."""
+    for w in weather_data:
+        try:
+            w['temp_text'] = u.temp_text(float(w['temperature']))
+        except (TypeError, ValueError):
+            w['temp_text'] = f"{w['temperature']}°C"
+        try:
+            w['elev_text'] = u.length_text(float(w['elevation']))
+        except (TypeError, ValueError):
+            w['elev_text'] = f"{w['elevation']} m"
+    return weather_data
+
+
 def landing_page(request):
     # Only sites with the mountain weather tile scrape the resort's page.
     weather_data = mountain_weather() if settings.HUB_FEATURES.get('mountain_weather') else []
+    hub_units = units()
+    _with_units(weather_data, hub_units)
     mode = resolve_mode(request)
     card = lodge_card(mode)
     # The weather tile leads with the highest reading; the rest are mini stats.
@@ -88,6 +105,7 @@ def landing_page(request):
         # The pane with the weather tile shows the temperature up top.
         'hub_weather_key': holding('weather'),
         'hub_theme': home_theme(),
+        'hub_imperial': hub_units.imperial,
     }
     return render(request, 'index.html', context)
 
