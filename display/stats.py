@@ -10,8 +10,6 @@ from .season import by_date, next_start
 
 log = logging.getLogger(__name__)
 
-# The lodge, for sunrise and sunset.
-LAT, LON = 50.884, -119.885
 MINUS = "\u2212"
 
 
@@ -59,7 +57,7 @@ def _bottom(rows):
     return _named(rows, "valley") or min(rows, key=lambda r: r.get("elevation_m") or 0, default=None)
 
 
-def sun_times(day, lat=LAT, lon=LON):
+def sun_times(day, lat, lon):
     """Sunrise and sunset on ``day`` as UTC datetimes (NOAA's approximation)."""
     g = 2 * math.pi / 365 * (day.timetuple().tm_yday - 1)
     eqtime = 229.18 * (0.000075 + 0.001868 * math.cos(g) - 0.032077 * math.sin(g)
@@ -123,7 +121,12 @@ def stat(key, data, today, starts):
         return {"label": "Runs groomed", "value": str(lifts["groomed"])}
 
     if key in ("sunrise", "sunset"):
-        rise, sets = sun_times(today)
+        from django.conf import settings
+
+        where = settings.HUB_LOCATION
+        if where.get("latitude") is None or where.get("longitude") is None:
+            return None
+        rise, sets = sun_times(today, where["latitude"], where["longitude"])
         when = rise if key == "sunrise" else sets
         return {"label": key.capitalize(), "time": when.isoformat().replace("+00:00", "Z")}
 

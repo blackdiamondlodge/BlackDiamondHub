@@ -58,6 +58,14 @@ BUILTIN_TILES = (
 )
 
 
+def builtin_tiles():
+    """The built-in tiles this site has: the weather tile only where it has mountain weather."""
+    from django.conf import settings
+
+    weather = settings.HUB_FEATURES.get("mountain_weather")
+    return [t for t in BUILTIN_TILES if weather or t["kind"] != "weather"]
+
+
 def home_layout():
     """The saved layout: {section: [{"id": ..., "size": ...}, ...]}."""
     from bdh_sdk.settings import app_setting
@@ -69,7 +77,7 @@ def home_layout():
 def _catalog(mode=None):
     """Every tile per section, in default order, optionally only those shown in ``mode``."""
     grouped = {key: [] for key in SECTIONS}
-    for tile in BUILTIN_TILES:
+    for tile in builtin_tiles():
         grouped[tile["section"]].append({**tile, "plugin": "", "subtitle": "", "url": ""})
     for spec in plugins():
         for tile in spec.tiles:

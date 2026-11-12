@@ -56,6 +56,57 @@ jobs:
         python manage.py hub_smoke
         python manage.py test --exclude-tag=selenium -v 2
 
+  # The full suite runs as Sun Peaks above; every other site gets its own app
+  # list installed and smoke-tested, so a site's image can't ship broken.
+  site-smoke:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        site: [mercerisland]
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+
+    - name: Install Python dependencies
+      timeout-minutes: 8
+      run: |
+          sudo apt-get update
+          sudo apt-get install -y libzbar0
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install --require-hashes --no-deps -r sites/${{ matrix.site }}/apps.txt
+
+    - name: Smoke test the site
+      env:
+        HUB_SITE: ${{ matrix.site }}
+        ALLOWED_HOSTS: localhost
+        DJANGO_SECRET_KEY: ci-test-only
+        DB_NAME: test_db
+        DB_HOST: localhost
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+      run: python manage.py hub_smoke
+
   selenium-tests:
     runs-on: ubuntu-22.04
 

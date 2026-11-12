@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Owner sign in — Black Diamond Hub{% endblock %}
+{% block title %}Owner sign in — {{ hub_brand.name }}{% endblock %}
 
 {% block body_class %}hub-login{% endblock %}
 
@@ -102,9 +102,9 @@
         <path d="M1080 90 L1040 135 L1065 128 L1080 145 L1100 125 L1120 132Z M470 110 L440 145 L462 138 L478 152 L492 134Z" fill="var(--snow)"/>
     </svg>
     <div class="login-card">
-        <img class="login-mono" src="{% static 'hub/bdl-monogram-light.svg' %}" alt="">
+        <img class="login-mono" src="{{ hub_brand.monogram_light }}" alt="">
         <h2>Owner sign in</h2>
-        <p class="login-sub">Black Diamond Lodge · Sun Peaks</p>
+        <p class="login-sub">{{ hub_brand.name }}{% if hub_brand.subtitle %} · {{ hub_brand.subtitle }}{% endif %}</p>
         {% if form.errors %}
         <div class="login-err" role="alert">
             <i class="fas fa-circle-exclamation"></i>&nbsp; That username and password didn't match.

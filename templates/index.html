@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Black Diamond Lodge Hub{% endblock %}
+{% block title %}{{ hub_brand.name }}{% endblock %}
 
 {% block body_class %}hub-home mode-{{ hub_mode }}{% endblock %}
 
@@ -327,7 +327,7 @@
         <div class="hub-tiles">
             {% for tile in tiles %}
             {% if tile.kind == 'weather' %}
-            <div class="hub-cell hub-wx-tile hub-tile-{{ tile.size }}" aria-label="Sun Peaks weather">
+            <div class="hub-cell hub-wx-tile hub-tile-{{ tile.size }}" aria-label="{{ tile.title }}">
                 <div class="hub-wx-in">
                     <div class="hub-wx-head"><i class="fa-solid fa-mountain"></i>{{ tile.title }}</div>
                     {% if hub_weather_top %}

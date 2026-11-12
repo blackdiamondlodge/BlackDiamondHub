@@ -1,0 +1,14 @@
+# Read at startup by hub/site.py. Brand paths are relative to this folder.
+# No monogram set: the hub uses the default BDH monogram from bdh-sdk.
+
+[brand]
+name = "Slivinski Hub"
+subtitle = "Mercer Island"
+
+[location]  # for the screensaver's season, night mode and sunrise/sunset
+latitude = 47.571
+longitude = -122.222
+timezone = "America/Los_Angeles"
+
+[features]
+mountain_weather = false
