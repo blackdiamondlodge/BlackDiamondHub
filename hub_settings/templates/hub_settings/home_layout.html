@@ -3,7 +3,26 @@
 
 {% block section %}
 <style>
-    .hl-list { list-style: none; margin: 0; padding: 6px 0; }
+    .hl-group.hst-card { overflow: visible; }
+    .hl-ghead { display: flex; align-items: center; gap: 8px; padding: 10px 14px 10px 22px; border-bottom: 1px solid var(--line); }
+    .hl-title {
+        flex: 1; min-width: 0; height: 44px; padding: 0 12px; margin-left: -12px; border-radius: 12px;
+        border: 1px solid transparent; background: transparent; color: var(--fg); font-size: 17px; font-weight: 600;
+    }
+    .hl-title:hover { border-color: var(--line); }
+    .hl-title:focus { outline: 2px solid var(--acc); outline-offset: 1px; background: var(--card2); }
+    .hl-title.bad { border-color: var(--red); }
+    .hl-gbtn {
+        width: 44px; height: 44px; flex: none; border: 0; border-radius: 12px; background: transparent;
+        color: var(--mut); font-size: 16px; cursor: pointer;
+    }
+    .hl-gbtn:hover:not(:disabled) { color: var(--acc2); background: rgba(91,164,230,.14); }
+    .hl-gbtn.del:hover:not(:disabled) { color: var(--red); background: rgba(230,91,91,.14); }
+    .hl-gbtn:disabled { opacity: .3; cursor: default; }
+    .hl-list { list-style: none; margin: 0; padding: 6px 0; min-height: 68px; }
+    .hl-hint { display: none; margin: -62px 22px 12px; height: 56px; border: 2px dashed var(--line); border-radius: 14px;
+        place-items: center; color: var(--dim); font-size: 14px; pointer-events: none; }
+    .hl-group.is-empty .hl-hint { display: grid; }
     .hl-row {
         display: flex; flex-direction: row; align-items: center; gap: 16px; padding: 10px 22px 10px 8px;
         margin: 0; min-width: 0;
@@ -11,7 +30,10 @@
         touch-action: pan-y; user-select: none;
     }
     .hl-row:last-child { border-bottom: 0; }
-    .hl-row.is-drag { position: relative; z-index: 2; background: var(--card2); box-shadow: 0 10px 30px rgba(0,0,0,.45); border-radius: 14px; }
+    .hl-row.is-drag {
+        position: relative; z-index: 5; background: var(--card2); box-shadow: 0 10px 30px rgba(0,0,0,.45);
+        border-radius: 14px; pointer-events: none;
+    }
     .hl-grip {
         width: 48px; height: 48px; flex: none; display: grid; place-items: center;
         color: var(--dim); font-size: 18px; cursor: grab; touch-action: none;
@@ -29,6 +51,10 @@
     }
     .hl-size button[aria-pressed="true"] { background: var(--acc); color: #0c1622; }
     .hl-tip { color: var(--mut); font-size: 14px; margin: -6px 0 16px; }
+    .hl-add { width: 100%; height: 56px; border: 2px dashed var(--line); border-radius: 22px; background: transparent;
+        color: var(--mut); font-size: 15px; font-weight: 600; cursor: pointer; }
+    .hl-add:hover:not(:disabled) { color: var(--acc2); border-color: var(--acc2); }
+    .hl-add:disabled { opacity: .4; cursor: default; }
 </style>
 
 <form method="post" id="hl-form" novalidate>
@@ -37,7 +63,7 @@
     <div class="hst-head">
         <div>
             <h2>Home layout</h2>
-            <p>The order and size of the tiles on the home screen.</p>
+            <p>The groups on the home screen, and the order and size of their tiles.</p>
         </div>
         <div class="act">
             {% if customised %}<button type="submit" name="reset" value="1" class="hst-btn ghost" formnovalidate>Reset</button>{% endif %}
@@ -46,11 +72,17 @@
     </div>
     {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
     {% if has_errors %}<div class="hst-note bad" role="alert">That layout couldn't be saved. Try again.</div>{% endif %}
-    <p class="hl-tip">Drag <i class="fas fa-grip-vertical" aria-hidden="true"></i> to reorder. S is one square, M two side by side, L a big two-by-two.</p>
+    <p class="hl-tip">Drag <i class="fas fa-grip-vertical" aria-hidden="true"></i> to reorder tiles or move them to another group. Tap a group's name to rename it. S is one square, M two side by side, L a big two-by-two.</p>
+    <div id="hl-groups">
     {% for key, title, tiles in sections %}
-    <section class="hst-card">
-        <h3>{{ title }}</h3>
-        <ul class="hl-list" data-section="{{ key }}">
+    <section class="hst-card hl-group" data-key="{{ key }}">
+        <div class="hl-ghead">
+            <input class="hl-title" type="text" value="{{ title }}" maxlength="{{ max_title }}" aria-label="Group name" autocomplete="off">
+            <button type="button" class="hl-gbtn up" title="Move group up" aria-label="Move group up"><i class="fas fa-arrow-up"></i></button>
+            <button type="button" class="hl-gbtn down" title="Move group down" aria-label="Move group down"><i class="fas fa-arrow-down"></i></button>
+            <button type="button" class="hl-gbtn del" title="Remove group" aria-label="Remove group"><i class="fas fa-trash-can"></i></button>
+        </div>
+        <ul class="hl-list">
             {% for tile in tiles %}
             <li class="hl-row" data-id="{{ tile.id }}" data-size="{{ tile.size }}">
                 <span class="hl-grip" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
@@ -71,69 +103,147 @@
             </li>
             {% endfor %}
         </ul>
+        <div class="hl-hint">Drag apps here</div>
     </section>
     {% endfor %}
+    </div>
+    <button type="button" class="hl-add" id="hl-add" data-max="{{ max_groups }}"><i class="fas fa-plus" aria-hidden="true"></i> Add group</button>
 </form>
 
 <script>
     (function () {
         var form = document.getElementById('hl-form');
+        var holder = document.getElementById('hl-groups');
+        var addBtn = document.getElementById('hl-add');
 
-        document.querySelectorAll('.hl-size button').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        function groups() { return Array.prototype.slice.call(holder.querySelectorAll('.hl-group')); }
+
+        // Empty groups get a drop hint; buttons that can't act are disabled.
+        function refresh() {
+            var all = groups();
+            all.forEach(function (g, i) {
+                g.classList.toggle('is-empty', !g.querySelector('.hl-row'));
+                g.querySelector('.up').disabled = i === 0;
+                g.querySelector('.down').disabled = i === all.length - 1;
+                g.querySelector('.del').disabled = all.length === 1;
+            });
+            addBtn.disabled = all.length >= +addBtn.getAttribute('data-max');
+        }
+
+        holder.addEventListener('click', function (e) {
+            var btn = e.target.closest('button');
+            if (!btn) return;
+            if (btn.closest('.hl-size')) {
                 var row = btn.closest('.hl-row');
                 row.setAttribute('data-size', btn.getAttribute('data-size'));
                 row.querySelectorAll('.hl-size button').forEach(function (b) {
                     b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
                 });
-            });
+                return;
+            }
+            var group = btn.closest('.hl-group');
+            if (!group || !btn.classList.contains('hl-gbtn')) return;
+            if (btn.classList.contains('up') && group.previousElementSibling) {
+                holder.insertBefore(group, group.previousElementSibling);
+            } else if (btn.classList.contains('down') && group.nextElementSibling) {
+                holder.insertBefore(group.nextElementSibling, group);
+            } else if (btn.classList.contains('del')) {
+                // Its tiles move to the group above (or below, for the first).
+                var to = group.previousElementSibling || group.nextElementSibling;
+                if (!to) return;
+                var list = to.querySelector('.hl-list');
+                group.querySelectorAll('.hl-row').forEach(function (r) { list.appendChild(r); });
+                group.remove();
+            }
+            refresh();
         });
 
-        // Touch-friendly reorder: drag a row by its grip within its own section.
-        document.querySelectorAll('.hl-grip').forEach(function (grip) {
-            grip.addEventListener('pointerdown', function (e) {
-                var row = grip.closest('.hl-row');
-                var list = row.parentNode;
-                var startY = e.clientY;
-                e.preventDefault();
-                grip.setPointerCapture(e.pointerId);
-                row.classList.add('is-drag');
+        addBtn.addEventListener('click', function () {
+            var group = groups()[0].cloneNode(true);
+            group.setAttribute('data-key', 'g-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+            group.querySelectorAll('.hl-row').forEach(function (r) { r.remove(); });
+            var input = group.querySelector('.hl-title');
+            input.value = 'New group';
+            input.classList.remove('bad');
+            holder.appendChild(group);
+            refresh();
+            input.focus();
+            input.select();
+        });
 
-                function move(ev) {
-                    var y = ev.clientY;
-                    var prev = row.previousElementSibling, next = row.nextElementSibling;
-                    if (prev && y < prev.getBoundingClientRect().top + prev.offsetHeight / 2) {
-                        list.insertBefore(row, prev);
-                        startY = y;
-                    } else if (next && y > next.getBoundingClientRect().top + next.offsetHeight / 2) {
-                        list.insertBefore(next, row);
-                        startY = y;
+        // Touch-friendly drag: a row follows the finger by its grip, into any group.
+        holder.addEventListener('pointerdown', function (e) {
+            var grip = e.target.closest('.hl-grip');
+            if (!grip) return;
+            var row = grip.closest('.hl-row');
+            var grab = e.clientY - row.getBoundingClientRect().top;
+            var x = e.clientX, y = e.clientY, scrollTimer = null;
+            e.preventDefault();
+            grip.setPointerCapture(e.pointerId);
+            row.classList.add('is-drag');
+
+            function place() {
+                row.style.transform = '';
+                var hit = document.elementFromPoint(x, y);
+                var over = hit && hit.closest('.hl-row');
+                var group = hit && hit.closest('.hl-group');
+                if (over && over !== row) {
+                    var mid = over.getBoundingClientRect().top + over.offsetHeight / 2;
+                    over.parentNode.insertBefore(row, y < mid ? over : over.nextSibling);
+                } else if (!over && group) {
+                    var list = group.querySelector('.hl-list');
+                    if (row.parentNode !== list) {
+                        if (y < list.getBoundingClientRect().top) list.insertBefore(row, list.firstChild);
+                        else list.appendChild(row);
                     }
-                    row.style.transform = 'translateY(' + (y - startY) + 'px)';
                 }
-                function end() {
-                    row.classList.remove('is-drag');
-                    row.style.transform = '';
-                    grip.removeEventListener('pointermove', move);
-                    grip.removeEventListener('pointerup', end);
-                    grip.removeEventListener('pointercancel', end);
-                }
-                grip.addEventListener('pointermove', move);
-                grip.addEventListener('pointerup', end);
-                grip.addEventListener('pointercancel', end);
-            });
+                row.style.transform = 'translateY(' + (y - grab - row.getBoundingClientRect().top) + 'px)';
+                refresh();
+            }
+            // Scroll the page while the row is held near the top or bottom edge.
+            function autoscroll() {
+                var edge = 80, step = 0;
+                if (y < edge) step = -Math.ceil((edge - y) / 6);
+                else if (y > window.innerHeight - edge) step = Math.ceil((y - window.innerHeight + edge) / 6);
+                if (step) { window.scrollBy(0, step); place(); }
+            }
+            function move(ev) { x = ev.clientX; y = ev.clientY; place(); }
+            function end() {
+                clearInterval(scrollTimer);
+                row.classList.remove('is-drag');
+                row.style.transform = '';
+                grip.removeEventListener('pointermove', move);
+                grip.removeEventListener('pointerup', end);
+                grip.removeEventListener('pointercancel', end);
+                refresh();
+            }
+            scrollTimer = setInterval(autoscroll, 16);
+            grip.addEventListener('pointermove', move);
+            grip.addEventListener('pointerup', end);
+            grip.addEventListener('pointercancel', end);
         });
 
-        form.addEventListener('submit', function () {
-            var layout = {};
-            document.querySelectorAll('.hl-list').forEach(function (list) {
-                layout[list.getAttribute('data-section')] = Array.prototype.map.call(
-                    list.querySelectorAll('.hl-row'), function (row) {
+        form.addEventListener('submit', function (e) {
+            if (e.submitter && e.submitter.name === 'reset') return;
+            var bad = null;
+            var layout = { groups: groups().map(function (g) {
+                var input = g.querySelector('.hl-title');
+                var title = input.value.trim();
+                input.classList.toggle('bad', !title);
+                if (!title && !bad) bad = input;
+                return {
+                    key: g.getAttribute('data-key'),
+                    title: title,
+                    tiles: Array.prototype.map.call(g.querySelectorAll('.hl-row'), function (row) {
                         return { id: row.getAttribute('data-id'), size: row.getAttribute('data-size') };
-                    });
-            });
+                    }),
+                };
+            }) };
+            if (bad) { e.preventDefault(); bad.focus(); return; }
             document.getElementById('hl-layout').value = JSON.stringify(layout);
         });
+
+        refresh();
     })();
 </script>
 {% endblock %}

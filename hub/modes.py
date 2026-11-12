@@ -1,4 +1,6 @@
 """Homepage mode resolution and tile lookup."""
+import re
+
 from django.conf import settings
 from django.urls import NoReverseMatch, reverse
 
@@ -68,11 +70,44 @@ def builtin_tiles():
 
 
 def home_layout():
-    """The saved layout: {section: [{"id": ..., "size": ...}, ...]}."""
+    """The saved layout: ``{"groups": [{"key", "title", "tiles": [{"id", "size"}]}]}``.
+
+    Layouts saved before groups were renamable are ``{section: [entries]}``.
+    """
     from bdh_sdk.settings import app_setting
 
     layout = app_setting(LAYOUT_APP, LAYOUT_KEY, {})
     return layout if isinstance(layout, dict) else {}
+
+
+GROUP_KEY = re.compile(r"^[a-z0-9_-]{1,32}$")
+MAX_GROUPS, MAX_TITLE = 12, 40
+
+
+def layout_groups(layout=None):
+    """The home screen's groups in order: ``[{"key", "title", "tiles"}]``.
+
+    Without a saved layout these are the app sections, titled by the site.
+    """
+    layout = home_layout() if layout is None else layout
+    titles = section_titles()
+    raw = layout.get("groups")
+    if not isinstance(raw, list):
+        raw = [{"key": key, "tiles": layout.get(key)} for key in titles]
+    groups, seen = [], set()
+    for group in raw:
+        if not isinstance(group, dict):
+            continue
+        key, title = group.get("key"), group.get("title")
+        if not isinstance(key, str) or not GROUP_KEY.match(key) or key in seen:
+            continue
+        if not isinstance(title, str) or not title.strip():
+            title = titles.get(key, "Group")
+        tiles = group.get("tiles")
+        groups.append({"key": key, "title": title.strip()[:MAX_TITLE],
+                       "tiles": [e for e in tiles if isinstance(e, dict)] if isinstance(tiles, list) else []})
+        seen.add(key)
+    return groups[:MAX_GROUPS] or [{"key": key, "title": title, "tiles": []} for key, title in titles.items()]
 
 
 def _catalog(mode=None):
@@ -120,16 +155,28 @@ def arrange(items, saved):
     return items
 
 
-def tiles_for_mode(mode=None):
-    """Return [(section_key, section_title, [tile dicts])], laid out as saved.
+def tiles_for_mode(mode=None, include_empty=False):
+    """Return [(group_key, group_title, [tile dicts])], laid out as saved.
 
     With ``mode`` None every tile is included (the layout settings page).
+    A tile the layout doesn't place goes in the group named after its app
+    section, or the last group if that one was removed. Groups with nothing
+    to show are left out unless ``include_empty``.
     """
-    grouped, layout = _catalog(mode), home_layout()
+    groups = layout_groups()
+    placed = {}
+    for group in groups:
+        for entry in group["tiles"]:
+            placed.setdefault(entry.get("id"), group["key"])
+    buckets = {group["key"]: [] for group in groups}
+    for section, items in _catalog(mode).items():
+        for tile in items:
+            key = placed.get(tile["id"]) or (section if section in buckets else groups[-1]["key"])
+            buckets[key].append(tile)
     sections = []
-    for key, title in section_titles().items():
-        items = arrange(grouped[key], layout.get(key))
+    for group in groups:
+        items = arrange(buckets[group["key"]], group["tiles"])
         # The lodge card alone doesn't make a section: it's often empty.
-        if any(t["kind"] != "lodge" for t in items):
-            sections.append((key, title, items))
+        if include_empty or any(t["kind"] != "lodge" for t in items):
+            sections.append((group["key"], group["title"], items))
     return sections

@@ -190,24 +190,42 @@ class HomeLayoutPageTests(TestCase):
 
     def test_save_keeps_known_tiles_and_valid_sizes(self):
         self.client.force_login(self.staff)
-        layout = {"mountain": [{"id": "hub:weather", "size": "s"}, {"id": "hub:weather", "size": "l"},
-                               {"id": "nope:x", "size": "m"}],
-                  "garage": [{"id": "hub:weather", "size": "m"}]}
+        layout = {"groups": [
+            {"key": "g-fav", "title": "  Favourites ", "tiles": [
+                {"id": "hub:weather", "size": "s"}, {"id": "nope:x", "size": "m"}, {"id": "hub:lodge", "size": "xl"}]},
+            {"key": "more", "title": "More", "tiles": [{"id": "hub:weather", "size": "l"}]},
+        ]}
         response = self.client.post(self.url, {"layout": json.dumps(layout)})
         self.assertRedirects(response, self.url + "?saved=1")
-        self.assertEqual(self.saved(), {"mountain": [{"id": "hub:weather", "size": "s"}]})
+        self.assertEqual(self.saved(), {"groups": [
+            {"key": "g-fav", "title": "Favourites", "tiles": [{"id": "hub:weather", "size": "s"}]},
+            {"key": "more", "title": "More", "tiles": []},
+        ]})
         self.assertEqual(AppSetting.objects.get(key="home_layout").updated_by, self.staff)
+        # The renamed group and an empty one both show on the settings page.
+        page = self.client.get(self.url)
+        self.assertContains(page, 'value="Favourites"')
+        self.assertContains(page, 'data-key="more"')
 
     def test_bad_layout_is_rejected(self):
         self.client.force_login(self.staff)
-        for raw in ("{nope", "[]", '{"mountain": ["x"]}'):
+
+        def group(key="more", title="More", tiles=()):
+            return {"key": key, "title": title, "tiles": list(tiles)}
+
+        for layout in ("{nope", "[]", {"mountain": [{"id": "hub:weather", "size": "s"}]}, {"groups": []},
+                       {"groups": [group(key="Bad Key")]}, {"groups": [group(), group()]},
+                       {"groups": [group(title="  ")]}, {"groups": [group(title="x" * 41)]},
+                       {"groups": [group(tiles=["x"])]}, {"groups": [group(key=f"g{i}") for i in range(13)]}):
+            raw = layout if isinstance(layout, str) else json.dumps(layout)
             response = self.client.post(self.url, {"layout": raw})
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 400, raw)
         self.assertFalse(AppSetting.objects.exists())
 
     def test_reset_deletes_layout(self):
         self.client.force_login(self.staff)
-        self.client.post(self.url, {"layout": json.dumps({"mountain": [{"id": "hub:weather", "size": "s"}]})})
+        self.client.post(self.url, {"layout": json.dumps(
+            {"groups": [{"key": "more", "title": "More", "tiles": [{"id": "hub:weather", "size": "s"}]}]})})
         self.assertContains(self.client.get(self.url), 'name="reset"')
         self.assertRedirects(self.client.post(self.url, {"reset": "1"}), self.url + "?saved=1")
         self.assertFalse(AppSetting.objects.exists())

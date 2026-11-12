@@ -7,7 +7,9 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import NoReverseMatch, reverse
 
-from hub.modes import LAYOUT_APP, LAYOUT_KEY, SIZES, plugins, tiles_for_mode
+from hub.modes import (
+    GROUP_KEY, LAYOUT_APP, LAYOUT_KEY, MAX_GROUPS, MAX_TITLE, SIZES, plugins, tiles_for_mode,
+)
 from bdh_sdk.plugins import BOOL, MULTI
 
 from . import store
@@ -119,32 +121,46 @@ def apps_overview(request):
 
 
 def _parse_layout(raw, sections):
-    """Validate a posted layout against the tiles that exist; None if it's malformed."""
+    """Validate a posted ``{"groups": [...]}`` layout; None if it's malformed.
+
+    Every group needs a unique key and a title. Tiles that don't exist (or
+    appear twice) are dropped.
+    """
     try:
         posted = json.loads(raw)
     except ValueError:
         return None
-    if not isinstance(posted, dict):
+    groups = posted.get("groups") if isinstance(posted, dict) else None
+    if not isinstance(groups, list) or not 0 < len(groups) <= MAX_GROUPS:
         return None
-    known = {key: {t["id"] for t in tiles} for key, _title, tiles in sections}
-    layout = {}
-    for key, ids in known.items():
-        entries, seen = [], set()
-        for entry in posted.get(key) or ():
+    known = {t["id"] for _key, _title, tiles in sections for t in tiles}
+    layout, keys, seen = [], set(), set()
+    for group in groups:
+        if not isinstance(group, dict):
+            return None
+        key, title, tiles = group.get("key"), group.get("title"), group.get("tiles")
+        if not isinstance(key, str) or not GROUP_KEY.match(key) or key in keys:
+            return None
+        if not isinstance(title, str) or not title.strip() or len(title.strip()) > MAX_TITLE:
+            return None
+        if not isinstance(tiles, list):
+            return None
+        entries = []
+        for entry in tiles:
             if not isinstance(entry, dict):
                 return None
             tile_id, size = entry.get("id"), entry.get("size")
-            if tile_id in ids and tile_id not in seen and size in SIZES:
+            if tile_id in known and tile_id not in seen and size in SIZES:
                 entries.append({"id": tile_id, "size": size})
                 seen.add(tile_id)
-        if entries:
-            layout[key] = entries
-    return layout
+        layout.append({"key": key, "title": title.strip(), "tiles": entries})
+        keys.add(key)
+    return {"groups": layout}
 
 
 @staff_page
 def home_layout(request):
-    sections = tiles_for_mode(None)
+    sections = tiles_for_mode(None, include_empty=True)
     if request.method == "POST":
         if request.POST.get("reset"):
             AppSetting.objects.filter(app_id=LAYOUT_APP, key=LAYOUT_KEY).delete()
@@ -158,7 +174,8 @@ def home_layout(request):
         return redirect(f"{request.path}?saved=1")
     customised = AppSetting.objects.filter(app_id=LAYOUT_APP, key=LAYOUT_KEY).exists()
     return _render(request, "hub_settings/home_layout.html", "home", sections=sections,
-                   customised=customised, just_saved=request.GET.get("saved") == "1")
+                   customised=customised, just_saved=request.GET.get("saved") == "1",
+                   max_title=MAX_TITLE, max_groups=MAX_GROUPS)
 
 
 def _spec(app_id):

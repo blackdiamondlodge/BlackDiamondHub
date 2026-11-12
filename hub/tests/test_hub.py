@@ -124,6 +124,55 @@ class TileModeTests(TestCase):
         self.save_layout(["not", "a", "dict"])
         self.assertEqual(self.titles(OWNER), ["Vacation", "WiFi"])
 
+    def groups(self, mode=OWNER, **kw):
+        with override_settings(HUB_PLUGINS=self.plugins):
+            return [(key, title, [t["id"] for t in items]) for key, title, items in tiles_for_mode(mode, **kw)]
+
+    def test_groups_can_be_renamed_reordered_and_added(self):
+        self.save_layout({"groups": [
+            {"key": "g-fav", "title": "Favourites", "tiles": [{"id": "wifi:wifi_qr", "size": "s"}]},
+            {"key": "more", "title": "Everything else", "tiles": []},
+            {"key": "mountain", "title": "Outside", "tiles": [{"id": "hub:weather", "size": "m"}]},
+        ]})
+        self.assertEqual(self.groups(), [
+            ("g-fav", "Favourites", ["wifi:wifi_qr"]),
+            ("more", "Everything else", ["vacation_mode:vacation_mode"]),
+            ("mountain", "Outside", ["hub:weather", "hub:lodge"]),
+        ])
+
+    def test_tile_moves_between_groups(self):
+        self.save_layout({"groups": [
+            {"key": "mountain", "title": "Out", "tiles": []},
+            {"key": "lodge", "title": "In", "tiles": [{"id": "wifi:wifi_qr", "size": "m"}]},
+            {"key": "more", "title": "More", "tiles": [{"id": "hub:weather", "size": "s"}]},
+        ]})
+        groups = self.groups()
+        self.assertEqual(groups[0][0], "lodge")
+        self.assertEqual(groups[0][2], ["wifi:wifi_qr", "hub:lodge"])
+        self.assertIn("hub:weather", groups[1][2])
+
+    def test_new_tile_lands_in_last_group_when_its_section_was_removed(self):
+        self.save_layout({"groups": [
+            {"key": "mountain", "title": "Out", "tiles": []},
+            {"key": "g-x", "title": "Mine", "tiles": [{"id": "wifi:wifi_qr", "size": "s"}]},
+        ]})
+        last = self.groups()[-1]
+        self.assertEqual(last[0], "g-x")
+        self.assertEqual(last[2][0], "wifi:wifi_qr")
+        self.assertEqual(set(last[2]), {"wifi:wifi_qr", "vacation_mode:vacation_mode", "hub:lodge"})
+
+    def test_empty_groups_only_listed_when_asked(self):
+        self.save_layout({"groups": [
+            {"key": "g-empty", "title": "Empty", "tiles": []},
+            {"key": "more", "title": "More", "tiles": []},
+        ]})
+        self.assertNotIn("g-empty", [g[0] for g in self.groups()])
+        self.assertEqual(self.groups(include_empty=True)[0], ("g-empty", "Empty", []))
+
+    def test_bad_saved_groups_fall_back(self):
+        self.save_layout({"groups": [{"key": "BAD KEY", "title": "x", "tiles": []}, "junk"]})
+        self.assertEqual([g[0] for g in self.groups(include_empty=True)], ["mountain", "lodge", "more"])
+
 
 class NavTitleTests(SimpleTestCase):
     plugins = (

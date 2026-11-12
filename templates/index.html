@@ -370,10 +370,10 @@
 <div class="hub-view" id="hub-view">
 <main class="hub-sections" id="hub-sections">
     {% for key, title, tiles in hub_sections %}
-    <section class="hub-pane hub-section-{{ key }}" id="hub-pane-{{ key }}" data-label="{% if key == 'mountain' %}Mountain{% elif key == 'lodge' %}Lodge{% else %}{{ title }}{% endif %}">
+    <section class="hub-pane hub-section-{{ key }}" id="hub-pane-{{ key }}" data-label="{{ title }}">
         <h2>{{ title }}
             {% if hub_welcome and key == hub_welcome_key %}<span class="hub-pane-sub hub-welcome">Welcome{% if hub_welcome.guest %}, {{ hub_welcome.guest }}{% endif %}{% if hub_welcome.checkout %} · Checkout {{ hub_welcome.checkout }}{% endif %}</span>
-            {% elif key == 'mountain' and hub_weather_top %}<span class="hub-pane-sub"><span class="temperature" data-metric="{{ hub_weather_top.temperature }}" data-unit="C">{{ hub_weather_top.temperature }}°C</span> up top</span>{% endif %}
+            {% elif key == hub_weather_key and hub_weather_top %}<span class="hub-pane-sub"><span class="temperature" data-metric="{{ hub_weather_top.temperature }}" data-unit="C">{{ hub_weather_top.temperature }}°C</span> up top</span>{% endif %}
         </h2>
         <div class="hub-tiles">
             {% for tile in tiles %}
