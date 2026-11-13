@@ -17,6 +17,9 @@
     .loc-list small { display: block; color: var(--mut); font-size: 13px; }
     .loc-msg { color: var(--mut); font-size: 14px; padding: 8px 14px 0; }
     .loc-msg:empty { display: none; }
+    .loc-unit { cursor: pointer; }
+    .loc-unit input { width: 22px; height: 22px; margin: 0; accent-color: var(--acc, #5ba4e6); }
+    .hst-card > .loc-msg { padding: 0 22px 16px; margin: 0; }
 </style>
 <form method="post" id="loc-form" novalidate{% if error %} data-dirty{% endif %}>
     {% csrf_token %}
@@ -31,7 +34,7 @@
     <div class="hst-head">
         <div>
             <h2>Location</h2>
-            <p>Where the hub is. Apps use it for the weather and to show local times.</p>
+            <p>Where the hub is, and the units it shows. Apps use these for the weather, local times and measurements.</p>
         </div>
         <div class="act"><button type="submit" class="hst-btn" data-save>Save</button></div>
     </div>
@@ -78,6 +81,18 @@
                    placeholder="Search time zones, e.g. Vancouver" aria-label="Search time zones" aria-controls="loc-tz-results">
             <ul class="loc-list" id="loc-tz-results"></ul>
         </div>
+    </section>
+    <section class="hst-card">
+        <h3>Units</h3>
+        <div role="radiogroup" aria-label="Units">
+            {% for val, l, hint in unit_choices %}
+            <label class="hst-row loc-unit">
+                <span class="lbl"><b>{{ l }}</b><small>{{ hint }}</small></span>
+                <span class="ctl"><input type="radio" name="units" value="{{ val }}"{% if val == hub_units %} checked{% endif %}></span>
+            </label>
+            {% endfor %}
+        </div>
+        <p class="loc-msg">The same as the °C/°F switch on the home screen; every app uses it.</p>
     </section>
 </form>
 {{ zones|json_script:"loc-zones" }}

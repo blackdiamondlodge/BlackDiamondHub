@@ -12,6 +12,7 @@ from django.urls import NoReverseMatch, reverse
 from hub.modes import (
     GROUP_KEY, LAYOUT_APP, LAYOUT_KEY, MAX_GROUPS, MAX_TITLE, SIZES, plugins, tiles_for_mode,
 )
+from bdh_sdk import units
 from bdh_sdk.location import location as hub_location
 from bdh_sdk.plugins import BOOL, MULTI
 
@@ -351,11 +352,25 @@ def _parse_location(post):
     }, ""
 
 
+UNIT_CHOICES = (("metric", "Metric", "°C, km, m"), ("imperial", "Imperial", "°F, miles, ft"))
+
+
+def _save_units(request):
+    """The hub-wide units; the same value as the home screen's °C/°F switch."""
+    system = request.POST.get("units")
+    if system in (units.METRIC, units.IMPERIAL) and system != units.system():
+        AppSetting.objects.update_or_create(
+            app_id="hub", key="units", defaults={"value": system, "updated_by": request.user})
+        from hub import status
+        status.forget_units()
+
+
 @staff_page
 def location_settings(request):
     saved = AppSetting.objects.filter(app_id=LOCATION_APP, key=LOCATION_KEY).first()
     error = ""
     if request.method == "POST":
+        _save_units(request)
         value, error = _parse_location(request.POST)
         if value is not None:
             AppSetting.objects.update_or_create(
@@ -381,4 +396,5 @@ def location_settings(request):
     return _render(request, "hub_settings/location.html", "location", loc=current, error=error, coords=coords,
                    from_site=saved is None and request.method != "POST" and bool(current["timezone"]),
                    zones=sorted(_zones() | ({current["timezone"]} if current.get("timezone") else set())),
-                   just_saved=request.GET.get("saved") == "1", status=400 if error else 200)
+                   just_saved=request.GET.get("saved") == "1", status=400 if error else 200,
+                   unit_choices=UNIT_CHOICES, hub_units=request.POST.get("units") or units.system())
