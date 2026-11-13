@@ -9,6 +9,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import NoReverseMatch, reverse
 
+from hub import quick, status
 from hub.modes import (
     GROUP_KEY, LAYOUT_APP, LAYOUT_KEY, MAX_GROUPS, MAX_TITLE, SIZES, plugins, tiles_for_mode,
 )
@@ -27,8 +28,7 @@ def _is_staff(user):
 staff_page = user_passes_test(_is_staff)
 
 
-def _label(spec):
-    return spec.tiles[0].title if spec.tiles else spec.id.replace("_", " ").title()
+_label = quick.app_label
 
 
 def _icon(spec):
@@ -80,6 +80,7 @@ def _lodge_sections():
         {"id": "location", "label": "Location", "icon": "fa-location-dot", "url": reverse("hub_settings_location")},
     ] + custom + [
         {"id": "home", "label": "Home layout", "icon": "fa-table-cells-large", "url": reverse("hub_settings_home")},
+        {"id": "quick", "label": "Quick actions", "icon": "fa-bolt", "url": reverse("hub_settings_quick")},
         {"id": "apps", "label": "Apps", "icon": "fa-puzzle-piece", "url": reverse("hub_settings_apps"),
          "count": len(plugins())},
     ]
@@ -181,6 +182,78 @@ def home_layout(request):
     return _render(request, "hub_settings/home_layout.html", "home", sections=sections,
                    customised=customised, just_saved=request.GET.get("saved") == "1",
                    max_title=MAX_TITLE, max_groups=MAX_GROUPS)
+
+
+def _quick_apps(prefs):
+    """Apps with quick actions, in bar order, with their buttons and allowed modes."""
+    found = status.all_shortcuts()
+    specs = {s.id: s for s in plugins() if s.id in found}
+    labels = {app_id: _label(spec) for app_id, spec in specs.items()}
+    pinned = set(prefs["pinned"])
+    apps = []
+    for app_id in sorted(specs, key=quick.app_rank(prefs, labels)):
+        buttons = sorted(found[app_id], key=lambda sc: (sc["order"], sc["title"]))
+        offered = {m for sc in buttons for m in sc["modes"]}
+        apps.append({
+            "id": app_id, "label": labels[app_id], "img": _icon(specs[app_id]),
+            "buttons": [{**sc, "key": f"{app_id}/{sc['id']}", "pinned": f"{app_id}/{sc['id']}" in pinned}
+                        for sc in buttons],
+            "modes": [{"id": m, "label": label, "offered": m in offered,
+                       "on": m in offered and quick.app_allows(prefs, app_id, m)}
+                      for m, label in quick.MODES],
+        })
+    return apps
+
+
+def _parse_quick(raw, apps):
+    """Validate posted quick-action preferences against ``apps``; None if malformed."""
+    try:
+        posted = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(posted, dict) or not isinstance(posted.get("grouped"), bool):
+        return None
+    pinned, order, modes = posted.get("pinned"), posted.get("order"), posted.get("modes")
+    if not isinstance(pinned, list) or not isinstance(order, list) or not isinstance(modes, dict):
+        return None
+    known = {a["id"] for a in apps}
+    buttons = {b["key"] for a in apps for b in a["buttons"]}
+    mode_ids = [m for m, _label in quick.MODES]
+    saved_modes = {}
+    for app_id, allowed in modes.items():
+        if app_id not in known or not isinstance(allowed, list):
+            continue
+        allowed = [m for m in mode_ids if m in allowed]
+        offered = {m["id"] for a in apps if a["id"] == app_id for m in a["modes"] if m["offered"]}
+        # Only narrowing is saved: an app allowed everywhere it offers buttons keeps defaults.
+        if not offered <= set(allowed):
+            saved_modes[app_id] = allowed
+    return {
+        "grouped": posted["grouped"],
+        "pinned": list(dict.fromkeys(p for p in pinned if p in buttons)),
+        "order": list(dict.fromkeys(a for a in order if a in known)),
+        "modes": saved_modes,
+    }
+
+
+@staff_page
+def quick_actions(request):
+    prefs = quick.prefs()
+    apps = _quick_apps(prefs)
+    if request.method == "POST":
+        if request.POST.get("reset"):
+            AppSetting.objects.filter(app_id=quick.QUICK_APP, key=quick.QUICK_KEY).delete()
+            return redirect(f"{request.path}?saved=1")
+        value = _parse_quick(request.POST.get("quick", ""), apps)
+        if value is None:
+            return _render(request, "hub_settings/quick_actions.html", "quick", apps=apps, prefs=prefs,
+                           has_errors=True, status=400)
+        AppSetting.objects.update_or_create(
+            app_id=quick.QUICK_APP, key=quick.QUICK_KEY, defaults={"value": value, "updated_by": request.user})
+        return redirect(f"{request.path}?saved=1")
+    customised = AppSetting.objects.filter(app_id=quick.QUICK_APP, key=quick.QUICK_KEY).exists()
+    return _render(request, "hub_settings/quick_actions.html", "quick", apps=apps, prefs=prefs,
+                   customised=customised, just_saved=request.GET.get("saved") == "1")
 
 
 def _spec(app_id):

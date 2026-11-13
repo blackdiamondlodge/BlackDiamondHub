@@ -505,6 +505,58 @@ class ShortcutApiTests(TestCase):
             validate([PluginSpec(id="a", app="a", shortcuts="a.homepage.shortcuts")])
 
 
+def chime_shortcuts():
+    return [Shortcut(id="dinner", title="Dinner", icon="fa-solid fa-bullhorn", modes=ALL_MODES)]
+
+
+QUICK_PLUGINS = STATUS_PLUGINS + (
+    _spec("announce", shortcuts="hub.tests.test_hub.chime_shortcuts", run_shortcut="hub.tests.test_hub.demo_run"),
+)
+
+
+@override_settings(HUB_PLUGINS=QUICK_PLUGINS)
+class QuickBarPrefsTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        HOOK_STATE.clear()
+        hub_store.clear()
+        self.addCleanup(hub_store.clear)
+
+    def save(self, **value):
+        AppSetting.objects.update_or_create(app_id="hub", key="quick", defaults={"value": value})
+
+    def bar(self, mode=DASHBOARD):
+        data = home_data(mode)
+        return data, [(s["plugin"], s["id"], s["pinned"]) for s in data["shortcuts"]]
+
+    def test_defaults_group_by_app_name(self):
+        data, bar = self.bar()
+        self.assertTrue(data["grouped"])
+        self.assertEqual(bar, [("announce", "dinner", False), ("lights", "movie", False)])
+        self.assertEqual(data["shortcuts"][1]["app"], "lights")
+
+    def test_saved_order_pins_and_grouping_apply(self):
+        self.save(grouped=False, pinned=["lights/movie", "nope/x"], order=["lights"])
+        data, bar = self.bar()
+        self.assertFalse(data["grouped"])
+        self.assertEqual(bar, [("lights", "movie", True), ("announce", "dinner", False)])
+
+    def test_app_mode_restriction_hides_and_blocks_buttons(self):
+        self.save(modes={"lights": ["owner"]})
+        self.assertEqual(self.bar()[1], [("announce", "dinner", False)])
+        self.assertEqual(self.client.post("/hub/api/shortcut/lights/movie/").status_code, 404)
+        self.assertNotIn("ran", HOOK_STATE)
+
+        self.client.force_login(User.objects.create_user("owner"))
+        self.assertEqual(self.client.post("/hub/api/shortcut/lights/movie/").status_code, 200)
+
+    def test_malformed_saved_value_falls_back_to_defaults(self):
+        AppSetting.objects.create(app_id="hub", key="quick", value=["junk"])
+        data, bar = self.bar()
+        self.assertTrue(data["grouped"])
+        self.assertEqual([b[0] for b in bar], ["announce", "lights"])
+
+
 def rows_status(mode):
     HOOK_STATE["status_calls"] = HOOK_STATE.get("status_calls", 0) + 1
     rows = [StatusRow(id="kitchen", title="Kitchen", detail="Song – Artist",

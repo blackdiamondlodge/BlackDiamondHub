@@ -11,10 +11,12 @@
 # Installed apps register through the "blackdiamondhub.plugins" entry point.
 #
 # Same pins as sites/sunpeaks/apps.txt; bump both together. Exception:
-# bdh-app-weather is Mercer Island only (Sun Peaks uses its snow report).
+# bdh-app-weather is Mercer Island only (Sun Peaks uses its snow report), and so is
+# bdh-app-announcements (Sun Peaks has no Alexa speakers).
 
 bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.7.4/bdh_app_cameras-1.7.4-py3-none-any.whl --hash=sha256:3778429f77552e30d2252d119dca9252b6464010e5f5254d12ae0e54ade86546
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v2.5.0/bdh_app_sonos_control-2.5.0-py3-none-any.whl --hash=sha256:02be4a3c92aac24e6fb0bbc30768cd3b043e39ddc3bac920605ce2b3ede16c95
 bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.3.0/bdh_app_wifi-1.3.0-py3-none-any.whl --hash=sha256:088a97356790d3050a98e4c1f40681b82d0b119d7b9d765f6994e8c474aa96d5
 bdh-app-weather @ https://github.com/blackdiamondlodge/bdh-app-weather/releases/download/v1.6.0/bdh_app_weather-1.6.0-py3-none-any.whl --hash=sha256:d75b6beec247afcb26e369d823c17ddbe5a864647ac30b03369ba3f3b8a1b94b
 bdh-app-calendar @ https://github.com/blackdiamondlodge/bdh-app-calendar/releases/download/v1.0.3/bdh_app_calendar-1.0.3-py3-none-any.whl --hash=sha256:ca7ad3189d3bd8357feba0e707ee7e9e60e12a0b3b45101475fb4d4b4c1ab515
+bdh-app-announcements @ https://github.com/blackdiamondlodge/bdh-app-announcements/releases/download/v1.0.0/bdh_app_announcements-1.0.0-py3-none-any.whl --hash=sha256:5c28ca76de2406833a349886c683940a961c7fcff4ff7fb7327f9ea463aec7fe
