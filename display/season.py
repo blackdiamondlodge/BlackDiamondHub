@@ -1,6 +1,5 @@
 """Which season the screensaver shows."""
 from datetime import date, datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 
 from .options import SEASON_IDS
 
@@ -9,10 +8,10 @@ EARLY_WINDOW = timedelta(days=30)
 
 
 def lodge_tz():
-    """The site's time zone (``timezone`` in its site.toml), UTC if it has none."""
-    from django.conf import settings
+    """The hub's time zone (Settings > Location), UTC if it has none."""
+    from bdh_sdk.location import tzinfo
 
-    return ZoneInfo(settings.HUB_LOCATION.get("timezone") or "UTC")
+    return tzinfo()
 
 
 def lodge_today(now=None):
