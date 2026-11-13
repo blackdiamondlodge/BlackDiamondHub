@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
+      # Both sites share base layers; pushing them to the same GHCR repo in
+      # parallel races on blob uploads ("unknown blob"), so build one at a time.
+      max-parallel: 1
       matrix:
         # One image per site (sites/<site>/). Sun Peaks also owns :latest and the
         # bare :sha-<commit> tag, which homehub's Watchtower and rollbacks use.
