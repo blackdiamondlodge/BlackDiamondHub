@@ -363,9 +363,10 @@
         .hub-card, .hub-tile-m .hub-card, .hub-tile-s .hub-card { flex-direction: column; align-items: stretch; padding: 16px 18px; }
         .hub-tile-m .hub-card-readings { margin: 0; }
         .hub-bar { position: static; height: auto; margin-top: 16px; flex-wrap: wrap; }
-        .hub-quick { flex-wrap: wrap; overflow: visible; gap: 10px; }
+        .hub-quick { flex-wrap: wrap; overflow: visible; gap: 10px; width: 100%; }
         .hub-quick-label { width: 100%; }
         .hub-bar.is-grouped { height: auto; }
+        .hub-quick-grp { flex-shrink: 1; min-width: 0; max-width: 100%; }
         .hub-quick-row { flex-wrap: wrap; }
         .hub-quick-sep { display: none; }
         .hub-quick-btn { font-size: 17px; padding: 12px 16px; }
@@ -772,7 +773,8 @@
             return g;
         }
 
-        // Draw the groups; each is 'open', 'folded' or 'other' (merged).
+        // Draw the groups; each is 'open', 'other' (merged) or the number of
+        // its unpinned buttons still shown, the rest behind an "N more" chip.
         function draw(states) {
             closePop();
             quick.querySelectorAll('.hub-quick-grp, .hub-quick-sep').forEach(function (n) { n.remove(); });
@@ -784,9 +786,13 @@
                 if (states[i] === 'open') {
                     buttons = g.items.map(function (sc) { return quickBtn(sc); });
                 } else {
-                    var rest = g.items.filter(function (sc) { return !sc.pinned; });
-                    buttons = g.items.filter(function (sc) { return sc.pinned; })
-                        .map(function (sc) { return quickBtn(sc); });
+                    var keep = states[i], rest = [];
+                    buttons = g.items.filter(function (sc) {
+                        if (sc.pinned) return true;
+                        if (keep > 0) { keep--; return true; }
+                        rest.push(sc);
+                        return false;
+                    }).map(function (sc) { return quickBtn(sc); });
                     var label = shown.grouped || buttons.length ? rest.length + ' more' : g.app;
                     buttons.push(chip(label, [{ title: g.app, items: rest }]));
                 }
@@ -812,14 +818,18 @@
             draw(states);
             // Small screens wrap the bar instead.
             if (narrow.matches || quick.hidden) return;
+            // Fold one button at a time from the group showing the most
+            // unpinned ones, so busy groups shrink first and evenly.
             while (overflowing()) {
                 var best = -1, most = 0;
                 groups.forEach(function (g, i) {
-                    var loose = g.items.filter(function (sc) { return !sc.pinned; }).length;
-                    if (states[i] === 'open' && loose > most) { best = i; most = loose; }
+                    var loose = states[i] === 'open'
+                        ? g.items.filter(function (sc) { return !sc.pinned; }).length
+                        : states[i];
+                    if (loose > most) { best = i; most = loose; }
                 });
                 if (best < 0) break;
-                states[best] = 'folded';
+                states[best] = most - 1;
                 draw(states);
             }
             if (!overflowing()) return;

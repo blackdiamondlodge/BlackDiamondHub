@@ -35,11 +35,16 @@
     .qa-pinhead { width: 44px; text-align: center; }
     .qa-tip { color: var(--mut); font-size: 14px; margin: 0; padding: 10px 22px 16px; }
     .qa-empty { padding: 26px 22px; color: var(--mut); }
+    .qa-cols > label { margin: 0; cursor: pointer; }
+    .qa-mlbl { display: none; }
+    /* Phones: each app's mode checkboxes get their own labelled row. */
     @media (max-width: 700px) {
-        .qa-cols > * { width: 56px; }
-        .qa-head .qa-cols span { font-size: 10px; letter-spacing: .04em; }
+        .qa-head .qa-cols, .qa-btn .modes, .qa-mv { display: none; }
+        .qa-app { flex-wrap: wrap; row-gap: 4px; }
+        .qa-app .qa-cols { width: 100%; padding-left: 56px; gap: 22px; }
+        .qa-cols > * { width: auto; display: flex; align-items: center; gap: 8px; }
+        .qa-mlbl { display: inline; color: var(--mut); font-size: 14px; }
         .qa-btn { padding-left: 22px; }
-        .qa-mv { display: none; }
     }
 </style>
 
@@ -98,9 +103,9 @@
                     <button type="button" class="qa-mv down" title="Move {{ app.label }} right" aria-label="Move {{ app.label }} later"><i class="fas fa-arrow-down"></i></button>
                     <span class="qa-cols">
                         {% for m in app.modes %}
-                        <span><input type="checkbox" class="qa-chk qa-mode" data-mode="{{ m.id }}"
+                        <label><input type="checkbox" class="qa-chk qa-mode" data-mode="{{ m.id }}"
                                      aria-label="Show {{ app.label }} in {{ m.label }} mode"
-                                     {% if m.on %} checked{% endif %}{% if not m.offered %} disabled title="{{ app.label }} has no buttons for {{ m.label }} mode"{% endif %}></span>
+                                     {% if m.on %} checked{% endif %}{% if not m.offered %} disabled title="{{ app.label }} has no buttons for {{ m.label }} mode"{% endif %}><span class="qa-mlbl" aria-hidden="true">{{ m.label }}</span></label>
                         {% endfor %}
                     </span>
                 </div>
