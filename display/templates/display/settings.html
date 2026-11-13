@@ -192,7 +192,7 @@
                             <p>Images drift slowly to protect the screen and crossfade between each other. Portrait photos show whole over a soft blurred fill. With <b>Mix</b>, the background rotates between the paintings, your photos and the live cam.</p>
                             <label class="dsp-line">
                                 <span>Change every</span>
-                                <input type="range" name="rotate_seconds" min="30" max="600" step="30" value="{{ v.rotate_seconds }}" id="dsp-rot">
+                                <input type="range" name="rotate_seconds" min="15" max="90" step="5" value="{{ v.rotate_seconds }}" id="dsp-rot">
                                 <output for="dsp-rot" id="dsp-rot-out">{{ v.rotate_seconds }} s</output>
                             </label>
                             {% if errors.rotate_seconds %}<small style="color:var(--red)">{{ errors.rotate_seconds }}</small>{% endif %}
@@ -456,10 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => select(b.dataset.tab)));
     const rot = document.getElementById('dsp-rot');
-    const showRot = () => {
-        const s = +rot.value, m = Math.floor(s / 60);
-        document.getElementById('dsp-rot-out').textContent = s < 60 ? s + ' s' : m + (s % 60 ? '\u00bd' : '') + ' min';
-    };
+    const showRot = () => { document.getElementById('dsp-rot-out').textContent = rot.value + ' s'; };
     rot.addEventListener('input', showRot);
     showRot();
     const dim = document.getElementById('dsp-dim');
