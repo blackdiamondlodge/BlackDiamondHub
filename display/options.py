@@ -24,6 +24,7 @@ HOME_BACKGROUNDS = (
 )
 HOME_TILES = (
     ("solid", "Solid"),
+    ("crystal", "Crystal glass"),
     ("clear", "Clear glass"),
     ("frosted", "Frosted glass"),
     ("dark", "Dark glass"),

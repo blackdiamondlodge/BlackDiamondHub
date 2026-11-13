@@ -362,6 +362,13 @@ class ViewTests(TestCase):
         self.assertContains(page, " tiles-dark has-bg")
         self.assertContains(page, f"--dim: 0.30; background-image: url('{art[today.toordinal() % len(art)]}')")
 
+    def test_home_crystal_glass(self):
+        AppSetting.objects.create(app_id="display", key="home_bg", value="art")
+        AppSetting.objects.create(app_id="display", key="home_tiles", value="crystal")
+        with mock.patch("display.views.current_season_safe", return_value="winter"):
+            page = self.home()
+        self.assertContains(page, " tiles-crystal has-bg")
+
     def test_home_photos_fall_back_to_art(self):
         AppSetting.objects.create(app_id="display", key="home_bg", value="photos")
         with mock.patch("display.views.current_season_safe", return_value="summer"), \
