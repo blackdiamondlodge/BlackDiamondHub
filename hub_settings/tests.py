@@ -1,4 +1,5 @@
 import json
+from unittest import mock
 
 from bdh_sdk.plugins import BOOL, CHOICE, INT, MULTI, TIME
 from bdh_sdk.settings import app_setting
@@ -269,3 +270,103 @@ class AppStateTests(TestCase):
         state.delete("lifts_opened")
         self.assertNotIn("lifts_opened", state)
         self.assertFalse(AppState.objects.exists())
+
+
+SUN_PEAKS = {"name": "Sun Peaks", "admin1": "British Columbia", "country": "Canada", "country_code": "CA",
+             "latitude": 50.88, "longitude": -119.91, "timezone": "America/Vancouver"}
+WATERLOO = {"name": "Waterloo", "admin1": "Ontario", "country": "Canada", "country_code": "CA",
+            "latitude": 43.46, "longitude": -80.52, "timezone": "America/Toronto"}
+WATERLOO_BE = {"name": "Waterloo", "admin1": "Wallonia", "country": "Belgium", "country_code": "BE",
+               "latitude": 50.71, "longitude": 4.4, "timezone": "Europe/Brussels"}
+
+
+class LocationPageTests(TestCase):
+    url = "/settings/location/"
+    search = "/settings/location/search/"
+
+    def setUp(self):
+        store.clear()
+        self.addCleanup(store.clear)
+        User = get_user_model()
+        self.staff = User.objects.create_user("staff", password="pw", is_staff=True)
+        self.guest = User.objects.create_user("guest", password="pw")
+
+    def post(self, **overrides):
+        data = {"name": "Sun Peaks", "region": "British Columbia", "country": "Canada", "country_code": "ca",
+                "latitude": "50.8833", "longitude": "-119.9", "geo_timezone": "America/Vancouver",
+                "tz_auto": "on", "timezone": ""}
+        data.update(overrides)
+        return self.client.post(self.url, {k: v for k, v in data.items() if v is not None})
+
+    def geocode(self, *rows):
+        reply = mock.Mock()
+        reply.json.return_value = {"results": list(rows)}
+        return mock.patch("hub_settings.views.requests.get", return_value=reply)
+
+    def test_staff_only(self):
+        self.client.force_login(self.guest)
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        self.assertEqual(self.client.get(self.search, {"q": "sun"}).status_code, 302)
+
+    def test_listed_first_in_settings(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(self.url)
+        self.assertContains(response, "Search for a city")
+        self.assertEqual(response.context["lodge_sections"][0]["id"], "location")
+
+    def test_save_with_automatic_time_zone(self):
+        from bdh_sdk.location import location, tzinfo
+        self.client.force_login(self.staff)
+        response = self.post(timezone="Europe/Paris")
+        self.assertRedirects(response, self.url + "?saved=1", fetch_redirect_response=False)
+        saved = AppSetting.objects.get(app_id="hub", key="location").value
+        self.assertEqual(saved["timezone"], "America/Vancouver")
+        self.assertEqual(saved["country_code"], "CA")
+        self.assertTrue(saved["tz_auto"])
+        self.assertEqual(location().label, "Sun Peaks, British Columbia, Canada")
+        self.assertEqual(str(tzinfo()), "America/Vancouver")
+        self.assertContains(self.client.get(self.url + "?saved=1"), "50.88, -119.90")
+
+    def test_save_with_chosen_time_zone(self):
+        self.client.force_login(self.staff)
+        self.post(tz_auto=None, timezone="America/Edmonton")
+        saved = AppSetting.objects.get(app_id="hub", key="location").value
+        self.assertEqual((saved["timezone"], saved["geo_timezone"], saved["tz_auto"]),
+                         ("America/Edmonton", "America/Vancouver", False))
+
+    def test_rejects_bad_values(self):
+        self.client.force_login(self.staff)
+        for overrides in ({"latitude": "91"}, {"longitude": "x"}, {"name": ""},
+                          {"tz_auto": None, "timezone": "Mars/Base"},
+                          {"geo_timezone": ""}):
+            with self.subTest(**overrides):
+                self.assertEqual(self.post(**overrides).status_code, 400)
+        self.assertFalse(AppSetting.objects.filter(app_id="hub", key="location").exists())
+
+    def test_search_returns_places(self):
+        self.client.force_login(self.staff)
+        with self.geocode(SUN_PEAKS) as get:
+            data = self.client.get(self.search, {"q": "sun peaks"}).json()
+        self.assertEqual(get.call_args.kwargs["params"]["name"], "sun peaks")
+        self.assertEqual(data["results"][0]["label"], "Sun Peaks, British Columbia, Canada")
+        self.assertEqual(data["results"][0]["timezone"], "America/Vancouver")
+
+    def test_search_narrows_by_text_after_a_comma(self):
+        self.client.force_login(self.staff)
+        with self.geocode(WATERLOO, WATERLOO_BE) as get:
+            data = self.client.get(self.search, {"q": "Waterloo, belgium"}).json()
+        self.assertEqual(get.call_args.kwargs["params"]["name"], "Waterloo")
+        self.assertEqual([p["country"] for p in data["results"]], ["Belgium"])
+
+    def test_search_needs_two_letters(self):
+        self.client.force_login(self.staff)
+        with self.geocode(SUN_PEAKS) as get:
+            self.assertEqual(self.client.get(self.search, {"q": "s"}).json(), {"results": []})
+        get.assert_not_called()
+
+    def test_search_failure_is_502(self):
+        import requests
+        self.client.force_login(self.staff)
+        with mock.patch("hub_settings.views.requests.get", side_effect=requests.ConnectionError):
+            self.assertEqual(self.client.get(self.search, {"q": "sun"}).status_code, 502)
+

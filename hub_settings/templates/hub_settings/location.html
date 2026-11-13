@@ -1,0 +1,194 @@
+{% extends 'hub_settings/_layout.html' %}
+
+{% block section %}
+<style>
+    .loc-now { font-size: 18px; }
+    .loc-now small { display: block; color: var(--mut); font-size: 13.5px; margin-top: 3px; }
+    .loc-find { padding: 4px 22px 18px; }
+    .loc-find .hst-in { width: 100%; }
+    .loc-list { list-style: none; margin: 8px 0 0; padding: 0; overflow-y: auto;
+                max-height: max(160px, calc(100vh - var(--hub-kb-h, 0px) - 220px)); }
+    .loc-list:empty { display: none; }
+    .loc-list button {
+        display: block; width: 100%; text-align: left; background: none; border: 0; color: var(--fg);
+        min-height: 52px; padding: 8px 14px; border-radius: 12px; font-size: 16px;
+    }
+    .loc-list button:hover, .loc-list button:focus-visible { background: rgba(91,164,230,.14); }
+    .loc-list small { display: block; color: var(--mut); font-size: 13px; }
+    .loc-msg { color: var(--mut); font-size: 14px; padding: 8px 14px 0; }
+    .loc-msg:empty { display: none; }
+</style>
+<form method="post" id="loc-form" novalidate{% if error %} data-dirty{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="name" value="{{ loc.name|default:'' }}">
+    <input type="hidden" name="region" value="{{ loc.region|default:'' }}">
+    <input type="hidden" name="country" value="{{ loc.country|default:'' }}">
+    <input type="hidden" name="country_code" value="{{ loc.country_code|default:'' }}">
+    <input type="hidden" name="latitude" value="{{ loc.latitude|default_if_none:''|stringformat:'s' }}">
+    <input type="hidden" name="longitude" value="{{ loc.longitude|default_if_none:''|stringformat:'s' }}">
+    <input type="hidden" name="geo_timezone" value="{{ loc.geo_timezone|default:'' }}">
+    <input type="hidden" name="timezone" value="{{ loc.timezone|default:'' }}">
+    <div class="hst-head">
+        <div>
+            <h2>Location</h2>
+            <p>Where the hub is. Apps use it for the weather and to show local times.</p>
+        </div>
+        <div class="act"><button type="submit" class="hst-btn" data-save>Save</button></div>
+    </div>
+    {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
+    {% if error %}<div class="hst-note bad" role="alert">{{ error }}</div>{% endif %}
+    {% if from_site %}<div class="hst-note" style="background:rgba(91,164,230,.10);color:var(--mut)">Not set here yet; the hub is using its site file's time zone ({{ loc.timezone }}). Pick a city to set it.</div>{% endif %}
+    <section class="hst-card">
+        <h3>City</h3>
+        <div class="hst-row">
+            <div class="lbl loc-now" id="loc-now">
+                {% if loc.label %}{{ loc.label }}{% else %}Not set{% endif %}
+                <small id="loc-coords">{{ coords }}</small>
+            </div>
+        </div>
+        <div class="loc-find">
+            <input type="search" class="hst-in" id="loc-q" data-clean autocomplete="off" spellcheck="false"
+                   placeholder="Search for a city, e.g. Sun Peaks, Canada" aria-label="Search for a city" aria-controls="loc-results">
+            <div class="loc-msg" id="loc-msg" role="status"></div>
+            <ul class="loc-list" id="loc-results"></ul>
+        </div>
+    </section>
+    <section class="hst-card">
+        <h3>Time zone</h3>
+        <div class="hst-row">
+            <label class="lbl" for="loc-auto">
+                <b>Set automatically from the city</b>
+                <small id="loc-auto-help">{% if loc.geo_timezone %}{{ loc.geo_timezone }}{% else %}Pick a city first.{% endif %}</small>
+            </label>
+            <div class="ctl">
+                <span class="hst-tog">
+                    <input type="checkbox" role="switch" id="loc-auto" name="tz_auto"{% if loc.tz_auto %} checked{% endif %}>
+                    <span></span>
+                </span>
+            </div>
+        </div>
+        <div class="hst-row">
+            <div class="lbl">
+                <b id="loc-tz">{{ loc.timezone|default:'Not set' }}</b>
+                <small id="loc-clock"></small>
+            </div>
+        </div>
+        <div class="loc-find" id="loc-tz-find"{% if loc.tz_auto %} hidden{% endif %}>
+            <input type="search" class="hst-in" id="loc-tz-q" data-clean autocomplete="off" spellcheck="false"
+                   placeholder="Search time zones, e.g. Vancouver" aria-label="Search time zones" aria-controls="loc-tz-results">
+            <ul class="loc-list" id="loc-tz-results"></ul>
+        </div>
+    </section>
+</form>
+{{ zones|json_script:"loc-zones" }}
+<script>
+(function () {
+    var form = document.getElementById('loc-form');
+    var f = function (n) { return form.elements[n]; };
+    var auto = document.getElementById('loc-auto');
+    var zones = JSON.parse(document.getElementById('loc-zones').textContent);
+    var searchUrl = "{% url 'hub_settings_location_search' %}";
+
+    function changed() { form.dispatchEvent(new Event('change')); }
+    function el(tag, text, cls) { var e = document.createElement(tag); if (text) e.textContent = text; if (cls) e.className = cls; return e; }
+
+    function clock() {
+        var tz = f('timezone').value, out = document.getElementById('loc-clock');
+        if (!tz) { out.textContent = ''; return; }
+        try {
+            out.textContent = 'Local time now: ' + new Intl.DateTimeFormat(undefined, {
+                timeZone: tz, weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date());
+        } catch (e) { out.textContent = ''; }
+    }
+    function setZone(tz) {
+        f('timezone').value = tz;
+        document.getElementById('loc-tz').textContent = tz || 'Not set';
+        clock();
+    }
+    function syncAuto() {
+        document.getElementById('loc-tz-find').hidden = auto.checked;
+        if (auto.checked) setZone(f('geo_timezone').value);
+    }
+    auto.addEventListener('change', syncAuto);
+
+    // Put the box near the top so the results sit above the on-screen keyboard.
+    function lift(input) {
+        input.addEventListener('focus', function () {
+            setTimeout(function () {
+                var top = input.getBoundingClientRect().top;
+                if (top > 140) window.scrollBy({ top: top - 100, behavior: 'smooth' });
+            }, 350);
+        });
+    }
+
+    var q = document.getElementById('loc-q'), list = document.getElementById('loc-results');
+    var msg = document.getElementById('loc-msg'), timer = null, seq = 0;
+    lift(q);
+    q.addEventListener('input', function () {
+        clearTimeout(timer);
+        var text = q.value.trim();
+        if (text.length < 2) { list.replaceChildren(); msg.textContent = ''; return; }
+        timer = setTimeout(function () {
+            var mine = ++seq;
+            msg.textContent = 'Searching…';
+            fetch(searchUrl + '?q=' + encodeURIComponent(text), { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (mine !== seq) return;
+                    var rows = data.results || [];
+                    msg.textContent = data.error || (rows.length ? '' : 'No cities found. Try just the city name.');
+                    list.replaceChildren.apply(list, rows.map(function (p) {
+                        var b = el('button', p.name);
+                        b.type = 'button';
+                        b.appendChild(el('small', [p.region, p.country].filter(Boolean).join(', ')));
+                        b.addEventListener('click', function () { pick(p); });
+                        var li = el('li'); li.appendChild(b); return li;
+                    }));
+                })
+                .catch(function () { if (mine === seq) msg.textContent = "City search isn't available right now."; });
+        }, 300);
+    });
+    function pick(p) {
+        ['name', 'region', 'country', 'country_code', 'latitude', 'longitude'].forEach(function (k) {
+            f(k).value = p[k] == null ? '' : p[k];
+        });
+        f('geo_timezone').value = p.timezone || '';
+        var now = document.getElementById('loc-now');
+        now.firstChild.textContent = p.label + ' ';
+        document.getElementById('loc-coords').textContent = (+p.latitude).toFixed(2) + ', ' + (+p.longitude).toFixed(2);
+        document.getElementById('loc-auto-help').textContent = p.timezone || 'This city has no time zone; pick one below.';
+        if (!p.timezone) auto.checked = false;
+        syncAuto();
+        q.value = ''; list.replaceChildren(); msg.textContent = '';
+        q.blur();
+        changed();
+    }
+
+    var tq = document.getElementById('loc-tz-q'), tlist = document.getElementById('loc-tz-results');
+    lift(tq);
+    tq.addEventListener('input', function () {
+        var words = tq.value.trim().toLowerCase().replace(/ /g, '_').split(/[_,/]+/).filter(Boolean);
+        if (!words.length) { tlist.replaceChildren(); return; }
+        var hits = zones.filter(function (z) {
+            var low = z.toLowerCase();
+            return words.every(function (w) { return low.indexOf(w) >= 0; });
+        }).slice(0, 30);
+        tlist.replaceChildren.apply(tlist, hits.map(function (z) {
+            var b = el('button', z.replace(/_/g, ' '));
+            b.type = 'button';
+            try {
+                b.appendChild(el('small', new Intl.DateTimeFormat(undefined, {
+                    timeZone: z, hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date())));
+            } catch (e) {}
+            b.addEventListener('click', function () {
+                setZone(z); tq.value = ''; tlist.replaceChildren(); tq.blur(); changed();
+            });
+            var li = el('li'); li.appendChild(b); return li;
+        }));
+    });
+
+    clock();
+    setInterval(clock, 30000);
+})();
+</script>
+{% endblock %}
