@@ -244,7 +244,7 @@ class ViewTests(TestCase):
             data[f"source_{s['id']}"] = s["source"]
             data.update({slot["key"]: slot["value"] for slot in s["slots"]})
         data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_seconds="180", cam="", tab="fall",
-                    night="on", night_from="23:00", night_until="06:00",
+                    night="on", night_from="23:00", night_until="06:00", chime_volume="70",
                     home_bg="mountains", home_tiles="solid", home_dim="45")
         data.update(overrides)
         return data
@@ -290,6 +290,16 @@ class ViewTests(TestCase):
         self.client.post(reverse("display_settings"), {k: v for k, v in self.form().items() if k != "night"})
         body = self.client.get(reverse("display_schedule_api")).json()
         self.assertEqual(body, {"enabled": False, "from": None, "until": None, "dark": False})
+
+    def test_chime_volume(self):
+        self.assertEqual(self.client.post(reverse("display_settings"), self.form(chime_volume="120")).status_code, 400)
+        self.client.post(reverse("display_settings"), self.form(chime_volume="35"))
+        self.assertEqual(store.saved("display")["chime_volume"], 35)
+        with mock.patch.object(store, "TTL", 0):
+            page = self.client.get(reverse("display_settings"))
+        self.assertContains(page, 'name="chime_volume" min="0" max="100" step="5" value="35"')
+        self.assertContains(page, '"chime_volume": 35')  # the saver config chimes.js reads
+        self.assertContains(page, "hub/chimes.js")
 
     def home(self):
         # Hook threads (this test's or ones left over from earlier tests) use their own

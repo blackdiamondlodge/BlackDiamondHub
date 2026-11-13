@@ -1,6 +1,7 @@
 /* Pop-up alerts pushed by apps through bdh_sdk.alerts (see hub/alerts.py).
  * One alert at a time: the newest replaces the current one, and a repeat of the
- * same key just restarts its countdown (unless "Keep open" was tapped).
+ * same key just restarts its countdown (unless "Keep open" was tapped). A new
+ * alert plays its sound (chimes.js) unless it's the night window.
  * Only the hub's own display listens. */
 (function () {
     'use strict';
@@ -73,6 +74,10 @@
         }
         const same = current && current.key === alert.key && current.embed_url === alert.embed_url;
         current = alert;
+        // A new alert chimes; repeats (another ring) and the night window stay quiet.
+        if (!same && window.BDHChimes && !(saver && saver.isNight && saver.isNight())) {
+            window.BDHChimes.play(alert.sound);
+        }
         if (!same) {
             const frame = root.querySelector('.hub-alert-frame');
             frame.textContent = '';

@@ -49,6 +49,8 @@ def _settings():
         Setting("night", "Dark overnight", BOOL, True, "The screensaver goes black between these times"),
         Setting("night_from", "Dark from", default=DEFAULT_NIGHT["from"], help="HH:MM, 24-hour"),
         Setting("night_until", "Dark until", default=DEFAULT_NIGHT["until"], help="HH:MM, 24-hour"),
+        Setting("chime_volume", "Pop-up chime", INT, 70, "Volume of the sound a pop-up plays; quiet overnight",
+                minimum=0, maximum=100, unit="%"),
         Setting("winter_on_lifts", "Let apps bring winter forward", BOOL, True,
                 "Otherwise use the dates below"),
         Setting("rotate_seconds", "Change every", INT, 30, minimum=30, maximum=600, unit="s"),
