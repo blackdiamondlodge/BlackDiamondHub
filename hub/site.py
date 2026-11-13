@@ -51,7 +51,7 @@ def load_site(name=None, sites_dir=SITES_DIR):
         if key not in SECTION_TITLES or not isinstance(title, str) or not title.strip():
             raise ValueError(f"site {name!r}: [sections] {key!r} must be one of "
                              f"{', '.join(SECTION_TITLES)} with a title")
-    return {"name": name, "brand": brand, "location": dict(conf.get("location", {})),
+    return {"name": name, "brand": brand,
             "features": dict(conf.get("features", {})), "sections": sections,
             "apps": {app_id: dict(values) for app_id, values in apps.items()},
             "events": event_sources(name, conf.get("events", {}).get("sources", {}))}

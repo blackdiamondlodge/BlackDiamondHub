@@ -87,7 +87,6 @@ class LoadSiteTests(SimpleTestCase):
         for folder in SITES_DIR.iterdir():
             site = load_site(folder.name)
             self.assertTrue(site["brand"].get("name"), folder.name)
-            self.assertTrue(site["location"].get("timezone"), folder.name)
 
 
 class BrandTests(SimpleTestCase):
@@ -189,21 +188,20 @@ class LocationTests(SimpleTestCase):
     winter = datetime(2027, 1, 15, 20, 0, tzinfo=timezone.utc)
     summer = datetime(2027, 7, 15, 20, 0, tzinfo=timezone.utc)
 
-    def test_sun_peaks_is_utc_minus_7_all_year(self):
-        self.assertEqual(lodge_minute(self.winter), 13 * 60)
-        self.assertEqual(lodge_minute(self.summer), 13 * 60)
+    def at(self, tz):
+        from bdh_sdk.location import Location
+        return patch("bdh_sdk.location.location", return_value=Location(timezone=tz) if tz else None)
 
-    @override_settings(HUB_LOCATION={"timezone": "America/Los_Angeles"})
-    def test_other_sites_follow_their_time_zone(self):
-        self.assertEqual(lodge_minute(self.winter), 12 * 60)
-        self.assertEqual(lodge_minute(self.summer), 13 * 60)
+    def test_follows_the_hub_time_zone(self):
+        with self.at("America/Los_Angeles"):
+            self.assertEqual(lodge_minute(self.winter), 12 * 60)
+            self.assertEqual(lodge_minute(self.summer), 13 * 60)
 
-    @override_settings(HUB_LOCATION={"timezone": "America/Los_Angeles"})
     def test_night_window_offset_is_the_current_one(self):
-        with patch("display.options.value", return_value="23:00"):
+        with self.at("America/Los_Angeles"), patch("display.options.value", return_value="23:00"):
             offset = window()["offset"]
         self.assertIn(offset, (-480, -420))
 
-    @override_settings(HUB_LOCATION={})
     def test_no_location_means_utc(self):
-        self.assertEqual(lodge_minute(self.winter), 20 * 60)
+        with self.at(None):
+            self.assertEqual(lodge_minute(self.winter), 20 * 60)
