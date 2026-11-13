@@ -130,6 +130,7 @@
             const k = [...known.values()].filter(p => p.enabled && (!p.seasons.length || p.seasons.includes(season))).length;
             n.textContent = `${k} photo${k === 1 ? '' : 's'} for ${n.dataset.label}`;
         });
+        document.dispatchEvent(new CustomEvent('dsp-photos', { detail: [...known.values()] }));
     }
 
     function sync(photos, markNew) {

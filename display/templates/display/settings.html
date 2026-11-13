@@ -364,6 +364,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-tab]').forEach(b => { labels[b.dataset.tab] = b.textContent.trim(); });
     const prev = document.getElementById('dsp-prev');
     const stock = JSON.parse(document.getElementById('dsp-stock').textContent);
+    let library = JSON.parse(document.getElementById('dsp-photos').textContent);
+    // What the season's chosen source would put on screen: the owner's photos for
+    // "My photos" and "Mix" (paintings when there are none), otherwise a painting.
+    function previewPool(season) {
+        const src = document.querySelector(`input[name="source_${season}"]:checked`);
+        if (src && (src.value === 'photos' || src.value === 'mix')) {
+            const mine = library.filter(p => p.enabled && (!p.seasons.length || p.seasons.includes(season)));
+            if (mine.length) return mine.map(p => p.image);
+        }
+        return stock[season] || [];
+    }
     function select(season) {
         document.querySelectorAll('[data-tab]').forEach(b => {
             const on = b.dataset.tab === season;
@@ -375,18 +386,27 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('dsp-strip-season').textContent = labels[season];
         document.getElementById('dsp-prev-tag').textContent = 'Preview \u00b7 ' + labels[season];
         document.getElementById('dsp-preview').href = '/?saver=1&saver_season=' + season;
+        paintPrev();
+    }
+    function paintPrev() {
+        const season = document.getElementById('dsp-tab').value;
+        const pool = previewPool(season);
+        const shown = prev.querySelector('img');
+        if (shown && prev.dataset.season === season && pool.includes(shown.getAttribute('src'))) return;
+        prev.dataset.season = season;
         prev.querySelectorAll('svg, img').forEach(el => el.remove());
         if (window.BDHSaver) prev.insertAdjacentHTML('afterbegin', window.BDHSaver.scene(season));
-        // A painting from the season's set, over the drawn scene in case it doesn't load.
-        const art = stock[season] || [];
-        if (art.length) {
+        // A picture from the chosen source, over the drawn scene in case it doesn't load.
+        if (pool.length) {
             const img = new Image();
             img.alt = '';
             img.onerror = () => img.remove();
-            img.src = art[Math.floor(Math.random() * art.length)];
+            img.src = pool[Math.floor(Math.random() * pool.length)];
             prev.querySelector('svg') ? prev.querySelector('svg').after(img) : prev.prepend(img);
         }
     }
+    document.querySelectorAll('.dsp-src input[type="radio"]').forEach(r => r.addEventListener('change', paintPrev));
+    document.addEventListener('dsp-photos', e => { library = e.detail; paintPrev(); });
     // Preview what's on the form right now, saved or not.
     document.getElementById('dsp-preview').addEventListener('click', e => {
         const season = document.getElementById('dsp-tab').value;
