@@ -43,8 +43,8 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
 2. **GitHub Actions** (`docker-publish.yml`) triggers on push to `main`:
    - Builds the Docker image from the Dockerfile
    - Pushes to GHCR: `ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:latest`
-3. **Watchtower** on production polls GHCR every 300s, pulls new images, and recreates the `BlackDiamondHub` container automatically
-   - Watchtower only watches the `BlackDiamondHub` container (not go2rtc)
+3. **Watchtower** on production polls GHCR every 300s, pulls new images, and recreates the `BlackDiamondHub` and `go2rtc` containers automatically
+   - Watchtower only watches `BlackDiamondHub` and `go2rtc` (go2rtc tracks upstream `alexxit/go2rtc:latest` releases)
 
 ### What auto-deploys vs. what doesn't
 - **Auto-deploys** (via Watchtower): Any code change inside the Docker image — Django code, templates, static files, Python dependencies
@@ -58,7 +58,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
   - `/healthz` (DB check, exempt from ALLOWED_HOSTS) backs the image's Docker `HEALTHCHECK`.
   - Rollback: images are also tagged `:sha-<commit>`; pin `image:` in compose to a previous sha and `docker compose up -d`. Watchtower does not roll back on its own, and an image rollback does not undo migrations (restore from `./backups` if needed).
 - **go2rtc** (`alexxit/go2rtc`) — RTSPS-to-WebRTC proxy on port 1984 (API/WebUI) and 8555 (WebRTC)
-- **watchtower** (`containrrr/watchtower`) — Auto-updates the Django container from GHCR
+- **watchtower** (`containrrr/watchtower`) — Auto-updates the Django container from GHCR and go2rtc from Docker Hub
 
 ### go2rtc Browser URL Strategy
 - Django uses host networking, so it calls go2rtc at `GO2RTC_URL=http://localhost:1984` and registers each camera's RTSPS stream via `PUT /api/streams` (re-registering if the URL changed)
