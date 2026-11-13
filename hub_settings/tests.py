@@ -199,6 +199,7 @@ class HomeLayoutPageTests(TestCase):
         self.assertContains(response, 'href="/settings/home/"')
         self.assertContains(response, "Home layout")
         self.assertNotContains(response, "/admin/auth/user/")
+        self.assertNotContains(response, 'href="/admin/"')
 
     def test_save_keeps_known_tiles_and_valid_sizes(self):
         self.client.force_login(self.staff)
