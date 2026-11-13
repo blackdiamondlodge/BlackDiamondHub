@@ -37,7 +37,7 @@ class LoadSiteTests(SimpleTestCase):
 
     def test_site_without_toml_gets_empty_sections(self):
         self.assertEqual(self.site("bare"),
-                         {"name": "bare", "brand": {}, "location": {}, "features": {}, "sections": {},
+                         {"name": "bare", "brand": {}, "features": {}, "sections": {},
                           "apps": {}, "events": {}})
 
     def test_section_titles_default_to_site_neutral_words(self):
