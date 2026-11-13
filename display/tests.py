@@ -243,7 +243,7 @@ class ViewTests(TestCase):
             data[s["start_key"]] = s["start"]
             data[f"source_{s['id']}"] = s["source"]
             data.update({slot["key"]: slot["value"] for slot in s["slots"]})
-        data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_seconds="180", cam="", tab="fall",
+        data.update(idle_minutes="10", burn_in="on", winter_on_lifts="on", rotate_seconds="45", cam="", tab="fall",
                     night="on", night_from="23:00", night_until="06:00", chime_volume="70",
                     home_bg="mountains", home_tiles="solid", home_dim="45")
         data.update(overrides)
@@ -426,6 +426,13 @@ class RotateMigrationTests(TestCase):
         self.assertEqual(AppSetting.objects.get(app_id="display", key="rotate_minutes").value, 5)
         self.assertFalse(AppSetting.objects.filter(key="rotate_seconds").exists())
 
+    def test_range_clamps_saved_value(self):
+        mig = importlib.import_module("display.migrations.0004_rotate_range")
+        AppSetting.objects.create(app_id="display", key="rotate_seconds", value=600)
+        mig.forwards(django_apps, None)
+        self.assertEqual(AppSetting.objects.get(app_id="display", key="rotate_seconds").value, 90)
+        self.assertEqual([mig.clamp(v) for v in (600, 45, 5, "x", None)], [90, 45, 15, None, None])
+
 
 class CatalogTests(TestCase):
     def test_groups(self):
@@ -599,8 +606,8 @@ class PhotoTests(TestCase):
         preview = {"season": "summer", "source": "photos", "rotate": "9999", "caption": "1"}
         body = self.client.get(api, preview).json()
         self.assertEqual(body["sources"], ["photos"])
-        self.assertEqual(body["rotate_seconds"], 600)  # clamped to the slider's range
-        self.assertEqual(self.client.get(api, dict(preview, rotate="5")).json()["rotate_seconds"], 30)
+        self.assertEqual(body["rotate_seconds"], 90)  # clamped to the slider's range
+        self.assertEqual(self.client.get(api, dict(preview, rotate="5")).json()["rotate_seconds"], 15)
         self.assertEqual(body["photos"][0]["caption"], "December 2023")
         self.client.force_login(self.guest)
         body = self.client.get(api, preview).json()

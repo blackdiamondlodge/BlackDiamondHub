@@ -59,7 +59,7 @@ def _preview(request):
     if "cam" in request.GET:
         out["cam"] = request.GET["cam"][:80]
     try:
-        out["rotate"] = min(600, max(30, int(request.GET["rotate"])))
+        out["rotate"] = min(90, max(15, int(request.GET["rotate"])))
     except (KeyError, ValueError):
         pass
     if request.GET.get("caption") in ("0", "1"):

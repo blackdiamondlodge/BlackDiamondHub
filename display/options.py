@@ -53,7 +53,7 @@ def _settings():
                 minimum=0, maximum=100, unit="%"),
         Setting("winter_on_lifts", "Let apps bring winter forward", BOOL, True,
                 "Otherwise use the dates below"),
-        Setting("rotate_seconds", "Change every", INT, 30, minimum=30, maximum=600, unit="s"),
+        Setting("rotate_seconds", "Change every", INT, 30, minimum=15, maximum=90, unit="s"),
         Setting("cam", "Live cam", help="Background id; empty picks the first", default=""),
         Setting("home_bg", "Home background", CHOICE, "mountains", choices=HOME_BACKGROUNDS),
         Setting("home_tiles", "Home tiles", CHOICE, "solid", choices=HOME_TILES),

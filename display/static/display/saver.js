@@ -206,7 +206,7 @@
     }
 
     function rotateSeconds() {
-        return Math.min(600, Math.max(30, (data && data.rotate_seconds) || 30));
+        return Math.min(90, Math.max(15, (data && data.rotate_seconds) || 30));
     }
 
     // Offset of a zoomed-in view pushed toward the edge along `angle`. With transform scale(s)
