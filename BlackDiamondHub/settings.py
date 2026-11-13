@@ -27,7 +27,6 @@ load_dotenv()
 _SITE = load_site()
 HUB_SITE = _SITE['name']
 HUB_BRAND = _SITE['brand']  # read by bdh_sdk.branding (name, subtitle, monograms)
-HUB_LOCATION = _SITE['location']  # latitude, longitude, timezone
 HUB_FEATURES = _SITE['features']
 HUB_SECTIONS = _SITE['sections']  # homepage section titles: see hub.site.section_titles
 HUB_EVENT_SOURCES = _SITE['events']  # [events.sources.<name>]: see hub/events.py

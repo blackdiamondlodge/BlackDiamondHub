@@ -91,8 +91,7 @@ The same code runs at more than one house. Everything that differs lives in
 Each site folder has:
 
 - `site.toml`: `[brand]` name, subtitle and monogram SVGs (the "BDH" monogram
-  from `bdh-sdk` when none is given), `[location]` latitude, longitude and IANA
-  time zone (screensaver season, night mode, sunrise/sunset), `[features]`
+  from `bdh-sdk` when none is given), `[features]`
   such as `mountain_weather`, `[sections]` homepage section titles (`mountain`,
   `lodge` and `more`; "Outside", "Inside" and "More" unless set; staff can
   rename, add, remove and reorder groups and drag apps between them on
