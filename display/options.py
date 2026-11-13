@@ -19,15 +19,15 @@ SLOTS = 4
 # The home screen behind the tiles, and how the tiles draw over it.
 HOME_BACKGROUNDS = (
     ("mountains", "Mountains"),
-    ("art", "Seasonal art"),
+    ("art", "Paintings"),
     ("photos", "My photos"),
 )
 HOME_TILES = (
     ("solid", "Solid"),
-    ("crystal", "Crystal glass"),
-    ("clear", "Clear glass"),
-    ("frosted", "Frosted glass"),
-    ("dark", "Dark glass"),
+    ("crystal", "Crystal"),
+    ("clear", "Clear"),
+    ("frosted", "Frosted"),
+    ("dark", "Dark"),
 )
 
 # Built-in art, the same at every site: static/display/stock/<season>/<style>.webp.

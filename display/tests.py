@@ -316,24 +316,14 @@ class ViewTests(TestCase):
         self.assertEqual((saved["home_bg"], saved["home_tiles"], saved["home_dim"]), ("art", "frosted", 60))
         page = self.client.get(reverse("display_settings"))
         self.assertContains(page, '<input type="radio" name="home_tiles" value="frosted" checked>')
+        self.assertNotContains(page, 'name="units"')
 
     @override_settings(BDH_HUB_UNITS="metric")
-    def test_units_follow_hub_setting(self):
-        self.client.force_login(self.staff)
-        page = self.client.get(reverse("display_settings"))
-        self.assertContains(page, '<input type="radio" name="units" value="metric" checked>')
+    def test_home_uses_hub_units(self):
         self.assertContains(self.home(), 'data-unit="C"')
-
-        with mock.patch("hub.status.forget_units") as forget, mock.patch.object(store, "TTL", 0):
-            self.client.post(reverse("display_settings"), self.form(units="imperial"))
-            self.client.post(reverse("display_settings"), self.form(units="imperial"))
-            self.client.post(reverse("display_settings"), self.form(units="kelvin"))
-        self.assertEqual(forget.call_count, 1)
-        self.assertEqual(AppSetting.objects.get(app_id="hub", key="units").value, "imperial")
+        AppSetting.objects.create(app_id="hub", key="units", value="imperial")
         with mock.patch.object(store, "TTL", 0):
-            page = self.client.get(reverse("display_settings"))
-        self.assertContains(page, '<input type="radio" name="units" value="imperial" checked>')
-        self.assertContains(self.home(), 'data-unit="F"')
+            self.assertContains(self.home(), 'data-unit="F"')
 
     def test_home_weather_text_in_hub_units(self):
         from BlackDiamondHub.views import _with_units
