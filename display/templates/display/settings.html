@@ -325,6 +325,18 @@
             </section>
 
             <section class="hst-card">
+                <h3>Pop-up sound</h3>
+                <div class="dsp-line">
+                    <label for="dsp-vol">Volume</label>
+                    <input type="range" name="chime_volume" min="0" max="100" step="5" value="{{ v.chime_volume }}" id="dsp-vol">
+                    <output for="dsp-vol" id="dsp-vol-out">{{ v.chime_volume }}%</output>
+                    <button type="button" class="hst-btn ghost" id="dsp-vol-test" aria-label="Play a test chime">▶ Test</button>
+                </div>
+                {% if errors.chime_volume %}<small style="color:var(--red)">{{ errors.chime_volume }}</small>{% endif %}
+                <p class="dsp-note">Apps pick the chime. Pop-ups stay quiet during the dark overnight hours.</p>
+            </section>
+
+            <section class="hst-card">
                 <h3>Seasons</h3>
                 {% if season_apps %}
                 <div class="hst-row">
@@ -452,6 +464,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showRot();
     const dim = document.getElementById('dsp-dim');
     dim.addEventListener('input', () => { document.getElementById('dsp-dim-out').textContent = dim.value + '%'; });
+    const vol = document.getElementById('dsp-vol');
+    vol.addEventListener('input', () => { document.getElementById('dsp-vol-out').textContent = vol.value + '%'; });
+    document.getElementById('dsp-vol-test').addEventListener('click', () => {
+        if (window.BDHChimes) window.BDHChimes.play(null, vol.value / 100);
+    });
     // The mini home screen follows the Home screen controls before they're saved.
     const mini = document.getElementById('dsp-mini');
     const miniPic = document.getElementById('dsp-mini-pic');

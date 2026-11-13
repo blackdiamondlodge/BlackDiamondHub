@@ -446,6 +446,6 @@
     }
     const wake = () => hide(false);
 
-    window.BDHSaver = {show, hide, wake, pause, resume, scene};
+    window.BDHSaver = {show, hide, wake, pause, resume, scene, isNight};
     if (params.get('saver') === '1') show(); else arm();
 })();

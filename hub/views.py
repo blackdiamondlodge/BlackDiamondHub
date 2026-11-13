@@ -102,13 +102,13 @@ Apps show live video or other content here.</small></div></body></html>"""
 @never_cache
 @staff_member_required
 def alert_test(request):
-    """Pushes a sample alert to every screen. ``?embed=/path/`` shows that page instead."""
+    """Pushes a sample alert to every screen. ``?embed=/path/`` shows that page instead; ``?sound=`` picks the chime."""
     from bdh_sdk.alerts import Alert, push
 
     try:
         alert = Alert(app="hub", key="hub:test", title="Test alert", body="Sent from the hub",
                       embed_url=request.GET.get("embed") or reverse("hub_alert_sample"),
-                      ttl=int(request.GET.get("ttl", 30)))
+                      ttl=int(request.GET.get("ttl", 30)), sound=request.GET.get("sound") or None)
     except ValueError as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=400)
     push(alert)
