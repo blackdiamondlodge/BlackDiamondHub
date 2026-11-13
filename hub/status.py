@@ -21,6 +21,7 @@ from django.db import close_old_connections
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
+from . import quick
 from .modes import plugins
 from .plugins import (
     ALL_MODES, GUEST, INFO, STATUS_LEVELS, WARN,
@@ -302,6 +303,9 @@ def home_data(mode, timeout=TIMEOUT):
         for s in specs if s.shortcuts
     ]
     results = _gather(jobs, timeout, grace=REFRESH_GRACE)
+    bar = quick.prefs()
+    labels = {s.id: quick.app_label(s) for s in specs}
+    pinned = set(bar["pinned"])
 
     status = {}
     shortcuts = []
@@ -317,17 +321,34 @@ def home_data(mode, timeout=TIMEOUT):
                     "updated": entry["updated"],
                     "stale": entry["stale"],
                 }
-        else:
+        elif quick.app_allows(bar, plugin_id, mode):
             for sc in _offered(entry["value"], mode):
                 shortcuts.append({
                     "plugin": plugin_id,
+                    "app": labels.get(plugin_id, plugin_id),
                     "id": sc["id"],
                     "title": sc["title"],
                     "icon": sc["icon"],
                     "order": sc["order"],
+                    "pinned": f"{plugin_id}/{sc['id']}" in pinned,
                 })
-    shortcuts.sort(key=lambda sc: (sc["order"], sc["title"]))
-    return {"status": status, "shortcuts": shortcuts, "refreshing": refreshing}
+    rank = quick.app_rank(bar, labels)
+    shortcuts.sort(key=lambda sc: (rank(sc["plugin"]), sc["order"], sc["title"]))
+    return {"status": status, "shortcuts": shortcuts, "grouped": bar["grouped"], "refreshing": refreshing}
+
+
+def all_shortcuts(timeout=TIMEOUT):
+    """Every app's shortcuts in every mode, for Settings: ``{plugin_id: [shortcut]}``.
+
+    An app whose hook failed (and has nothing cached) is left out.
+    """
+    specs = [s for s in plugins() if s.shortcuts]
+    results = _gather(
+        [("shortcuts", s.id, s.shortcuts, _shortcuts_value, SHORTCUTS_TTL) for s in specs], timeout)
+    return {
+        plugin_id: entry["value"]
+        for (_kind, plugin_id), entry in results.items() if not entry.get("missing")
+    }
 
 
 def lodge_card(mode, timeout=STAY_TIMEOUT):
@@ -383,7 +404,7 @@ def run_shortcut(plugin_id, shortcut_id, mode, timeout=TIMEOUT):
     handler raises propagates.
     """
     spec = next((s for s in plugins() if s.id == plugin_id and s.shortcuts), None)
-    if spec is None:
+    if spec is None or not quick.app_allows(quick.prefs(), plugin_id, mode):
         raise ShortcutNotFound(plugin_id)
     entry = _gather(
         [("shortcuts", spec.id, spec.shortcuts, _shortcuts_value, SHORTCUTS_TTL)],

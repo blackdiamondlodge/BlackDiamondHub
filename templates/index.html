@@ -288,6 +288,30 @@
     .hub-quick-btn:disabled { opacity: .6; }
     .hub-quick-btn.is-done, .hub-quick-btn.is-done i { color: #4cc38a; }
     .hub-quick-btn.is-error, .hub-quick-btn.is-error i { color: #ef6b6b; }
+    /* Buttons grouped by app; a busy bar folds groups into "N more" chips. */
+    .hub-quick-grp { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+    .hub-quick-cap {
+        font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+        color: #c7d6e8; padding-left: 4px; white-space: nowrap; text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+    }
+    .hub-quick-row { display: flex; gap: 10px; }
+    .hub-quick-sep { width: 1px; height: 46px; background: rgba(255, 255, 255, .18); flex-shrink: 0; align-self: flex-end; margin: 0 2px 4px; }
+    .hub-quick-btn .car { color: var(--mut); font-size: 14px; }
+    .hub-quick-btn.is-open { background: #1d3352; border-color: #3b6a99; }
+    .hub-bar.is-grouped { height: 72px; bottom: 12px; align-items: flex-end; }
+    .hub-bar.is-grouped .hub-quick { align-items: flex-end; }
+    .hub-bar.is-grouped .hub-quick-label { display: none; }
+    .hub-pop {
+        position: fixed; z-index: 1060; display: flex; flex-direction: column; gap: 8px; min-width: 260px;
+        max-height: 70vh; overflow-y: auto; padding: 10px;
+        background: #16223a; border: 1px solid #33496b; border-radius: 18px; box-shadow: 0 18px 50px rgba(0, 0, 0, .6);
+    }
+    .hub-pop[hidden] { display: none; }
+    .hub-pop-h {
+        font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+        color: var(--dim, #6f86a3); padding: 6px 10px 2px;
+    }
+    .hub-pop .hub-quick-btn { justify-content: flex-start; background: var(--card2, #1d2b45); }
     .hub-nav {
         margin-left: auto; display: flex; gap: 6px; flex-shrink: 0;
         background: var(--card); border: 1px solid var(--line); border-radius: 30px; padding: 6px;
@@ -306,6 +330,8 @@
         .hub-pane h2 .hub-pane-sub { font-size: 16px; margin-bottom: 4px; }
         .hub-bar { bottom: 10px; height: 56px; }
         .hub-quick-btn { padding: 9px 16px; font-size: 17px; }
+        .hub-bar.is-grouped { height: 64px; bottom: 6px; }
+        .hub-quick-sep { height: 40px; }
         .hub-nav { padding: 4px; }
         .hub-nav button { padding: 7px 14px; font-size: 15px; }
     }
@@ -337,8 +363,12 @@
         .hub-card, .hub-tile-m .hub-card, .hub-tile-s .hub-card { flex-direction: column; align-items: stretch; padding: 16px 18px; }
         .hub-tile-m .hub-card-readings { margin: 0; }
         .hub-bar { position: static; height: auto; margin-top: 16px; flex-wrap: wrap; }
-        .hub-quick { flex-wrap: wrap; overflow: visible; gap: 10px; }
+        .hub-quick { flex-wrap: wrap; overflow: visible; gap: 10px; width: 100%; }
         .hub-quick-label { width: 100%; }
+        .hub-bar.is-grouped { height: auto; }
+        .hub-quick-grp { flex-shrink: 1; min-width: 0; max-width: 100%; }
+        .hub-quick-row { flex-wrap: wrap; }
+        .hub-quick-sep { display: none; }
         .hub-quick-btn { font-size: 17px; padding: 12px 16px; }
         .hub-date, .hub-dot { display: none; }
     }
@@ -659,28 +689,190 @@
                 .catch(function () { flash(btn, 'is-error', 'Failed'); });
         }
 
-        function renderShortcuts(shortcuts) {
-            var key = JSON.stringify(shortcuts);
+        // The bar: one group per app (in the order Settings › Quick actions
+        // gives). When it doesn't fit, the group with the most unpinned
+        // buttons folds them behind an "N more" chip, then the next...; if
+        // it still doesn't fit, groups with no pins merge into "Other apps".
+        var bar = quick.parentNode;
+        var pop = el('div', 'hub-pop');
+        pop.hidden = true;
+        pop.setAttribute('role', 'menu');
+        document.body.appendChild(pop);
+        var shown = { groups: [], grouped: true };
+        var openChip = null;
+
+        function quickBtn(sc, onTap) {
+            var btn = el('button', 'hub-quick-btn');
+            btn.type = 'button';
+            btn.setAttribute('data-title', sc.title);
+            btn.setAttribute('data-id', sc.plugin + '/' + sc.id);
+            var icon = el('i', sc.icon);
+            btn.appendChild(icon);
+            btn.appendChild(el('span', '', sc.title));
+            btn.addEventListener('click', function () { (onTap || runShortcut)(btn, sc); });
+            return btn;
+        }
+
+        function closePop() {
+            pop.hidden = true;
+            pop.textContent = '';
+            if (openChip) {
+                openChip.classList.remove('is-open');
+                openChip.setAttribute('aria-expanded', 'false');
+                var car = openChip.querySelector('.car');
+                if (car) car.className = 'fa-solid fa-chevron-up car';
+            }
+            openChip = null;
+        }
+
+        function openPop(chip, sections) {
+            if (openChip === chip) { closePop(); return; }
+            closePop();
+            sections.forEach(function (s) {
+                if (s.title) pop.appendChild(el('div', 'hub-pop-h', s.title));
+                s.items.forEach(function (sc) {
+                    var item = quickBtn(sc, function () {
+                        // The popup closes; the chip that opened it shows the result.
+                        closePop();
+                        runShortcut(chip, sc);
+                    });
+                    item.setAttribute('role', 'menuitem');
+                    pop.appendChild(item);
+                });
+            });
+            openChip = chip;
+            chip.classList.add('is-open');
+            chip.setAttribute('aria-expanded', 'true');
+            chip.querySelector('.car').className = 'fa-solid fa-chevron-down car';
+            pop.hidden = false;
+            var r = chip.getBoundingClientRect();
+            var left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8));
+            pop.style.left = left + 'px';
+            pop.style.bottom = Math.max(8, window.innerHeight - r.top + 10) + 'px';
+        }
+
+        function chip(text, sections) {
+            var c = el('button', 'hub-quick-btn hub-quick-more');
+            c.type = 'button';
+            c.setAttribute('data-title', text);
+            c.setAttribute('aria-haspopup', 'menu');
+            c.setAttribute('aria-expanded', 'false');
+            c.appendChild(el('i', 'fa-solid fa-ellipsis'));
+            c.appendChild(el('span', '', text));
+            c.appendChild(el('i', 'fa-solid fa-chevron-up car'));
+            c.addEventListener('click', function () { if (!c.disabled) openPop(c, sections); });
+            return c;
+        }
+
+        function groupEl(caption, buttons) {
+            var g = el('div', 'hub-quick-grp');
+            if (shown.grouped) g.appendChild(el('div', 'hub-quick-cap', caption));
+            var row = el('div', 'hub-quick-row');
+            buttons.forEach(function (b) { row.appendChild(b); });
+            g.appendChild(row);
+            return g;
+        }
+
+        // Draw the groups; each is 'open', 'other' (merged) or the number of
+        // its unpinned buttons still shown, the rest behind an "N more" chip.
+        function draw(states) {
+            closePop();
+            quick.querySelectorAll('.hub-quick-grp, .hub-quick-sep').forEach(function (n) { n.remove(); });
+            var other = [];
+            var parts = [];
+            shown.groups.forEach(function (g, i) {
+                if (states[i] === 'other') { other.push(g); return; }
+                var buttons;
+                if (states[i] === 'open') {
+                    buttons = g.items.map(function (sc) { return quickBtn(sc); });
+                } else {
+                    var keep = states[i], rest = [];
+                    buttons = g.items.filter(function (sc) {
+                        if (sc.pinned) return true;
+                        if (keep > 0) { keep--; return true; }
+                        rest.push(sc);
+                        return false;
+                    }).map(function (sc) { return quickBtn(sc); });
+                    var label = shown.grouped || buttons.length ? rest.length + ' more' : g.app;
+                    buttons.push(chip(label, [{ title: g.app, items: rest }]));
+                }
+                parts.push(groupEl(g.app, buttons));
+            });
+            if (other.length) {
+                var count = other.reduce(function (n, g) { return n + g.items.length; }, 0);
+                var c = chip(shown.grouped ? String(count) : 'Other apps',
+                             other.map(function (g) { return { title: g.app, items: g.items }; }));
+                parts.push(groupEl('Other apps', [c]));
+            }
+            parts.forEach(function (p, i) {
+                if (i && shown.grouped) quick.appendChild(el('div', 'hub-quick-sep'));
+                quick.appendChild(p);
+            });
+        }
+
+        function overflowing() { return quick.scrollWidth > quick.clientWidth + 1; }
+
+        function fit() {
+            var groups = shown.groups;
+            var states = groups.map(function () { return 'open'; });
+            draw(states);
+            // Small screens wrap the bar instead.
+            if (narrow.matches || quick.hidden) return;
+            // Fold one button at a time from the group showing the most
+            // unpinned ones, so busy groups shrink first and evenly.
+            while (overflowing()) {
+                var best = -1, most = 0;
+                groups.forEach(function (g, i) {
+                    var loose = states[i] === 'open'
+                        ? g.items.filter(function (sc) { return !sc.pinned; }).length
+                        : states[i];
+                    if (loose > most) { best = i; most = loose; }
+                });
+                if (best < 0) break;
+                states[best] = most - 1;
+                draw(states);
+            }
+            if (!overflowing()) return;
+            var pinless = groups.map(function (g, i) {
+                return g.items.some(function (sc) { return sc.pinned; }) ? -1 : i;
+            }).filter(function (i) { return i >= 0; });
+            if (pinless.length > 1) {
+                pinless.forEach(function (i) { states[i] = 'other'; });
+                draw(states);
+            }
+        }
+
+        function renderShortcuts(shortcuts, grouped) {
+            grouped = grouped !== false;
+            var key = JSON.stringify([shortcuts, grouped]);
             if (quick.getAttribute('data-key') === key) return;
             quick.setAttribute('data-key', key);
-            quick.querySelectorAll('.hub-quick-btn').forEach(function (b) { b.remove(); });
+            var groups = [];
             shortcuts.forEach(function (sc) {
-                var btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'hub-quick-btn';
-                btn.setAttribute('data-title', sc.title);
-                var icon = document.createElement('i');
-                icon.className = sc.icon;
-                var label = document.createElement('span');
-                label.textContent = sc.title;
-                btn.appendChild(icon);
-                btn.appendChild(label);
                 sc.url = sc.url || '';
-                btn.addEventListener('click', function () { runShortcut(btn, sc); });
-                quick.appendChild(btn);
+                var last = groups[groups.length - 1];
+                if (!last || last.plugin !== sc.plugin) {
+                    last = { plugin: sc.plugin, app: sc.app || sc.plugin, items: [] };
+                    groups.push(last);
+                }
+                last.items.push(sc);
             });
+            shown = { groups: groups, grouped: grouped };
+            bar.classList.toggle('is-grouped', grouped && groups.length > 0);
             quick.hidden = shortcuts.length === 0;
+            fit();
         }
+
+        var fitTimer = null;
+        window.addEventListener('resize', function () {
+            clearTimeout(fitTimer);
+            fitTimer = setTimeout(fit, 150);
+        });
+        narrow.addEventListener('change', fit);
+        document.addEventListener('click', function (e) {
+            if (openChip && !pop.contains(e.target) && !openChip.contains(e.target)) closePop();
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePop(); });
 
         var timer = null;
         function schedule(ms) {
@@ -691,7 +883,7 @@
         function apply(d) {
             var status = d.status || {};
             applyStatus(status);
-            renderShortcuts(d.shortcuts || []);
+            renderShortcuts(d.shortcuts || [], d.grouped);
             // Live tiles (e.g. music) ask for a faster poll.
             var ms = POLL_MS;
             Object.keys(status).forEach(function (k) {

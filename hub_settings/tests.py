@@ -6,11 +6,13 @@ from bdh_sdk.settings import app_setting
 from bdh_sdk.storage import app_state
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from hub.loader import PluginError, validate
 from hub.plugins import PluginSpec, Setting, SettingsPage
+from hub.tests.test_hub import QUICK_PLUGINS
 
 from . import store
 from .models import AppSetting, AppState
@@ -244,6 +246,76 @@ class HomeLayoutPageTests(TestCase):
         self.assertContains(self.client.get(self.url), 'name="reset"')
         self.assertRedirects(self.client.post(self.url, {"reset": "1"}), self.url + "?saved=1")
         self.assertFalse(AppSetting.objects.exists())
+
+
+@override_settings(HUB_PLUGINS=QUICK_PLUGINS)
+class QuickActionsPageTests(TestCase):
+    url = "/settings/quick/"
+
+    def setUp(self):
+        cache.clear()
+        store.clear()
+        self.addCleanup(store.clear)
+        User = get_user_model()
+        self.staff = User.objects.create_user("staff", password="pw", is_staff=True)
+        self.guest = User.objects.create_user("guest", password="pw")
+
+    def saved(self):
+        return AppSetting.objects.get(app_id="hub", key="quick").value
+
+    def post(self, **value):
+        body = {"grouped": True, "pinned": [], "order": [], "modes": {}}
+        body.update(value)
+        return self.client.post(self.url, {"quick": json.dumps(body)})
+
+    def test_staff_only(self):
+        self.client.force_login(self.guest)
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    def test_lists_apps_buttons_and_modes(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'href="/settings/quick/"')
+        self.assertContains(response, 'data-id="announce"')
+        self.assertContains(response, 'data-key="lights/lock_up"')
+        # Each app gets a checkbox per mode.
+        self.assertContains(response, 'data-mode="owner"', count=2)
+        self.assertNotContains(response, "No installed app offers quick actions")
+
+    def test_save_keeps_known_values_and_only_narrowing_modes(self):
+        self.client.force_login(self.staff)
+        response = self.post(grouped=False, pinned=["lights/movie", "lights/movie", "nope/x"],
+                             order=["lights", "ghost"],
+                             modes={"lights": ["guest", "dashboard", "owner"], "announce": ["owner", "bogus"],
+                                    "ghost": ["owner"]})
+        self.assertRedirects(response, self.url + "?saved=1")
+        self.assertEqual(self.saved(), {"grouped": False, "pinned": ["lights/movie"], "order": ["lights"],
+                                        "modes": {"announce": ["owner"]}})
+        page = self.client.get(self.url)
+        self.assertContains(page, 'data-key="lights/movie" aria-label="Pin Movie" checked')
+        self.assertContains(page, 'name="reset"')
+
+    def test_bad_value_is_rejected(self):
+        self.client.force_login(self.staff)
+        for raw in ("{nope", "[]", json.dumps({"pinned": [], "order": [], "modes": {}}),
+                    json.dumps({"grouped": "yes", "pinned": [], "order": [], "modes": {}}),
+                    json.dumps({"grouped": True, "pinned": {}, "order": [], "modes": {}}),
+                    json.dumps({"grouped": True, "pinned": [], "order": [], "modes": []})):
+            response = self.client.post(self.url, {"quick": raw})
+            self.assertEqual(response.status_code, 400, raw)
+            self.assertContains(response, " data-dirty>", status_code=400)
+        self.assertFalse(AppSetting.objects.exists())
+
+    def test_reset_deletes_prefs(self):
+        self.client.force_login(self.staff)
+        self.post(grouped=False)
+        self.assertRedirects(self.client.post(self.url, {"reset": "1"}), self.url + "?saved=1")
+        self.assertFalse(AppSetting.objects.exists())
+
+    @override_settings(HUB_PLUGINS=())
+    def test_empty_state(self):
+        self.client.force_login(self.staff)
+        self.assertContains(self.client.get(self.url), "No installed app offers quick actions")
 
 
 class SettingsValidationTests(TestCase):

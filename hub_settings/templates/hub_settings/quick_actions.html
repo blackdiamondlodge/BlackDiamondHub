@@ -1,0 +1,226 @@
+{% extends 'hub_settings/_layout.html' %}
+{% load static %}
+
+{% block section %}
+<style>
+    .qa-head, .qa-app, .qa-btn { display: flex; align-items: center; gap: 12px; }
+    .qa-head { padding: 12px 22px 8px; color: var(--dim); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .qa-head .lbl { flex: 1; }
+    .qa-cols { display: flex; gap: 6px; flex: none; }
+    .qa-cols > * { width: 84px; display: grid; place-items: center; text-align: center; }
+    .qa-group { border-top: 1px solid var(--line); background: var(--card); }
+    .qa-group.is-drag { position: relative; z-index: 5; background: var(--card2); box-shadow: 0 10px 30px rgba(0,0,0,.45); border-radius: 14px; pointer-events: none; }
+    .qa-app { padding: 10px 22px 10px 8px; }
+    .qa-app .lbl, .qa-btn .lbl { flex: 1; min-width: 0; }
+    .qa-app .lbl b { display: block; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qa-app .lbl small { display: block; color: var(--mut); font-size: 13px; margin-top: 2px; }
+    .qa-grip { width: 48px; height: 48px; flex: none; display: grid; place-items: center; color: var(--dim); font-size: 18px; cursor: grab; touch-action: none; }
+    .qa-group.is-drag .qa-grip { cursor: grabbing; color: var(--acc2); }
+    .qa-ico { width: 36px; height: 36px; flex: none; display: grid; place-items: center; color: var(--acc); font-size: 20px; }
+    .qa-ico img { width: 36px; height: 36px; object-fit: contain; }
+    .qa-mv { width: 40px; height: 40px; flex: none; border: 0; border-radius: 12px; background: transparent; color: var(--mut); font-size: 15px; cursor: pointer; }
+    .qa-mv:hover:not(:disabled) { color: var(--acc2); background: rgba(91,164,230,.14); }
+    .qa-mv:disabled { opacity: .3; cursor: default; }
+    .qa-chk { width: 26px; height: 26px; accent-color: var(--acc); cursor: pointer; }
+    .qa-chk:disabled { opacity: .3; cursor: default; }
+    .qa-btn { padding: 8px 22px 8px 104px; border-top: 1px solid rgba(255,255,255,.05); }
+    .qa-btn .lbl { display: flex; align-items: center; gap: 12px; font-size: 15px; }
+    .qa-btn .lbl i { width: 22px; text-align: center; color: var(--acc); }
+    .qa-btn .modes { color: var(--mut); font-size: 13px; }
+    .qa-pin { position: relative; width: 44px; height: 44px; flex: none; }
+    .qa-pin input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+    .qa-pin span { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 12px; color: var(--dim); font-size: 17px; }
+    .qa-pin input:checked + span { color: #0c1622; background: var(--acc); }
+    .qa-pin input:focus-visible + span { outline: 2px solid var(--acc2); outline-offset: 2px; }
+    .qa-pinhead { width: 44px; text-align: center; }
+    .qa-tip { color: var(--mut); font-size: 14px; margin: 0; padding: 10px 22px 16px; }
+    .qa-empty { padding: 26px 22px; color: var(--mut); }
+    .qa-cols > label { margin: 0; cursor: pointer; }
+    .qa-mlbl { display: none; }
+    /* Phones: each app's mode checkboxes get their own labelled row. */
+    @media (max-width: 700px) {
+        .qa-head .qa-cols, .qa-btn .modes, .qa-mv { display: none; }
+        .qa-app { flex-wrap: wrap; row-gap: 4px; }
+        .qa-app .qa-cols { width: 100%; padding-left: 56px; gap: 22px; }
+        .qa-cols > * { width: auto; display: flex; align-items: center; gap: 8px; }
+        .qa-mlbl { display: inline; color: var(--mut); font-size: 14px; }
+        .qa-btn { padding-left: 22px; }
+    }
+</style>
+
+<form method="post" id="qa-form" novalidate{% if has_errors %} data-dirty{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="quick" id="qa-value">
+    <div class="hst-head">
+        <div>
+            <h2>Quick actions</h2>
+            <p>The one-tap buttons along the bottom of the home screen.</p>
+        </div>
+        <div class="act">
+            {% if customised %}<button type="submit" name="reset" value="1" class="hst-btn ghost" formnovalidate>Reset</button>{% endif %}
+            <button type="submit" class="hst-btn" data-save>Save</button>
+        </div>
+    </div>
+    {% if just_saved %}<div class="hst-note ok" role="status"><i class="fas fa-check" aria-hidden="true"></i> Saved.</div>{% endif %}
+    {% if has_errors %}<div class="hst-note bad" role="alert">Those settings couldn't be saved. Try again.</div>{% endif %}
+
+    <section class="hst-card">
+        <h3>Display</h3>
+        <div class="hst-row">
+            <label class="lbl" for="qa-grouped">
+                <b>Group by app</b>
+                <small>Label each app's buttons with its name, so "Dinner" reads as a Lights scene.</small>
+            </label>
+            <div class="ctl">
+                <span class="hst-tog">
+                    <input type="checkbox" role="switch" id="qa-grouped"{% if prefs.grouped %} checked{% endif %}>
+                    <span></span>
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <section class="hst-card">
+        <h3>Buttons</h3>
+        {% if apps %}
+        <p class="qa-tip">Pinned buttons always stay one tap on the bar. When the bar gets busy, the other buttons fold into their app's group.</p>
+        <div class="qa-head">
+            <span class="qa-pinhead">Pin</span>
+            <span class="lbl"></span>
+            <span class="qa-cols">{% for m in apps.0.modes %}<span>{{ m.label }}</span>{% endfor %}</span>
+        </div>
+        <div id="qa-apps">
+            {% for app in apps %}
+            <div class="qa-group" data-id="{{ app.id }}">
+                <div class="qa-app">
+                    <span class="qa-grip" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
+                    <span class="qa-ico">{% if app.img %}<img src="{% static app.img %}" alt="">{% else %}<i class="fas fa-bolt" aria-hidden="true"></i>{% endif %}</span>
+                    <span class="lbl">
+                        <b>{{ app.label }}</b>
+                        <small>{{ app.buttons|length }} button{{ app.buttons|length|pluralize }}</small>
+                    </span>
+                    <button type="button" class="qa-mv up" title="Move {{ app.label }} left" aria-label="Move {{ app.label }} earlier"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" class="qa-mv down" title="Move {{ app.label }} right" aria-label="Move {{ app.label }} later"><i class="fas fa-arrow-down"></i></button>
+                    <span class="qa-cols">
+                        {% for m in app.modes %}
+                        <label><input type="checkbox" class="qa-chk qa-mode" data-mode="{{ m.id }}"
+                                     aria-label="Show {{ app.label }} in {{ m.label }} mode"
+                                     {% if m.on %} checked{% endif %}{% if not m.offered %} disabled title="{{ app.label }} has no buttons for {{ m.label }} mode"{% endif %}><span class="qa-mlbl" aria-hidden="true">{{ m.label }}</span></label>
+                        {% endfor %}
+                    </span>
+                </div>
+                {% for b in app.buttons %}
+                <div class="qa-btn">
+                    <span class="qa-pin" title="Pin {{ b.title }}">
+                        <input type="checkbox" class="qa-pinchk" data-key="{{ b.key }}" aria-label="Pin {{ b.title }}"{% if b.pinned %} checked{% endif %}>
+                        <span aria-hidden="true"><i class="fas fa-thumbtack"></i></span>
+                    </span>
+                    <span class="lbl"><i class="{{ b.icon }}" aria-hidden="true"></i> {{ b.title }}</span>
+                    <span class="modes">{% for m in b.modes %}{{ m|capfirst }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <p class="qa-tip">Drag <i class="fas fa-grip-vertical" aria-hidden="true"></i> to reorder apps on the bar; each app's buttons keep their own order, set in that app.</p>
+        {% else %}
+        <div class="qa-empty">No installed app offers quick actions.</div>
+        {% endif %}
+    </section>
+</form>
+
+<script>
+    (function () {
+        var form = document.getElementById('qa-form');
+        var holder = document.getElementById('qa-apps');
+
+        function apps() { return holder ? Array.prototype.slice.call(holder.querySelectorAll('.qa-group')) : []; }
+
+        function refresh() {
+            var all = apps();
+            all.forEach(function (g, i) {
+                g.querySelector('.up').disabled = i === 0;
+                g.querySelector('.down').disabled = i === all.length - 1;
+            });
+        }
+
+        function state() {
+            var pinned = [], modes = {};
+            apps().forEach(function (g) {
+                g.querySelectorAll('.qa-pinchk:checked').forEach(function (c) { pinned.push(c.getAttribute('data-key')); });
+                modes[g.getAttribute('data-id')] = Array.prototype.map.call(
+                    g.querySelectorAll('.qa-mode:checked'), function (c) { return c.getAttribute('data-mode'); });
+            });
+            return {
+                grouped: document.getElementById('qa-grouped').checked,
+                pinned: pinned,
+                order: apps().map(function (g) { return g.getAttribute('data-id'); }),
+                modes: modes,
+            };
+        }
+        form.bdhState = function () { return JSON.stringify(state()); };
+
+        form.addEventListener('submit', function (e) {
+            if (e.submitter && e.submitter.name === 'reset') return;
+            document.getElementById('qa-value').value = form.bdhState();
+        });
+
+        if (!holder) return;
+
+        holder.addEventListener('click', function (e) {
+            var btn = e.target.closest('.qa-mv');
+            if (!btn) return;
+            var g = btn.closest('.qa-group');
+            if (btn.classList.contains('up') && g.previousElementSibling) holder.insertBefore(g, g.previousElementSibling);
+            else if (btn.classList.contains('down') && g.nextElementSibling) holder.insertBefore(g.nextElementSibling, g);
+            refresh();
+        });
+
+        // Touch-friendly drag by the grip.
+        holder.addEventListener('pointerdown', function (e) {
+            var grip = e.target.closest('.qa-grip');
+            if (!grip) return;
+            var g = grip.closest('.qa-group');
+            var grab = e.clientY - g.getBoundingClientRect().top;
+            var x = e.clientX, y = e.clientY, scrollTimer = null;
+            e.preventDefault();
+            grip.setPointerCapture(e.pointerId);
+            g.classList.add('is-drag');
+
+            function place() {
+                g.style.transform = '';
+                var hit = document.elementFromPoint(x, y);
+                var over = hit && hit.closest('.qa-group');
+                if (over && over !== g && over.parentNode === holder) {
+                    var mid = over.getBoundingClientRect().top + over.offsetHeight / 2;
+                    holder.insertBefore(g, y < mid ? over : over.nextSibling);
+                }
+                g.style.transform = 'translateY(' + (y - grab - g.getBoundingClientRect().top) + 'px)';
+                refresh();
+            }
+            function autoscroll() {
+                var edge = 80, step = 0;
+                if (y < edge) step = -Math.ceil((edge - y) / 6);
+                else if (y > window.innerHeight - edge) step = Math.ceil((y - window.innerHeight + edge) / 6);
+                if (step) { window.scrollBy(0, step); place(); }
+            }
+            function move(ev) { x = ev.clientX; y = ev.clientY; place(); }
+            function end() {
+                clearInterval(scrollTimer);
+                g.classList.remove('is-drag');
+                g.style.transform = '';
+                grip.removeEventListener('pointermove', move);
+                grip.removeEventListener('pointerup', end);
+                grip.removeEventListener('pointercancel', end);
+                refresh();
+            }
+            scrollTimer = setInterval(autoscroll, 16);
+            grip.addEventListener('pointermove', move);
+            grip.addEventListener('pointerup', end);
+            grip.addEventListener('pointercancel', end);
+        });
+
+        refresh();
+    })();
+</script>
+{% endblock %}
