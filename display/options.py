@@ -24,6 +24,7 @@ HOME_BACKGROUNDS = (
 )
 HOME_TILES = (
     ("solid", "Solid"),
+    ("crystal", "Crystal glass"),
     ("clear", "Clear glass"),
     ("frosted", "Frosted glass"),
     ("dark", "Dark glass"),
@@ -50,7 +51,7 @@ def _settings():
         Setting("night_until", "Dark until", default=DEFAULT_NIGHT["until"], help="HH:MM, 24-hour"),
         Setting("winter_on_lifts", "Let apps bring winter forward", BOOL, True,
                 "Otherwise use the dates below"),
-        Setting("rotate_seconds", "Change every", INT, 180, minimum=30, maximum=600, unit="s"),
+        Setting("rotate_seconds", "Change every", INT, 30, minimum=30, maximum=600, unit="s"),
         Setting("cam", "Live cam", help="Background id; empty picks the first", default=""),
         Setting("home_bg", "Home background", CHOICE, "mountains", choices=HOME_BACKGROUNDS),
         Setting("home_tiles", "Home tiles", CHOICE, "solid", choices=HOME_TILES),
