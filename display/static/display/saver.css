@@ -24,7 +24,8 @@
 /* Library photos and stock paintings: each is a frame that crossfades in over the last and slowly pans/zooms (Ken Burns). */
 .bdh-saver .layer .frame {
     position: absolute; inset: 0; overflow: hidden; opacity: 0; transition: opacity 3s ease;
-    animation: bdh-kb 184s ease-in-out forwards;
+    /* Already moving as it fades in, then settles gently. */
+    animation: bdh-kb 184s cubic-bezier(.25, .55, .45, 1) forwards;
 }
 .bdh-saver .layer .frame.in { opacity: 1; }
 .bdh-saver .frame > img { position: absolute; display: block; }
@@ -45,7 +46,7 @@
         linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, .55) 100%);
 }
 .bdh-saver .info {
-    position: absolute; left: 5.7vw; bottom: 9.3vh; transition: translate 6s ease-in-out;
+    position: absolute; left: 5.7vw; bottom: 9.3vh; transition: translate 120s linear;
     text-shadow: 0 1px 3px rgba(0, 0, 0, .35), 0 2px 18px rgba(0, 0, 0, .35);
 }
 .bdh-saver .clock {
@@ -67,7 +68,7 @@
 .bdh-saver .season, .bdh-saver .cam-name {
     position: absolute; right: 3.1vw; bottom: 4.8vh; font-size: clamp(12px, .95vw, 18px);
     color: rgba(240, 244, 250, .55); letter-spacing: .08em; text-transform: uppercase;
-    transition: translate 6s ease-in-out;
+    transition: translate 120s linear;
 }
 .bdh-saver .cam-name, .bdh-saver .caption { bottom: calc(4.8vh + 1.7em); letter-spacing: .04em; text-transform: none; opacity: 0; transition: opacity 3s; }
 .bdh-saver .cam-name.on, .bdh-saver .caption.on { opacity: 1; }
