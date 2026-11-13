@@ -8,7 +8,7 @@ EARLY_WINDOW = timedelta(days=30)
 
 
 def lodge_tz():
-    """The hub's time zone (Settings > Location), UTC if it has none."""
+    """The hub's time zone (Settings > General), UTC if it has none."""
     from bdh_sdk.location import tzinfo
 
     return tzinfo()

@@ -77,7 +77,7 @@ def _lodge_sections():
         for app_id, (label, icon, _name) in CUSTOM_PAGES.items() if _custom_url(app_id)
     ]
     return [
-        {"id": "location", "label": "Location", "icon": "fa-location-dot", "url": reverse("hub_settings_location")},
+        {"id": "location", "label": "General", "icon": "fa-gear", "url": reverse("hub_settings_location")},
     ] + custom + [
         {"id": "home", "label": "Home layout", "icon": "fa-table-cells-large", "url": reverse("hub_settings_home")},
         {"id": "quick", "label": "Quick actions", "icon": "fa-bolt", "url": reverse("hub_settings_quick")},
