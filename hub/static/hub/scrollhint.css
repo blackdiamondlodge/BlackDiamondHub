@@ -1,0 +1,21 @@
+/* Touch screens: no scrollbars anywhere. scrollhint.js shows a bouncing
+   chevron on anything that can scroll down instead. An element (or a page)
+   that really needs a scrollbar can set class="hub-scrollbar". */
+*:not(.hub-scrollbar) { scrollbar-width: none; }
+*:not(.hub-scrollbar)::-webkit-scrollbar { display: none; }
+
+.hub-scroll-hint {
+    position: fixed; z-index: 20; pointer-events: none;
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px;
+    background: linear-gradient(transparent, var(--hub-scroll-hint-bg, rgba(0, 0, 0, .45)));
+    opacity: 0; transition: opacity .3s;
+}
+.hub-scroll-hint.on { opacity: 1; }
+.hub-scroll-hint i {
+    color: var(--hub-scroll-hint-fg, rgba(255, 255, 255, .6)); font-size: 24px;
+    animation: hub-scroll-bounce 1.5s infinite;
+}
+.hub-scroll-hint.small { padding-bottom: 6px; }
+.hub-scroll-hint.small i { font-size: 18px; }
+@keyframes hub-scroll-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .hub-scroll-hint i { animation: none; } }

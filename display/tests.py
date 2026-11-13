@@ -698,7 +698,7 @@ class DisplaySettingsSeleniumTest(SeleniumTestCase):
         scrollers = "[document.documentElement, document.body]"
         self.assertTrue(b.execute_script(f"return {scrollers}.some(e => e.scrollHeight > e.clientHeight)"))
         self.assertEqual(b.execute_script(f"return {scrollers}.map(e => e.offsetWidth - e.clientWidth)"), [0, 0])
-        hint = b.find_element(By.ID, "hst-more")
-        WebDriverWait(b, 5).until(lambda d: "hidden" not in hint.get_attribute("class"))
+        hint = (By.CSS_SELECTOR, ".hub-scroll-hint")
+        WebDriverWait(b, 5).until(lambda d: "on" in d.find_element(*hint).get_attribute("class").split())
         b.execute_script(f"{scrollers}.forEach(e => e.scrollTop = e.scrollHeight)")
-        WebDriverWait(b, 5).until(lambda d: "hidden" in hint.get_attribute("class"))
+        WebDriverWait(b, 5).until(lambda d: "on" not in d.find_element(*hint).get_attribute("class").split())
