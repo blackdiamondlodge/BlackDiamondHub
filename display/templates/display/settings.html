@@ -53,7 +53,26 @@
     [data-season][hidden] { display: none !important; }
     .dsp-home { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
     .dsp-home label { min-height: 0; }
-    .dsp-note { margin: 12px 0 0; color: var(--mut); font-size: 13.5px; }
+    .dsp-note { margin: 8px 0 0; color: var(--mut); font-size: 13.5px; }
+    .dsp-group + .dsp-group { margin-top: 18px; }
+    .dsp-glbl { font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mut); margin: 0 0 8px 2px; }
+    .dsp-home.dsp-bg3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .dsp-bg3 label { padding: 10px 12px; }
+    .dsp-bg3 small { margin-left: 24px; font-size: 12.5px; }
+    /* Tile swatches: a tile of each glass over the chosen background (--sw-pic, set by the script). */
+    .dsp-home.dsp-tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 0; }
+    .dsp-tiles label { position: relative; padding: 8px 4px; text-align: center; }
+    .dsp-tiles b { flex-direction: column; gap: 6px; font-size: 14px; }
+    .dsp-tiles input { position: absolute; opacity: 0; pointer-events: none; }
+    .dsp-tiles label:has(input:focus-visible) { outline: 2px solid var(--acc); outline-offset: 2px; }
+    .dsp-sw {
+        position: relative; width: 100%; max-width: 64px; aspect-ratio: 3 / 2; border-radius: 8px; overflow: hidden;
+        --tile: #18243a; --edge: #26354f;
+        background: var(--sw-pic, linear-gradient(180deg, #1b2d4a, #0d1420)) center / cover;
+    }
+    .dsp-sw i {
+        position: absolute; inset: 18% 16%; border-radius: 5px; border: 1px solid var(--edge); background: var(--tile);
+    }
     /* Mini home screen: the home page's background and tile styles, scaled down. */
     .dsp-mini {
         position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; margin-bottom: 16px;
@@ -98,23 +117,23 @@
         background: rgba(0, 0, 0, .55); color: #eef3fa;
     }
     /* Same glass as the home page; blur scaled down with the preview. */
-    .dsp-mini:not(.tiles-solid) {
+    .dsp-mini:not(.tiles-solid), .dsp-sw:not(.tiles-solid) {
         --glass: linear-gradient(135deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .05));
         --glass-edge: rgba(255, 255, 255, .3); --blur: 5px;
     }
-    .dsp-mini.tiles-crystal {
+    .dsp-mini.tiles-crystal, .dsp-sw.tiles-crystal {
         --glass: linear-gradient(135deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .02));
         --glass-edge: rgba(255, 255, 255, .35); --blur: 1px;
     }
-    .dsp-mini.tiles-frosted {
+    .dsp-mini.tiles-frosted, .dsp-sw.tiles-frosted {
         --glass: linear-gradient(135deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .12));
         --glass-edge: rgba(255, 255, 255, .38); --blur: 10px;
     }
-    .dsp-mini.tiles-dark {
+    .dsp-mini.tiles-dark, .dsp-sw.tiles-dark {
         --glass: linear-gradient(135deg, rgba(10, 16, 28, .58), rgba(10, 16, 28, .42));
         --glass-edge: rgba(255, 255, 255, .16); --blur: 8px;
     }
-    .dsp-mini:not(.tiles-solid) .grid i, .dsp-mini:not(.tiles-solid) .quick i {
+    .dsp-mini:not(.tiles-solid) .grid i, .dsp-mini:not(.tiles-solid) .quick i, .dsp-sw:not(.tiles-solid) i {
         background: var(--glass); border-color: var(--glass-edge);
         -webkit-backdrop-filter: blur(var(--blur)) saturate(170%); backdrop-filter: blur(var(--blur)) saturate(170%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 4px 12px rgba(0, 0, 0, .25);
@@ -220,35 +239,36 @@
                         <div class="quick"><i></i><i></i><i></i></div>
                         <span class="tag">Preview</span>
                     </div>
-                    <div class="dsp-src dsp-home" role="radiogroup" aria-label="Home background">
-                        {% for val, l in home_bgs %}
-                        <label>
-                            <b><input type="radio" name="home_bg" value="{{ val }}"{% if val == v.home_bg %} checked{% endif %}>{{ l }}</b>
-                            <small>{% if val == 'mountains' %}Drawn ridge{% elif val == 'art' %}A painting a day{% else %}A photo a day{% endif %}</small>
-                        </label>
-                        {% endfor %}
+                    <div class="dsp-group">
+                        <div class="dsp-glbl">Background</div>
+                        <div class="dsp-src dsp-home dsp-bg3" role="radiogroup" aria-label="Background">
+                            {% for val, l in home_bgs %}
+                            <label>
+                                <b><input type="radio" name="home_bg" value="{{ val }}"{% if val == v.home_bg %} checked{% endif %}>{{ l }}</b>
+                                <small>{% if val == 'mountains' %}Drawn ridge{% elif val == 'art' %}A painting a day{% else %}A photo a day{% endif %}</small>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <div id="dsp-dim-row"{% if v.home_bg == 'mountains' %} hidden{% endif %}>
+                            <label class="dsp-line">
+                                <span>Dim picture</span>
+                                <input type="range" name="home_dim" min="0" max="80" step="5" value="{{ v.home_dim }}" id="dsp-dim">
+                                <output for="dsp-dim" id="dsp-dim-out">{{ v.home_dim }}%</output>
+                            </label>
+                            {% if errors.home_dim %}<small style="color:var(--red)">{{ errors.home_dim }}</small>{% endif %}
+                            <p class="dsp-note">Photos come from this season's library; paintings fill in when it has none.</p>
+                        </div>
                     </div>
-                    <div class="dsp-src dsp-home" role="radiogroup" aria-label="Tile style">
-                        {% for val, l in home_tiles %}
-                        <label>
-                            <b><input type="radio" name="home_tiles" value="{{ val }}"{% if val == v.home_tiles %} checked{% endif %}>{{ l }}</b>
-                        </label>
-                        {% endfor %}
+                    <div class="dsp-group">
+                        <div class="dsp-glbl">Tiles</div>
+                        <div class="dsp-src dsp-home dsp-tiles" id="dsp-tiles" role="radiogroup" aria-label="Tiles">
+                            {% for val, l in home_tiles %}
+                            <label>
+                                <b><span class="dsp-sw tiles-{{ val }}" aria-hidden="true"><i></i></span><input type="radio" name="home_tiles" value="{{ val }}"{% if val == v.home_tiles %} checked{% endif %}>{{ l }}</b>
+                            </label>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="dsp-src dsp-home" role="radiogroup" aria-label="Units">
-                        {% for val, l in unit_choices %}
-                        <label>
-                            <b><input type="radio" name="units" value="{{ val }}"{% if val == hub_units %} checked{% endif %}>{{ l }}</b>
-                        </label>
-                        {% endfor %}
-                    </div>
-                    <label class="dsp-line">
-                        <span>Dim picture</span>
-                        <input type="range" name="home_dim" min="0" max="80" step="5" value="{{ v.home_dim }}" id="dsp-dim">
-                        <output for="dsp-dim" id="dsp-dim-out">{{ v.home_dim }}%</output>
-                    </label>
-                    {% if errors.home_dim %}<small style="color:var(--red)">{{ errors.home_dim }}</small>{% endif %}
-                    <p class="dsp-note">Photos use the current season's library, or its paintings when it has none. Units are the same as the °C/°F switch on the home screen and apply to every app.</p>
                 </div>
             </section>
 
@@ -444,6 +464,10 @@ document.addEventListener('DOMContentLoaded', () => {
         miniPic.hidden = !url;
         if (url) miniPic.style.backgroundImage = 'url("' + url + '")';
         mini.style.setProperty('--dim', dim.value / 100);
+        document.getElementById('dsp-dim-row').hidden = !url;
+        const tilesBox = document.getElementById('dsp-tiles');
+        if (url) tilesBox.style.setProperty('--sw-pic', 'linear-gradient(rgba(0,0,0,' + dim.value / 100 + '), rgba(0,0,0,' + dim.value / 100 + ')), url("' + url + '")');
+        else tilesBox.style.removeProperty('--sw-pic');
     }
     document.querySelectorAll('input[name="home_bg"], input[name="home_tiles"]').forEach(r => r.addEventListener('change', paintMini));
     dim.addEventListener('input', paintMini);

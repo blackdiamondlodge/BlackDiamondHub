@@ -314,6 +314,21 @@ class LocationPageTests(TestCase):
         self.assertContains(response, "Search for a city")
         self.assertEqual(response.context["lodge_sections"][0]["id"], "location")
 
+    @override_settings(BDH_HUB_UNITS="metric")
+    def test_units(self):
+        self.client.force_login(self.staff)
+        self.assertContains(self.client.get(self.url), '<input type="radio" name="units" value="metric" checked>')
+        # Units save even when the city isn't valid, and only a real change resets the cache.
+        with mock.patch("hub.status.forget_units") as forget, mock.patch.object(store, "TTL", 0):
+            self.assertEqual(self.post(name="", units="imperial").status_code, 400)
+            self.post(name="", units="imperial")
+            self.post(name="", units="kelvin")
+        self.assertEqual(forget.call_count, 1)
+        self.assertEqual(AppSetting.objects.get(app_id="hub", key="units").value, "imperial")
+        with mock.patch.object(store, "TTL", 0):
+            page = self.client.get(self.url)
+        self.assertContains(page, '<input type="radio" name="units" value="imperial" checked>')
+
     def test_save_with_automatic_time_zone(self):
         from bdh_sdk.location import location, tzinfo
         self.client.force_login(self.staff)
