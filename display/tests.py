@@ -695,8 +695,10 @@ class DisplaySettingsSeleniumTest(SeleniumTestCase):
         self.browser.set_window_size(1280, 800)
         self.open()
         b = self.browser
-        self.assertEqual(b.execute_script("return innerWidth - document.documentElement.clientWidth"), 0)
+        scrollers = "[document.documentElement, document.body]"
+        self.assertTrue(b.execute_script(f"return {scrollers}.some(e => e.scrollHeight > e.clientHeight)"))
+        self.assertEqual(b.execute_script(f"return {scrollers}.map(e => e.offsetWidth - e.clientWidth)"), [0, 0])
         hint = b.find_element(By.ID, "hst-more")
         WebDriverWait(b, 5).until(lambda d: "hidden" not in hint.get_attribute("class"))
-        b.execute_script("scrollTo(0, document.documentElement.scrollHeight)")
+        b.execute_script(f"{scrollers}.forEach(e => e.scrollTop = e.scrollHeight)")
         WebDriverWait(b, 5).until(lambda d: "hidden" in hint.get_attribute("class"))

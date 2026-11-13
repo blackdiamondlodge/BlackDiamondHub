@@ -109,7 +109,8 @@
         .hst-in.txt { width: 100%; }
     }
     /* Touch screens: no scrollbar; a bouncing chevron says there's more below. */
-    html { scrollbar-width: none; }
+    /* base.html gives html and body overflow-x:hidden, so body is the scroller. */
+    html, body.hst-page { scrollbar-width: none; }
     html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
     .hst-more {
         position: fixed; left: 0; right: 0; bottom: 0; height: 80px; z-index: 20; pointer-events: none;
