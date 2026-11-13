@@ -120,8 +120,9 @@ services:
     # Mount the Docker socket so Watchtower can manage containers
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    # If you want Watchtower to watch only your "djangoapp" container:
-    command: ["BlackDiamondHub"]
+    # Only these containers are auto-updated. go2rtc follows its upstream
+    # :latest (release) tag so the hub and go2rtc stay on current versions.
+    command: ["BlackDiamondHub", "go2rtc"]
     # If your Docker registry is private, provide credentials:
     environment:
     #   WATCHTOWER_USERNAME: "${REGISTRY_USERNAME}"
