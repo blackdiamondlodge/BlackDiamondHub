@@ -24,7 +24,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from hub.plugins import PluginSpec
 from hub_settings import store
-from tests.selenium_helpers import SeleniumTestCase
+from tests.selenium_helpers import SeleniumTestCase, login_via_browser
 from . import catalog, views
 from hub_settings.models import AppSetting
 from .models import SaverPhoto, UploadLink
@@ -649,3 +649,54 @@ class SaverBrokenPhotoSeleniumTest(SeleniumTestCase):
         frame = (By.CSS_SELECTOR, ".bdh-saver .layer.photos.on .frame")
         WebDriverWait(self.browser, 20).until(EC.presence_of_element_located(frame))
         self.assertTrue(self.browser.find_element(*frame).get_attribute("data-src").endswith(self.GOOD))
+
+
+@tag("selenium")
+@override_settings(HUB_PLUGINS=BASE)
+class DisplaySettingsSeleniumTest(SeleniumTestCase):
+    """Settings → Display in a real browser (regressions)."""
+
+    GOOD = "android-chrome-512x512.png"
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(store.clear)
+        storage = FileSystemStorage(os.path.join(settings.BASE_DIR, "static"), base_url=settings.STATIC_URL)
+        for name in ("image", "thumb"):
+            patcher = mock.patch.object(SaverPhoto._meta.get_field(name), "storage", storage)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        get_user_model().objects.create_superuser("testuser", "t@example.com", "testpassword")
+        login_via_browser(self.browser, self.live_server_url)
+
+    def open(self):
+        self.browser.get(self.live_server_url + reverse("display_settings") + "?season=summer")
+        WebDriverWait(self.browser, 20).until(lambda d: d.find_elements(By.CSS_SELECTOR, "#dsp-prev img"))
+
+    def preview_src(self):
+        return self.browser.find_element(By.CSS_SELECTOR, "#dsp-prev img").get_attribute("src")
+
+    def test_my_photos_preview_shows_a_library_photo(self):
+        SaverPhoto.objects.create(image=self.GOOD, thumb=self.GOOD)
+        AppSetting.objects.create(app_id="display", key="source_summer", value="photos")
+        self.open()
+        self.assertTrue(self.preview_src().endswith(self.GOOD))
+        self.browser.find_element(By.CSS_SELECTOR, 'input[name="source_summer"][value="stock"]').click()
+        WebDriverWait(self.browser, 5).until(lambda d: "/display/stock/summer/" in self.preview_src())
+        self.browser.find_element(By.CSS_SELECTOR, 'input[name="source_summer"][value="photos"]').click()
+        WebDriverWait(self.browser, 5).until(lambda d: self.preview_src().endswith(self.GOOD))
+
+    def test_my_photos_preview_falls_back_to_paintings(self):
+        AppSetting.objects.create(app_id="display", key="source_summer", value="photos")
+        self.open()
+        self.assertIn("/display/stock/summer/", self.preview_src())
+
+    def test_no_scrollbar_and_a_scroll_hint(self):
+        self.browser.set_window_size(1280, 800)
+        self.open()
+        b = self.browser
+        self.assertEqual(b.execute_script("return innerWidth - document.documentElement.clientWidth"), 0)
+        hint = b.find_element(By.ID, "hst-more")
+        WebDriverWait(b, 5).until(lambda d: "hidden" not in hint.get_attribute("class"))
+        b.execute_script("scrollTo(0, document.documentElement.scrollHeight)")
+        WebDriverWait(b, 5).until(lambda d: "hidden" in hint.get_attribute("class"))

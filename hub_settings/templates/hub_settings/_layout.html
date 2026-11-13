@@ -108,6 +108,18 @@
         .hst-row { flex-wrap: wrap; }
         .hst-in.txt { width: 100%; }
     }
+    /* Touch screens: no scrollbar; a bouncing chevron says there's more below. */
+    html { scrollbar-width: none; }
+    html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+    .hst-more {
+        position: fixed; left: 0; right: 0; bottom: 0; height: 80px; z-index: 20; pointer-events: none;
+        display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px;
+        background: linear-gradient(transparent, #0d1420); transition: opacity .3s;
+    }
+    .hst-more.hidden { opacity: 0; }
+    .hst-more i { color: rgba(255,255,255,.6); font-size: 24px; animation: hst-bounce 1.5s infinite; }
+    @keyframes hst-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    @media (prefers-reduced-motion: reduce) { .hst-more i { animation: none; } }
 </style>
 {% endblock %}
 
@@ -135,6 +147,14 @@
         {% block section %}{% endblock %}
     </main>
 </div>
+<div id="hst-end" style="height:1px"></div>
+<div class="hst-more hidden" id="hst-more" aria-hidden="true"><i class="fas fa-chevron-down"></i></div>
+<script>
+    // Show the chevron while the end of the page is below the screen.
+    new IntersectionObserver(function (e) {
+        document.getElementById('hst-more').classList.toggle('hidden', e[0].isIntersecting);
+    }).observe(document.getElementById('hst-end'));
+</script>
 <script>
     // Save stays disabled until the form differs from how the page loaded.
     // A page whose state lives in the DOM rather than in fields sets form.bdhState.
