@@ -32,7 +32,8 @@ RUN python -m venv /app/.venv && \
 ARG HUB_SITE=sunpeaks
 ENV HUB_SITE=${HUB_SITE}
 COPY sites/ /app/sites/
-RUN . /app/.venv/bin/activate && sh sites/install_apps.sh "${HUB_SITE}"
+COPY docker/install_apps.sh /app/docker/
+RUN . /app/.venv/bin/activate && sh docker/install_apps.sh "${HUB_SITE}"
 
 COPY . /app/
 

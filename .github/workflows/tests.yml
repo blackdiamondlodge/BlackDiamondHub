@@ -41,7 +41,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           # Apps installed into the Sun Peaks image (see Dockerfile).
-          sh sites/install_apps.sh sunpeaks
+          sh docker/install_apps.sh sunpeaks
 
     - name: Run Unit Tests
       env:
@@ -94,7 +94,7 @@ jobs:
           sudo apt-get install -y libzbar0
           pip install --upgrade pip
           pip install -r requirements.txt
-          sh sites/install_apps.sh ${{ matrix.site }}
+          sh docker/install_apps.sh ${{ matrix.site }}
 
     - name: Smoke test the site
       env:
@@ -177,7 +177,7 @@ jobs:
       run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          sh sites/install_apps.sh sunpeaks
+          sh docker/install_apps.sh sunpeaks
 
     - name: Run Selenium Tests
       timeout-minutes: 15
