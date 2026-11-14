@@ -121,7 +121,8 @@ class RemoteFullscreenTest(SeleniumTestCase):
         """)
         tapped = browser.execute_async_script(
             "const done = arguments[0];"
-            "BDHRemote.commands.tap({text: 'Driveway'}).then(r => done(r.target.id));")
+            "BDHRemote.commands.tap({text: 'Driveway'})"
+            ".then(r => done(r.target.id), e => done('tap failed: ' + (e.stack || e)));")
         self.assertEqual(tapped, "card")
         WebDriverWait(browser, 5).until(lambda b: b.execute_script("return window.changes === 1"))
         self.assertEqual(browser.execute_script(
