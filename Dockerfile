@@ -32,10 +32,8 @@ RUN python -m venv /app/.venv && \
 ARG HUB_SITE=sunpeaks
 ENV HUB_SITE=${HUB_SITE}
 COPY sites/ /app/sites/
-RUN . /app/.venv/bin/activate && \
-    if grep -qvE '^[[:space:]]*(#|$)' "sites/${HUB_SITE}/apps.txt"; then \
-        pip install --require-hashes --no-deps -r "sites/${HUB_SITE}/apps.txt"; \
-    fi
+COPY docker/install_apps.sh /app/docker/
+RUN . /app/.venv/bin/activate && sh docker/install_apps.sh "${HUB_SITE}"
 
 COPY . /app/
 
