@@ -23,9 +23,11 @@ from django.urls import path  # noqa: E402
 
 from hub.alerts import AlertConsumer  # noqa: E402
 from hub.loader import websocket_urlpatterns  # noqa: E402
+from hub.remote import RemoteConsumer  # noqa: E402
 
 core_websocket_urlpatterns = [
     path("ws/hub/alerts/", AlertConsumer.as_asgi()),
+    path("ws/hub/remote/", RemoteConsumer.as_asgi()),
 ]
 
 application = ProtocolTypeRouter({

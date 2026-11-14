@@ -694,5 +694,6 @@
     <link rel="stylesheet" href="{% static 'hub/keyboard.css' %}">
     <script src="{% static 'hub/keyboard.js' %}"></script>
     <script src="{% static 'hub/scrollhint.js' %}"></script>
+    {% if hub_remote %}<script src="{% static 'hub/remote.js' %}"></script>{% endif %}
 </body>
 </html>
