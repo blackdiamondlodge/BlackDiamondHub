@@ -104,7 +104,10 @@ services:
     restart: unless-stopped
 
   go2rtc:
-    image: alexxit/go2rtc
+    # Upstream go2rtc + a fix so WebRTC NACKs get answered
+    # (https://github.com/blackdiamondlodge/go2rtc-nack, rebuilt daily from
+    # the newest upstream release).
+    image: ghcr.io/blackdiamondlodge/go2rtc-nack:latest
     container_name: go2rtc
     volumes:
       - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml
@@ -120,8 +123,8 @@ services:
     # Mount the Docker socket so Watchtower can manage containers
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    # Only these containers are auto-updated. go2rtc follows its upstream
-    # :latest (release) tag so the hub and go2rtc stay on current versions.
+    # Only these containers are auto-updated. go2rtc follows the go2rtc-nack
+    # :latest tag (newest upstream release + NACK fix) so the hub and go2rtc stay on current versions.
     command: ["BlackDiamondHub", "go2rtc"]
     # If your Docker registry is private, provide credentials:
     environment:

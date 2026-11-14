@@ -44,7 +44,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
    - Builds the Docker image from the Dockerfile
    - Pushes to GHCR: `ghcr.io/blackdiamondlodge/blackdiamondhub/blackdiamondhub:latest`
 3. **Watchtower** on production polls GHCR every 300s, pulls new images, and recreates the `BlackDiamondHub` and `go2rtc` containers automatically
-   - Watchtower only watches `BlackDiamondHub` and `go2rtc` (go2rtc tracks upstream `alexxit/go2rtc:latest` releases)
+   - Watchtower only watches `BlackDiamondHub` and `go2rtc` (go2rtc tracks `ghcr.io/blackdiamondlodge/go2rtc-nack:latest`, a daily rebuild of the newest upstream release with a NACK fix)
 
 ### What auto-deploys vs. what doesn't
 - **Auto-deploys** (via Watchtower): Any code change inside the Docker image — Django code, templates, static files, Python dependencies
@@ -57,8 +57,8 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
   - Requires `DJANGO_SECRET_KEY` in `.env`; `DJANGO_DEBUG` defaults to off (set `DJANGO_DEBUG=true` in a local `.env` for development).
   - `/healthz` (DB check, exempt from ALLOWED_HOSTS) backs the image's Docker `HEALTHCHECK`.
   - Rollback: images are also tagged `:sha-<commit>`; pin `image:` in compose to a previous sha and `docker compose up -d`. Watchtower does not roll back on its own, and an image rollback does not undo migrations (restore from `./backups` if needed).
-- **go2rtc** (`alexxit/go2rtc`) — RTSPS-to-WebRTC proxy on port 1984 (API/WebUI) and 8555 (WebRTC)
-- **watchtower** (`containrrr/watchtower`) — Auto-updates the Django container from GHCR and go2rtc from Docker Hub
+- **go2rtc** (`ghcr.io/blackdiamondlodge/go2rtc-nack`, upstream + NACK fix) — RTSPS-to-WebRTC proxy on port 1984 (API/WebUI) and 8555 (WebRTC)
+- **watchtower** (`containrrr/watchtower`) — Auto-updates the Django container from GHCR and go2rtc from GHCR
 
 ### go2rtc Browser URL Strategy
 - Django uses host networking, so it calls go2rtc at `GO2RTC_URL=http://localhost:1984` and registers each camera's RTSPS stream via `PUT /api/streams` (re-registering if the URL changed)
@@ -75,7 +75,7 @@ Installed from their own repos via `sites/sunpeaks/apps.txt`:
   - `POST /v1/cameras/{id}/ptz/goto/{slot}` — Move to preset (slots 0-4, 204 on success, 404 if preset doesn't exist)
   - `POST /v1/cameras/{id}/ptz/patrol/start/{slot}` — Start patrol
   - `POST /v1/cameras/{id}/ptz/patrol/stop` — Stop patrol
-- **go2rtc**: Proxies RTSPS streams to browser via WebRTC/MSE. `video-stream.js` web component (set src/mode/background as JS properties, NOT HTML attributes). Docker image: `alexxit/go2rtc`
+- **go2rtc**: Proxies RTSPS streams to browser via WebRTC/MSE. `video-stream.js` web component (set src/mode/background as JS properties, NOT HTML attributes). Docker image: `ghcr.io/blackdiamondlodge/go2rtc-nack` (upstream `alexxit/go2rtc` source + a patch so the WebRTC sender answers NACKs)
 
 ## CI/CD
 
