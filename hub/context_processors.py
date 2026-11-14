@@ -43,6 +43,13 @@ def brand(request):
     return {"hub_brand": _brand()}
 
 
+def remote(request):
+    """`hub_remote`: whether pages load the development remote control (hub/remote.py)."""
+    from .remote import enabled
+
+    return {"hub_remote": enabled()}
+
+
 def stay_key(request):
     """``hub_stay_key``: an opaque id for the stay in progress, "" when there is none.
 

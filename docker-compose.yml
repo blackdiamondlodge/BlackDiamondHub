@@ -46,6 +46,9 @@ services:
       # Owner visits: hub acts as signed in as this non-staff user (blank = off)
       HUB_OWNER_VISIT_USER: ${HUB_OWNER_VISIT_USER:-}
 
+      # Development remote control (/hub/api/remote/); blank = off. Keep unset in production.
+      HUB_REMOTE_TOKEN: ${HUB_REMOTE_TOKEN:-}
+
       # Napoleon fireplaces (Ayla cloud)
       NAPOLEON_EMAIL: ${NAPOLEON_EMAIL:-}
       NAPOLEON_PASSWORD: ${NAPOLEON_PASSWORD:-}
