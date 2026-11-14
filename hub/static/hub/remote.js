@@ -106,8 +106,9 @@
         const el = find(args)[args.index || 0];
         if (!el) throw new Error(`nothing matches ${JSON.stringify(args)}`);
         let r = el.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > innerHeight) {
-            el.scrollIntoView({ block: 'center' });
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        if (cx < 0 || cx >= innerWidth || cy < 0 || cy >= innerHeight) {
+            el.scrollIntoView({ block: 'center', inline: 'center' });
             r = el.getBoundingClientRect();
         }
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
