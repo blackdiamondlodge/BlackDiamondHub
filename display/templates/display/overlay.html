@@ -2,4 +2,16 @@
 <link rel="stylesheet" href="{% static 'display/saver.css' %}">
 {{ config|json_script:"bdh-saver-cfg" }}
 <script src="{% static 'display/saver.js' %}" defer></script>
+<script>
+(() => {
+    // Lets the screen watchdog spot a hung or blank display (no check-ins).
+    const beat = () => {
+        const body = new FormData();
+        body.append('path', location.pathname);
+        navigator.sendBeacon('{% url "display_heartbeat" %}', body);
+    };
+    beat();
+    setInterval(beat, 60 * 1000);
+})();
+</script>
 {% endif %}
