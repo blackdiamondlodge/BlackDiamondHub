@@ -14,7 +14,7 @@
 # bdh-app-weather is Mercer Island only (Sun Peaks uses its snow report), and so is
 # bdh-app-announcements (Sun Peaks has no Alexa speakers).
 
-bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.8.1/bdh_app_cameras-1.8.1-py3-none-any.whl --hash=sha256:6fd493133ca9e6499806d23c7a07cea0849bf597ba29059b80a8b2f31a35ceb5
+bdh-app-cameras @ https://github.com/blackdiamondlodge/bdh-app-cameras/releases/download/v1.8.2/bdh_app_cameras-1.8.2-py3-none-any.whl --hash=sha256:e59209bce7e69048e5e83673594235e2106e11aa2902939db5811430256cd7ef
 bdh-app-sonos-control @ https://github.com/blackdiamondlodge/bdh-app-sonos-control/releases/download/v2.5.0/bdh_app_sonos_control-2.5.0-py3-none-any.whl --hash=sha256:02be4a3c92aac24e6fb0bbc30768cd3b043e39ddc3bac920605ce2b3ede16c95
 bdh-app-wifi @ https://github.com/blackdiamondlodge/bdh-app-wifi/releases/download/v1.3.0/bdh_app_wifi-1.3.0-py3-none-any.whl --hash=sha256:088a97356790d3050a98e4c1f40681b82d0b119d7b9d765f6994e8c474aa96d5
 bdh-app-weather @ https://github.com/blackdiamondlodge/bdh-app-weather/releases/download/v1.6.1/bdh_app_weather-1.6.1-py3-none-any.whl --hash=sha256:074a34ba2aaa7ab6185742fde2c253d35d17e600c94147dbcb9ffbd91d62b5af
