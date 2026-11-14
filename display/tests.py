@@ -27,7 +27,7 @@ from hub_settings import store
 from tests.selenium_helpers import SeleniumTestCase, login_via_browser
 from . import catalog, views
 from hub_settings.models import AppSetting
-from .models import SaverPhoto, UploadLink
+from .models import Heartbeat, SaverPhoto, UploadLink
 from .options import DEFAULT_STARTS
 from .schedule import is_night, parse_hhmm
 from .season import parse_mmdd, resolve
@@ -432,6 +432,36 @@ class RotateMigrationTests(TestCase):
         mig.forwards(django_apps, None)
         self.assertEqual(AppSetting.objects.get(app_id="display", key="rotate_seconds").value, 90)
         self.assertEqual([mig.clamp(v) for v in (600, 45, 5, "x", None)], [90, 45, 15, None, None])
+
+
+class HeartbeatTests(TestCase):
+    def beat(self, ip, path="/"):
+        return Client(enforce_csrf_checks=True).post(reverse("display_heartbeat"), {"path": path},
+                                                     REMOTE_ADDR=ip, HTTP_USER_AGENT="Screen")
+
+    def clients(self):
+        return self.client.get(reverse("display_heartbeats")).json()["clients"]
+
+    def test_records_latest_per_ip(self):
+        self.assertEqual(self.beat("192.168.1.99", "/").status_code, 204)
+        self.beat("192.168.1.99", "/cameras/")
+        self.beat("192.168.1.32")
+        rows = self.clients()
+        self.assertEqual([(r["ip"], r["path"]) for r in rows], [("192.168.1.32", "/"), ("192.168.1.99", "/cameras/")])
+        self.assertEqual(rows[1]["user_agent"], "Screen")
+        self.assertLess(rows[1]["age_seconds"], 5)
+
+    def test_reports_age_and_prunes_old(self):
+        Heartbeat.objects.create(ip="192.168.1.99", last_seen=timezone.now() - timedelta(minutes=10))
+        Heartbeat.objects.create(ip="192.168.1.50", last_seen=timezone.now() - timedelta(days=8))
+        self.assertEqual([(r["ip"], r["age_seconds"] // 60) for r in self.clients()],
+                         [("192.168.1.50", 8 * 24 * 60), ("192.168.1.99", 10)])
+        self.beat("192.168.1.32")
+        self.assertEqual([r["ip"] for r in self.clients()], ["192.168.1.32", "192.168.1.99"])
+
+    def test_every_page_sends_heartbeats(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn(reverse("display_heartbeat"), html)
 
 
 class CatalogTests(TestCase):

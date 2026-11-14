@@ -6,11 +6,12 @@ from datetime import timedelta
 from bdh_sdk.plugins import BOOL
 from bdh_sdk.qr import qr_svg
 from bdh_sdk.storage import app_state
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from hub import provides
@@ -19,7 +20,7 @@ from hub_settings.views import _render, _save, staff_page
 
 from . import catalog, options
 from .library import photo_json, season_photos
-from .models import SaverPhoto, UploadLink
+from .models import Heartbeat, SaverPhoto, UploadLink
 from .photos import BadPhoto, add_photo
 from .options import APP, SEASON_IDS, SEASONS, SLOTS, SOURCES, STOCK_STYLES, value
 from .schedule import is_night, lodge_minute, parse_hhmm, window
@@ -118,6 +119,37 @@ def schedule_api(request):
         "until": value("night_until") if night else None,
         "dark": bool(night) and is_night(lodge_minute(), night["from"], night["until"]),
     })
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+HEARTBEAT_KEEP = timedelta(days=7)
+
+
+@csrf_exempt
+@require_POST
+def heartbeat(request):
+    """A hub page checking in (every page sends one a minute)."""
+    now = timezone.now()
+    Heartbeat.objects.update_or_create(
+        ip=request.META.get("REMOTE_ADDR") or "0.0.0.0",
+        defaults={"last_seen": now, "path": request.POST.get("path", "")[:200],
+                  "user_agent": request.META.get("HTTP_USER_AGENT", "")[:200]},
+    )
+    Heartbeat.objects.filter(last_seen__lt=now - HEARTBEAT_KEEP).delete()
+    return HttpResponse(status=204)
+
+
+@require_GET
+def heartbeats_api(request):
+    """Last check-in per client IP, for the screen watchdog."""
+    now = timezone.now()
+    response = JsonResponse({"clients": [
+        {"ip": h.ip, "last_seen": h.last_seen.isoformat(),
+         "age_seconds": int((now - h.last_seen).total_seconds()),
+         "path": h.path, "user_agent": h.user_agent}
+        for h in Heartbeat.objects.order_by("ip")
+    ]})
     response["Cache-Control"] = "no-store"
     return response
 

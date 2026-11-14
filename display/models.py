@@ -59,3 +59,15 @@ class UploadLink(models.Model):
 
     def seconds_left(self):
         return max(0, int((self.expires_at - timezone.now()).total_seconds()))
+
+
+class Heartbeat(models.Model):
+    """When a browser showing the hub last checked in, by client IP.
+
+    Lets a watchdog tell a hung or blank screen (no check-ins) from a working one.
+    """
+
+    ip = models.GenericIPAddressField(unique=True)
+    last_seen = models.DateTimeField()
+    path = models.CharField(max_length=200, blank=True)
+    user_agent = models.CharField(max_length=200, blank=True)
